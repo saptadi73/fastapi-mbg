@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
+from app.modules.accounting.services.accounting_service import AccountingService
 from app.modules.identity.models.user import User
 from app.modules.inventory.repositories.inventory_balance_repository import InventoryBalanceRepository
 from app.modules.inventory.schemas.stock_schema import InventoryTransactionCreate
@@ -29,6 +30,7 @@ class ProductionService:
         inventory_balance_repository: InventoryBalanceRepository,
         product_repository: ProductRepository,
         stock_service: StockService,
+        accounting_service: AccountingService | None = None,
     ) -> None:
         self.production_order_repository = production_order_repository
         self.production_material_repository = production_material_repository
@@ -36,6 +38,7 @@ class ProductionService:
         self.inventory_balance_repository = inventory_balance_repository
         self.product_repository = product_repository
         self.stock_service = stock_service
+        self.accounting_service = accounting_service
 
     async def list_production_orders(self) -> list[ProductionOrder]:
         return await self.production_order_repository.list_all()
@@ -160,6 +163,20 @@ class ProductionService:
             round(total_actual_cost / payload.accepted_portions, 6) if payload.accepted_portions > 0 else 0
         )
         meal_plan.status = "IN_PRODUCTION"
+        if self.accounting_service is not None and total_actual_cost > 0:
+            await self.accounting_service.create_and_post_operational_journal(
+                tenant_id=production_order.tenant_id,
+                entry_date=production_order.production_date,
+                reference=production_order.production_number,
+                description=f"Production journal {production_order.production_number}",
+                source_module="production",
+                source_document_type="production_order",
+                source_document_id=production_order.id,
+                debit_account_code="510000",
+                credit_account_code="130000",
+                amount=round(total_actual_cost, 6),
+                actor=actor,
+            )
 
         return {"production_order": production_order, "materials": created_materials}
 

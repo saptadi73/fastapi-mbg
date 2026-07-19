@@ -161,6 +161,8 @@ def register_openapi(app: FastAPI) -> None:
         schema["tags"] = [
             {"name": "Health", "description": "Health check service dan database."},
             {"name": "Identity", "description": "Autentikasi JWT dan profil user aktif."},
+            {"name": "Accounting", "description": "Accounts dan journal entries."},
+            {"name": "Budget", "description": "Budget allocation, approval, dan availability."},
             {"name": "Tenant", "description": "Master tenant SaaS."},
             {"name": "SPPG", "description": "Master SPPG atau dapur operasional."},
             {"name": "Geography", "description": "Master sekolah dan titik layanan."},

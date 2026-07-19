@@ -1,5 +1,10 @@
 def import_all_models() -> None:
+    import app.modules.accounting.models.account  # noqa: F401
+    import app.modules.accounting.models.journal_entry  # noqa: F401
+    import app.modules.accounting.models.journal_line  # noqa: F401
     import app.modules.beneficiary.models.beneficiary  # noqa: F401
+    import app.modules.budget.models.budget  # noqa: F401
+    import app.modules.budget.models.budget_line  # noqa: F401
     import app.modules.delivery.models.delivery_order  # noqa: F401
     import app.modules.delivery.models.delivery_proof  # noqa: F401
     import app.modules.geography.models.school  # noqa: F401
@@ -15,6 +20,9 @@ def import_all_models() -> None:
     import app.modules.procurement.models.purchase_request_line  # noqa: F401
     import app.modules.procurement.models.goods_receipt  # noqa: F401
     import app.modules.procurement.models.goods_receipt_line  # noqa: F401
+    import app.modules.procurement.models.supplier_invoice  # noqa: F401
+    import app.modules.procurement.models.supplier_invoice_line  # noqa: F401
+    import app.modules.procurement.models.supplier_payment  # noqa: F401
     import app.modules.recipe.models.recipe  # noqa: F401
     import app.modules.recipe.models.recipe_line  # noqa: F401
     import app.modules.sppg.models.sppg  # noqa: F401

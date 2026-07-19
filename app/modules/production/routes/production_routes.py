@@ -3,6 +3,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.accounting.repositories.account_repository import AccountRepository
+from app.modules.accounting.repositories.journal_entry_repository import JournalEntryRepository
+from app.modules.accounting.repositories.journal_line_repository import JournalLineRepository
+from app.modules.accounting.services.accounting_service import AccountingService
 from app.core.database.session import get_db_session
 from app.core.security.dependencies import get_current_user
 from app.core.security.permissions import require_roles
@@ -37,6 +41,12 @@ router = APIRouter()
 
 
 def get_production_service(session: AsyncSession = Depends(get_db_session)) -> ProductionService:
+    accounting_service = AccountingService(
+        AccountRepository(session),
+        JournalEntryRepository(session),
+        JournalLineRepository(session),
+        TenantRepository(session),
+    )
     meal_plan_service = MealPlanService(
         MealPlanRepository(session),
         TenantRepository(session),
@@ -63,6 +73,7 @@ def get_production_service(session: AsyncSession = Depends(get_db_session)) -> P
         InventoryBalanceRepository(session),
         ProductRepository(session),
         stock_service,
+        accounting_service,
     )
 
 

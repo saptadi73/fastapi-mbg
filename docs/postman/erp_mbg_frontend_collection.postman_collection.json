@@ -17,8 +17,14 @@
     { "key": "recipe_id", "value": "05dc03e4-ba9c-4bae-87c5-021037ff6dd0" },
     { "key": "meal_plan_id", "value": "3c955e8c-f8b6-43e1-af87-ff8543458b4a" },
     { "key": "warehouse_id", "value": "f6e55f49-f4f2-427f-bdb1-7d225f06d748" },
+    { "key": "account_id", "value": "" },
+    { "key": "account_id_2", "value": "" },
+    { "key": "journal_entry_id", "value": "" },
+    { "key": "budget_id", "value": "" },
     { "key": "purchase_request_id", "value": "" },
     { "key": "goods_receipt_id", "value": "" },
+    { "key": "supplier_invoice_id", "value": "" },
+    { "key": "supplier_payment_id", "value": "" },
     { "key": "production_order_id", "value": "" },
     { "key": "delivery_order_id", "value": "" }
   ],
@@ -185,7 +191,8 @@
               "script": {
                 "exec": [
                   "const payload = pm.response.json();",
-                  "if (payload?.data?.purchase_request?.id) pm.collectionVariables.set('purchase_request_id', payload.data.purchase_request.id);"
+                  "if (payload?.data?.purchase_request?.id) pm.collectionVariables.set('purchase_request_id', payload.data.purchase_request.id);",
+                  "// Jika budget aktif tersedia untuk account 510000, reserved_amount dapat bertambah setelah request ini."
                 ],
                 "type": "text/javascript"
               }
@@ -224,6 +231,64 @@
               "raw": "{\n  \"warehouse_id\": \"{{warehouse_id}}\",\n  \"receipt_date\": \"2026-07-19\",\n  \"notes\": \"Received from supplier\"\n}"
             },
             "url": "{{base_url}}/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{{purchase_request_id}}"
+          }
+        },
+        { "name": "List Supplier Invoices", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/procurement/purchase-requests/supplier-invoices/" } },
+        { "name": "Get Supplier Invoice Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/procurement/purchase-requests/supplier-invoices/{{supplier_invoice_id}}" } },
+        {
+          "name": "Create Supplier Invoice From Goods Receipt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.supplier_invoice?.id) pm.collectionVariables.set('supplier_invoice_id', payload.data.supplier_invoice.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_date\": \"2026-07-19\",\n  \"due_date\": \"2026-07-26\",\n  \"budget_account_id\": \"{{account_id}}\",\n  \"notes\": \"Invoice supplier posted\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/procurement/purchase-requests/supplier-invoices/from-goods-receipt/{{goods_receipt_id}}"
+          }
+        },
+        { "name": "List Supplier Payments", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/procurement/purchase-requests/supplier-payments/" } },
+        { "name": "Get Supplier Payment Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/procurement/purchase-requests/supplier-payments/{{supplier_payment_id}}" } },
+        {
+          "name": "Create Supplier Payment From Supplier Invoice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.supplier_payment?.id) pm.collectionVariables.set('supplier_payment_id', payload.data.supplier_payment.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_date\": \"2026-07-19\",\n  \"bank_account_id\": \"{{account_id_2}}\",\n  \"notes\": \"Supplier payment posted\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/procurement/purchase-requests/supplier-payments/from-supplier-invoice/{{supplier_invoice_id}}"
           }
         }
       ]
@@ -318,6 +383,154 @@
             "url": "{{base_url}}/api/v1/delivery-orders/{{delivery_order_id}}/proof"
           }
         }
+      ]
+    },
+    {
+      "name": "Accounting",
+      "item": [
+        { "name": "List Accounts", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/accounts" } },
+        {
+          "name": "Create Account 130000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.id) pm.collectionVariables.set('account_id', payload.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"code\": \"130000\",\n  \"name\": \"Persediaan Bahan\",\n  \"category\": \"ASSET\",\n  \"normal_balance\": \"DEBIT\",\n  \"allow_posting\": true,\n  \"is_active\": true\n}"
+            },
+            "url": "{{base_url}}/api/v1/accounts"
+          }
+        },
+        {
+          "name": "Create Account 240000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.id) pm.collectionVariables.set('account_id_2', payload.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"code\": \"240000\",\n  \"name\": \"Barang Diterima Belum Ditagih\",\n  \"category\": \"LIABILITY\",\n  \"normal_balance\": \"CREDIT\",\n  \"allow_posting\": true,\n  \"is_active\": true\n}"
+            },
+            "url": "{{base_url}}/api/v1/accounts"
+          }
+        },
+        { "name": "List Journal Entries", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/journal-entries" } },
+        {
+          "name": "Create Journal Entry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.journal_entry?.id) pm.collectionVariables.set('journal_entry_id', payload.data.journal_entry.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"entry_date\": \"2026-07-19\",\n  \"reference\": \"MANUAL-JE-001\",\n  \"description\": \"Jurnal koreksi manual\",\n  \"source_module\": \"accounting\",\n  \"source_document_type\": \"manual_adjustment\",\n  \"source_document_id\": null,\n  \"lines\": [\n    {\n      \"account_id\": \"{{account_id}}\",\n      \"line_type\": \"DEBIT\",\n      \"amount\": 500000,\n      \"description\": \"Debit line\"\n    },\n    {\n      \"account_id\": \"{{account_id_2}}\",\n      \"line_type\": \"CREDIT\",\n      \"amount\": 500000,\n      \"description\": \"Credit line\"\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/v1/journal-entries"
+          }
+        },
+        { "name": "Get Journal Entry Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/journal-entries/{{journal_entry_id}}" } },
+        {
+          "name": "Post Journal Entry",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/journal-entries/{{journal_entry_id}}/post"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Budget",
+      "item": [
+        { "name": "List Budgets", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/budgets" } },
+        {
+          "name": "Create Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.budget?.id) pm.collectionVariables.set('budget_id', payload.data.budget.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"name\": \"Budget Operasional Juli 2026\",\n  \"date_start\": \"2026-07-01\",\n  \"date_end\": \"2026-07-31\",\n  \"version_number\": 1,\n  \"notes\": \"Budget awal Juli\",\n  \"lines\": [\n    {\n      \"category_name\": \"BAHAN_BAKU\",\n      \"account_id\": \"{{account_id}}\",\n      \"planned_amount\": 25000000,\n      \"revised_amount\": null,\n      \"control_mode\": \"WARNING\",\n      \"tolerance_percentage\": 0,\n      \"notes\": \"Bahan baku utama\"\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/v1/budgets"
+          }
+        },
+        { "name": "Get Budget Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/budgets/{{budget_id}}" } },
+        {
+          "name": "Submit Budget",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/submit"
+          }
+        },
+        {
+          "name": "Approve Budget",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/approve"
+          }
+        },
+        { "name": "Get Budget Availability", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/availability" } }
       ]
     }
   ]

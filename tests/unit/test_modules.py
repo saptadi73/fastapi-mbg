@@ -268,6 +268,38 @@ def test_create_purchase_request_from_meal_plan_shortage_works() -> None:
         tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
         sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
         recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        probe_meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-21",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100,
+                "budget_cost_per_portion": 15000,
+                "notes": "Shortage probe",
+            },
+        )
+        assert probe_meal_plan.status_code == 201
+        probe_meal_plan_id = probe_meal_plan.json()["data"]["id"]
+        requirement_resp = client.post(
+            f"/api/v1/meal-plans/{probe_meal_plan_id}/calculate-requirements",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert requirement_resp.status_code == 200
+        requirement_line = requirement_resp.json()["data"][0]
+        component_product_id = requirement_line["component_product_id"]
+        gross_quantity_for_100 = float(requirement_line["gross_quantity"])
+        balances = client.get("/api/v1/inventory/balances/").json()["data"]
+        available_stock = sum(
+            balance["quantity_available"]
+            for balance in balances
+            if balance["product_id"] == component_product_id and balance["sppg_id"] == sppg_id
+        )
+        planned_portions = int(((available_stock + gross_quantity_for_100) / gross_quantity_for_100) * 100) + 100
         create_meal_plan_response = client.post(
             "/api/v1/meal-plans/",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -278,7 +310,7 @@ def test_create_purchase_request_from_meal_plan_shortage_works() -> None:
                 "plan_date": "2026-07-22",
                 "meal_type": "LUNCH",
                 "status": "DRAFT",
-                "planned_portions": 5000,
+                "planned_portions": planned_portions,
                 "budget_cost_per_portion": 15000,
                 "notes": "Shortage PR test",
             },
@@ -305,9 +337,61 @@ def test_create_goods_receipt_from_purchase_request_posts_inventory() -> None:
         )
         access_token = login_response.json()["data"]["access_token"]
         tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_codes = {a["code"] for a in accounts}
+        needed = [
+            ("130000", "Persediaan Bahan", "ASSET", "DEBIT"),
+            ("240000", "Barang Diterima Belum Ditagih", "LIABILITY", "CREDIT"),
+        ]
+        for code, name, category, normal_balance in needed:
+            if code not in account_codes:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201
         sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
         recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
         warehouse_id = client.get("/api/v1/inventory/warehouses/").json()["data"][0]["id"]
+        probe_meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-22",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100,
+                "budget_cost_per_portion": 15000,
+                "notes": "Goods receipt probe",
+            },
+        )
+        assert probe_meal_plan.status_code == 201
+        probe_meal_plan_id = probe_meal_plan.json()["data"]["id"]
+        requirement_resp = client.post(
+            f"/api/v1/meal-plans/{probe_meal_plan_id}/calculate-requirements",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert requirement_resp.status_code == 200
+        requirement_line = requirement_resp.json()["data"][0]
+        component_product_id = requirement_line["component_product_id"]
+        gross_quantity_for_100 = float(requirement_line["gross_quantity"])
+        balances = client.get("/api/v1/inventory/balances/").json()["data"]
+        available_stock = sum(
+            balance["quantity_available"]
+            for balance in balances
+            if balance["product_id"] == component_product_id and balance["sppg_id"] == sppg_id
+        )
+        planned_portions = int(((available_stock + gross_quantity_for_100) / gross_quantity_for_100) * 100) + 100
         create_meal_plan_response = client.post(
             "/api/v1/meal-plans/",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -318,7 +402,7 @@ def test_create_goods_receipt_from_purchase_request_posts_inventory() -> None:
                 "plan_date": "2026-07-23",
                 "meal_type": "LUNCH",
                 "status": "DRAFT",
-                "planned_portions": 1200,
+                "planned_portions": planned_portions,
                 "budget_cost_per_portion": 15000,
                 "notes": "Goods receipt test",
             },
@@ -328,6 +412,7 @@ def test_create_goods_receipt_from_purchase_request_posts_inventory() -> None:
             f"/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}",
             headers={"Authorization": f"Bearer {access_token}"},
         )
+        assert purchase_request_response.status_code == 201, purchase_request_response.json()
         purchase_request_id = purchase_request_response.json()["data"]["purchase_request"]["id"]
         transaction_count_before = len(client.get("/api/v1/inventory/transactions/").json()["data"])
 
@@ -350,6 +435,257 @@ def test_create_goods_receipt_from_purchase_request_posts_inventory() -> None:
     assert transaction_count_after > transaction_count_before
 
 
+def test_create_purchase_request_reserves_budget_amount() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {a["code"]: a for a in accounts}
+        if "510000" not in account_by_code:
+            resp = client.post(
+                "/api/v1/accounts",
+                headers={"Authorization": f"Bearer {access_token}"},
+                json={
+                    "tenant_id": tenant_id,
+                    "code": "510000",
+                    "name": "Biaya Bahan",
+                    "category": "COST_OF_SERVICE",
+                    "normal_balance": "DEBIT",
+                },
+            )
+            assert resp.status_code == 201
+            accounts = client.get("/api/v1/accounts").json()["data"]
+            account_by_code = {a["code"]: a for a in accounts}
+        material_expense_account_id = account_by_code["510000"]["id"]
+
+        budget_resp = client.post(
+            "/api/v1/budgets",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "name": "Budget Reservation Test",
+                "date_start": "2026-07-01",
+                "date_end": "2026-07-31",
+                "version_number": 1,
+                "notes": "Budget reserve from purchase request",
+                "lines": [
+                    {
+                        "category_name": "BAHAN_BAKU",
+                        "account_id": material_expense_account_id,
+                        "planned_amount": 100000000,
+                        "control_mode": "WARNING",
+                        "tolerance_percentage": 0,
+                    }
+                ],
+            },
+        )
+        assert budget_resp.status_code == 201
+        budget_id = budget_resp.json()["data"]["budget"]["id"]
+        submit_resp = client.post(
+            f"/api/v1/budgets/{budget_id}/submit",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert submit_resp.status_code == 200
+        approve_resp = client.post(
+            f"/api/v1/budgets/{budget_id}/approve",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert approve_resp.status_code == 200
+
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        probe_meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-27",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100,
+                "budget_cost_per_portion": 15000,
+                "notes": "Budget reservation probe",
+            },
+        )
+        assert probe_meal_plan.status_code == 201
+        probe_meal_plan_id = probe_meal_plan.json()["data"]["id"]
+        requirement_resp = client.post(
+            f"/api/v1/meal-plans/{probe_meal_plan_id}/calculate-requirements",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert requirement_resp.status_code == 200
+        requirement_line = requirement_resp.json()["data"][0]
+        component_product_id = requirement_line["component_product_id"]
+        gross_quantity_for_100 = float(requirement_line["gross_quantity"])
+        balances = client.get("/api/v1/inventory/balances/").json()["data"]
+        available_stock = sum(
+            balance["quantity_available"]
+            for balance in balances
+            if balance["product_id"] == component_product_id and balance["sppg_id"] == sppg_id
+        )
+        planned_portions = int(((available_stock + gross_quantity_for_100) / gross_quantity_for_100) * 100) + 100
+        meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-28",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": planned_portions,
+                "budget_cost_per_portion": 15000,
+                "notes": "Budget reservation flow test",
+            },
+        )
+        assert meal_plan.status_code == 201
+        meal_plan_id = meal_plan.json()["data"]["id"]
+        pr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        availability_resp = client.get(f"/api/v1/budgets/{budget_id}/availability")
+
+    assert pr_resp.status_code == 201, pr_resp.json()
+    assert availability_resp.status_code == 200
+    assert availability_resp.json()["data"]["lines"][0]["reserved_amount"] > 0
+
+
+def test_goods_receipt_moves_budget_from_reserved_to_committed() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {a["code"]: a for a in accounts}
+        needed = [
+            ("130000", "Persediaan Bahan", "ASSET", "DEBIT"),
+            ("240000", "Barang Diterima Belum Ditagih", "LIABILITY", "CREDIT"),
+            ("510000", "Biaya Bahan", "COST_OF_SERVICE", "DEBIT"),
+        ]
+        for code, name, category, normal_balance in needed:
+            if code not in account_by_code:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {a["code"]: a for a in accounts}
+        material_expense_account_id = account_by_code["510000"]["id"]
+
+        budget_resp = client.post(
+            "/api/v1/budgets",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "name": "Budget Commitment Test",
+                "date_start": "2026-07-01",
+                "date_end": "2026-07-31",
+                "version_number": 1,
+                "notes": "Budget commitment from goods receipt",
+                "lines": [
+                    {
+                        "category_name": "BAHAN_BAKU",
+                        "account_id": material_expense_account_id,
+                        "planned_amount": 100000000,
+                        "control_mode": "WARNING",
+                        "tolerance_percentage": 0,
+                    }
+                ],
+            },
+        )
+        assert budget_resp.status_code == 201
+        budget_id = budget_resp.json()["data"]["budget"]["id"]
+        client.post(f"/api/v1/budgets/{budget_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/budgets/{budget_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        warehouse_id = client.get("/api/v1/inventory/warehouses/").json()["data"][0]["id"]
+        probe_meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-27",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100,
+                "budget_cost_per_portion": 15000,
+                "notes": "Budget commitment probe",
+            },
+        )
+        probe_meal_plan_id = probe_meal_plan.json()["data"]["id"]
+        requirement_resp = client.post(
+            f"/api/v1/meal-plans/{probe_meal_plan_id}/calculate-requirements",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        requirement_line = requirement_resp.json()["data"][0]
+        component_product_id = requirement_line["component_product_id"]
+        gross_quantity_for_100 = float(requirement_line["gross_quantity"])
+        balances = client.get("/api/v1/inventory/balances/").json()["data"]
+        available_stock = sum(
+            balance["quantity_available"]
+            for balance in balances
+            if balance["product_id"] == component_product_id and balance["sppg_id"] == sppg_id
+        )
+        planned_portions = int(((available_stock + gross_quantity_for_100) / gross_quantity_for_100) * 100) + 100
+        meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-28",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": planned_portions,
+                "budget_cost_per_portion": 15000,
+                "notes": "Budget commitment flow test",
+            },
+        )
+        meal_plan_id = meal_plan.json()["data"]["id"]
+        pr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert pr_resp.status_code == 201, pr_resp.json()
+        purchase_request_id = pr_resp.json()["data"]["purchase_request"]["id"]
+        availability_after_pr = client.get(f"/api/v1/budgets/{budget_id}/availability").json()["data"]["lines"][0]
+        gr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"warehouse_id": warehouse_id, "receipt_date": "2026-07-19", "notes": "Budget commitment GR"},
+        )
+        availability_after_gr = client.get(f"/api/v1/budgets/{budget_id}/availability").json()["data"]["lines"][0]
+
+    assert gr_resp.status_code == 201, gr_resp.json()
+    assert availability_after_pr["reserved_amount"] > 0
+    assert availability_after_gr["reserved_amount"] < availability_after_pr["reserved_amount"]
+    assert availability_after_gr["committed_amount"] > 0
+
+
 def test_create_and_complete_production_order_flow_works() -> None:
     with TestClient(app) as client:
         login_response = client.post(
@@ -358,6 +694,26 @@ def test_create_and_complete_production_order_flow_works() -> None:
         )
         access_token = login_response.json()["data"]["access_token"]
         tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_codes = {a["code"] for a in accounts}
+        needed = [
+            ("130000", "Persediaan Bahan", "ASSET", "DEBIT"),
+            ("510000", "Biaya Bahan", "COST_OF_SERVICE", "DEBIT"),
+        ]
+        for code, name, category, normal_balance in needed:
+            if code not in account_codes:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201
         sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
         recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
 
@@ -409,6 +765,619 @@ def test_create_and_complete_production_order_flow_works() -> None:
 
     assert cost_sheet_response.status_code == 200
     assert cost_sheet_response.json()["code"] == "PRODUCTION_COST_SHEET_FOUND"
+
+
+def test_accounting_account_and_journal_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        if len(accounts) < 2:
+            create_account_1 = client.post(
+                "/api/v1/accounts",
+                headers={"Authorization": f"Bearer {access_token}"},
+                json={
+                    "tenant_id": tenant_id,
+                    "code": "110000",
+                    "name": "Kas dan Bank",
+                    "category": "ASSET",
+                    "normal_balance": "DEBIT",
+                    "allow_posting": True,
+                    "is_active": True,
+                },
+            )
+            assert create_account_1.status_code == 201
+            create_account_2 = client.post(
+                "/api/v1/accounts",
+                headers={"Authorization": f"Bearer {access_token}"},
+                json={
+                    "tenant_id": tenant_id,
+                    "code": "510000",
+                    "name": "Biaya Bahan",
+                    "category": "COST_OF_SERVICE",
+                    "normal_balance": "DEBIT",
+                    "allow_posting": True,
+                    "is_active": True,
+                },
+            )
+            assert create_account_2.status_code == 201
+            accounts = client.get("/api/v1/accounts").json()["data"]
+        assert len(accounts) >= 2
+        response = client.post(
+            "/api/v1/journal-entries",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "entry_date": "2026-07-19",
+                "reference": "TEST-JE-01",
+                "description": "Jurnal test",
+                "source_module": "manual",
+                "source_document_type": "manual_entry",
+                "source_document_id": None,
+                "lines": [
+                    {"account_id": accounts[0]["id"], "line_type": "DEBIT", "amount": 100000, "description": "Debit"},
+                    {"account_id": accounts[1]["id"], "line_type": "CREDIT", "amount": 100000, "description": "Credit"}
+                ]
+            },
+        )
+        assert response.status_code == 201
+        journal_entry_id = response.json()["data"]["journal_entry"]["id"]
+        post_response = client.post(
+            f"/api/v1/journal-entries/{journal_entry_id}/post",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    assert post_response.status_code == 200
+    assert post_response.json()["data"]["journal_entry"]["status"] == "POSTED"
+
+
+def test_goods_receipt_creates_posted_inventory_journal() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_codes = {a["code"] for a in accounts}
+        needed = [
+            ("130000", "Persediaan Bahan", "ASSET", "DEBIT"),
+            ("240000", "Barang Diterima Belum Ditagih", "LIABILITY", "CREDIT"),
+        ]
+        for code, name, category, normal_balance in needed:
+            if code not in account_codes:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        warehouse_id = client.get("/api/v1/inventory/warehouses/").json()["data"][0]["id"]
+        probe_meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-25",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100,
+                "budget_cost_per_portion": 15000,
+                "notes": "Journal goods receipt probe",
+            },
+        )
+        assert probe_meal_plan.status_code == 201
+        probe_meal_plan_id = probe_meal_plan.json()["data"]["id"]
+        requirement_resp = client.post(
+            f"/api/v1/meal-plans/{probe_meal_plan_id}/calculate-requirements",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert requirement_resp.status_code == 200
+        requirement_line = requirement_resp.json()["data"][0]
+        component_product_id = requirement_line["component_product_id"]
+        gross_quantity_for_100 = float(requirement_line["gross_quantity"])
+        balances = client.get("/api/v1/inventory/balances/").json()["data"]
+        available_stock = sum(
+            balance["quantity_available"]
+            for balance in balances
+            if balance["product_id"] == component_product_id and balance["sppg_id"] == sppg_id
+        )
+        planned_portions = int(((available_stock + gross_quantity_for_100) / gross_quantity_for_100) * 100) + 100
+        meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-26",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": planned_portions,
+                "budget_cost_per_portion": 15000,
+                "notes": "Journal goods receipt test",
+            },
+        )
+        meal_plan_id = meal_plan.json()["data"]["id"]
+        pr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        purchase_request_id = pr_resp.json()["data"]["purchase_request"]["id"]
+        je_before = len(client.get("/api/v1/journal-entries").json()["data"])
+        gr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"warehouse_id": warehouse_id, "receipt_date": "2026-07-19", "notes": "GR journal"},
+        )
+        je_after = len(client.get("/api/v1/journal-entries").json()["data"])
+
+    assert gr_resp.status_code == 201
+    assert je_after > je_before
+
+
+def test_create_supplier_invoice_posts_payable_and_actualizes_budget() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {a["code"]: a for a in accounts}
+        needed = [
+            ("130000", "Persediaan Bahan", "ASSET", "DEBIT"),
+            ("210000", "Hutang Supplier", "LIABILITY", "CREDIT"),
+            ("240000", "Barang Diterima Belum Ditagih", "LIABILITY", "CREDIT"),
+            ("510000", "Biaya Bahan", "COST_OF_SERVICE", "DEBIT"),
+        ]
+        for code, name, category, normal_balance in needed:
+            if code not in account_by_code:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {a["code"]: a for a in accounts}
+        material_expense_account_id = account_by_code["510000"]["id"]
+
+        budget_resp = client.post(
+            "/api/v1/budgets",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "name": "Budget Invoice Actual Test",
+                "date_start": "2026-07-01",
+                "date_end": "2026-07-31",
+                "version_number": 1,
+                "notes": "Budget actualization from supplier invoice",
+                "lines": [
+                    {
+                        "category_name": "BAHAN_BAKU",
+                        "account_id": material_expense_account_id,
+                        "planned_amount": 100000000,
+                        "control_mode": "WARNING",
+                        "tolerance_percentage": 0,
+                    }
+                ],
+            },
+        )
+        assert budget_resp.status_code == 201
+        budget_id = budget_resp.json()["data"]["budget"]["id"]
+        submit_resp = client.post(
+            f"/api/v1/budgets/{budget_id}/submit",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert submit_resp.status_code == 200
+        approve_resp = client.post(
+            f"/api/v1/budgets/{budget_id}/approve",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert approve_resp.status_code == 200
+
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        warehouse_id = client.get("/api/v1/inventory/warehouses/").json()["data"][0]["id"]
+        probe_meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-27",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100,
+                "budget_cost_per_portion": 15000,
+                "notes": "Supplier invoice probe",
+            },
+        )
+        assert probe_meal_plan.status_code == 201
+        probe_meal_plan_id = probe_meal_plan.json()["data"]["id"]
+        requirement_resp = client.post(
+            f"/api/v1/meal-plans/{probe_meal_plan_id}/calculate-requirements",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert requirement_resp.status_code == 200
+        requirement_line = requirement_resp.json()["data"][0]
+        component_product_id = requirement_line["component_product_id"]
+        gross_quantity_for_100 = float(requirement_line["gross_quantity"])
+        balances = client.get("/api/v1/inventory/balances/").json()["data"]
+        available_stock = sum(
+            balance["quantity_available"]
+            for balance in balances
+            if balance["product_id"] == component_product_id and balance["sppg_id"] == sppg_id
+        )
+        planned_portions = int(((available_stock + gross_quantity_for_100) / gross_quantity_for_100) * 100) + 100
+
+        meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-28",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": planned_portions,
+                "budget_cost_per_portion": 15000,
+                "notes": "Supplier invoice flow test",
+            },
+        )
+        assert meal_plan.status_code == 201
+        meal_plan_id = meal_plan.json()["data"]["id"]
+        pr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert pr_resp.status_code == 201, pr_resp.json()
+        purchase_request_id = pr_resp.json()["data"]["purchase_request"]["id"]
+        gr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "warehouse_id": warehouse_id,
+                "receipt_date": "2026-07-19",
+                "notes": "GR for supplier invoice",
+            },
+        )
+        assert gr_resp.status_code == 201
+        goods_receipt_id = gr_resp.json()["data"]["goods_receipt"]["id"]
+
+        je_before = len(client.get("/api/v1/journal-entries").json()["data"])
+        invoice_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/supplier-invoices/from-goods-receipt/{goods_receipt_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "invoice_date": "2026-07-19",
+                "due_date": "2026-07-26",
+                "budget_account_id": material_expense_account_id,
+                "notes": "Invoice supplier posted",
+            },
+        )
+        je_after = len(client.get("/api/v1/journal-entries").json()["data"])
+        availability_resp = client.get(f"/api/v1/budgets/{budget_id}/availability")
+
+    assert invoice_resp.status_code == 201, invoice_resp.json()
+    assert invoice_resp.json()["code"] == "SUPPLIER_INVOICE_CREATED"
+    assert len(invoice_resp.json()["data"]["lines"]) > 0
+    assert je_after > je_before
+    assert availability_resp.status_code == 200
+    assert availability_resp.json()["data"]["lines"][0]["committed_amount"] == 0
+    assert availability_resp.json()["data"]["lines"][0]["actual_amount"] > 0
+
+
+def test_create_supplier_payment_posts_cash_journal_and_marks_invoice_paid() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {a["code"]: a for a in accounts}
+        needed = [
+            ("110000", "Kas dan Bank", "ASSET", "DEBIT"),
+            ("130000", "Persediaan Bahan", "ASSET", "DEBIT"),
+            ("210000", "Hutang Supplier", "LIABILITY", "CREDIT"),
+            ("240000", "Barang Diterima Belum Ditagih", "LIABILITY", "CREDIT"),
+            ("510000", "Biaya Bahan", "COST_OF_SERVICE", "DEBIT"),
+        ]
+        for code, name, category, normal_balance in needed:
+            if code not in account_by_code:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {a["code"]: a for a in accounts}
+        material_expense_account_id = account_by_code["510000"]["id"]
+        cash_bank_account_id = account_by_code["110000"]["id"]
+
+        budget_resp = client.post(
+            "/api/v1/budgets",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "name": "Budget Payment Test",
+                "date_start": "2026-07-01",
+                "date_end": "2026-07-31",
+                "version_number": 1,
+                "notes": "Budget payment flow",
+                "lines": [
+                    {
+                        "category_name": "BAHAN_BAKU",
+                        "account_id": material_expense_account_id,
+                        "planned_amount": 100000000,
+                        "control_mode": "WARNING",
+                        "tolerance_percentage": 0,
+                    }
+                ],
+            },
+        )
+        assert budget_resp.status_code == 201
+        budget_id = budget_resp.json()["data"]["budget"]["id"]
+        client.post(f"/api/v1/budgets/{budget_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/budgets/{budget_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        warehouse_id = client.get("/api/v1/inventory/warehouses/").json()["data"][0]["id"]
+        probe_meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-27",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100,
+                "budget_cost_per_portion": 15000,
+                "notes": "Payment probe",
+            },
+        )
+        probe_meal_plan_id = probe_meal_plan.json()["data"]["id"]
+        requirement_resp = client.post(
+            f"/api/v1/meal-plans/{probe_meal_plan_id}/calculate-requirements",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        requirement_line = requirement_resp.json()["data"][0]
+        component_product_id = requirement_line["component_product_id"]
+        gross_quantity_for_100 = float(requirement_line["gross_quantity"])
+        balances = client.get("/api/v1/inventory/balances/").json()["data"]
+        available_stock = sum(
+            balance["quantity_available"]
+            for balance in balances
+            if balance["product_id"] == component_product_id and balance["sppg_id"] == sppg_id
+        )
+        planned_portions = int(((available_stock + gross_quantity_for_100) / gross_quantity_for_100) * 100) + 100
+        meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-28",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": planned_portions,
+                "budget_cost_per_portion": 15000,
+                "notes": "Payment flow test",
+            },
+        )
+        meal_plan_id = meal_plan.json()["data"]["id"]
+        pr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        purchase_request_id = pr_resp.json()["data"]["purchase_request"]["id"]
+        gr_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"warehouse_id": warehouse_id, "receipt_date": "2026-07-19", "notes": "Payment GR"},
+        )
+        goods_receipt_id = gr_resp.json()["data"]["goods_receipt"]["id"]
+        inv_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/supplier-invoices/from-goods-receipt/{goods_receipt_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "invoice_date": "2026-07-19",
+                "due_date": "2026-07-26",
+                "budget_account_id": material_expense_account_id,
+                "notes": "Payment invoice",
+            },
+        )
+        supplier_invoice_id = inv_resp.json()["data"]["supplier_invoice"]["id"]
+        je_before = len(client.get("/api/v1/journal-entries").json()["data"])
+        payment_resp = client.post(
+            f"/api/v1/procurement/purchase-requests/supplier-payments/from-supplier-invoice/{supplier_invoice_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "payment_date": "2026-07-19",
+                "bank_account_id": cash_bank_account_id,
+                "notes": "Supplier payment posted",
+            },
+        )
+        je_after = len(client.get("/api/v1/journal-entries").json()["data"])
+        invoice_detail_resp = client.get(
+            f"/api/v1/procurement/purchase-requests/supplier-invoices/{supplier_invoice_id}"
+        )
+
+    assert payment_resp.status_code == 201, payment_resp.json()
+    assert payment_resp.json()["code"] == "SUPPLIER_PAYMENT_CREATED"
+    assert je_after > je_before
+    assert invoice_detail_resp.status_code == 200
+    assert invoice_detail_resp.json()["data"]["supplier_invoice"]["status"] == "PAID"
+
+
+def test_production_complete_creates_posted_production_journal() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_codes = {a["code"] for a in accounts}
+        needed = [
+            ("130000", "Persediaan Bahan", "ASSET", "DEBIT"),
+            ("510000", "Biaya Bahan", "COST_OF_SERVICE", "DEBIT"),
+        ]
+        for code, name, category, normal_balance in needed:
+            if code not in account_codes:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-27",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 8,
+                "budget_cost_per_portion": 15000,
+                "notes": "Production journal test",
+            },
+        )
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+        reserve_response = client.post(f"/api/v1/meal-plans/{meal_plan_id}/reserve-materials", headers={"Authorization": f"Bearer {access_token}"})
+        assert reserve_response.status_code == 200
+        create_po = client.post(
+            f"/api/v1/production-orders/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        production_order_id = create_po.json()["data"]["production_order"]["id"]
+        je_before = len(client.get("/api/v1/journal-entries").json()["data"])
+        complete_resp = client.post(
+            f"/api/v1/production-orders/{production_order_id}/complete",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"actual_portions": 8, "accepted_portions": 8, "rejected_portions": 0},
+        )
+        je_after = len(client.get("/api/v1/journal-entries").json()["data"])
+
+    assert complete_resp.status_code == 200
+    assert je_after > je_before
+
+
+def test_budget_create_submit_approve_and_availability_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        if not accounts:
+            create_account = client.post(
+                "/api/v1/accounts",
+                headers={"Authorization": f"Bearer {access_token}"},
+                json={
+                    "tenant_id": tenant_id,
+                    "code": "520000",
+                    "name": "Biaya Operasional",
+                    "category": "EXPENSE",
+                    "normal_balance": "DEBIT",
+                    "allow_posting": True,
+                    "is_active": True,
+                },
+            )
+            assert create_account.status_code == 201
+            accounts = client.get("/api/v1/accounts").json()["data"]
+        account_id = accounts[0]["id"]
+        create_response = client.post(
+            "/api/v1/budgets",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "name": "Budget Test",
+                "date_start": "2026-07-01",
+                "date_end": "2026-07-31",
+                "version_number": 1,
+                "notes": "Budget test",
+                "lines": [
+                    {
+                        "category_name": "OPERASIONAL",
+                        "account_id": account_id,
+                        "planned_amount": 1000000,
+                        "control_mode": "WARNING",
+                        "tolerance_percentage": 0
+                    }
+                ]
+            },
+        )
+        assert create_response.status_code == 201
+        budget_id = create_response.json()["data"]["budget"]["id"]
+        submit_response = client.post(
+            f"/api/v1/budgets/{budget_id}/submit",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert submit_response.status_code == 200
+        approve_response = client.post(
+            f"/api/v1/budgets/{budget_id}/approve",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert approve_response.status_code == 200
+        availability_response = client.get(f"/api/v1/budgets/{budget_id}/availability")
+
+    assert availability_response.status_code == 200
+    assert availability_response.json()["code"] == "BUDGET_AVAILABILITY_FOUND"
 
 
 def test_create_delivery_order_and_record_proof_flow_works() -> None:

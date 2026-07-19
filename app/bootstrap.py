@@ -6,7 +6,9 @@ from fastapi import FastAPI
 from app.core.config.settings import Settings, get_settings
 from app.core.database.session import close_database, initialize_database
 from app.core.tenancy.middleware import TenantContextMiddleware
+from app.modules.accounting.manifest import manifest as accounting_manifest
 from app.modules.beneficiary.manifest import manifest as beneficiary_manifest
+from app.modules.budget.manifest import manifest as budget_manifest
 from app.modules.delivery.manifest import manifest as delivery_manifest
 from app.modules.geography.manifest import manifest as geography_manifest
 from app.modules.health.manifest import manifest as health_manifest
@@ -32,6 +34,8 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
     return (
         health_manifest,
         identity_manifest,
+        accounting_manifest,
+        budget_manifest,
         tenant_manifest,
         sppg_manifest,
         geography_manifest,

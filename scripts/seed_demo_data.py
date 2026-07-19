@@ -25,6 +25,16 @@ from app.modules.geography.services.school_service import SchoolService
 from app.modules.beneficiary.repositories.beneficiary_repository import BeneficiaryRepository
 from app.modules.beneficiary.schemas.beneficiary_schema import BeneficiaryCreate
 from app.modules.beneficiary.services.beneficiary_service import BeneficiaryService
+from app.modules.accounting.repositories.account_repository import AccountRepository
+from app.modules.accounting.repositories.journal_entry_repository import JournalEntryRepository
+from app.modules.accounting.repositories.journal_line_repository import JournalLineRepository
+from app.modules.accounting.schemas.accounting_schema import AccountCreate, JournalEntryCreate
+from app.modules.accounting.schemas.accounting_schema import JournalLineCreate
+from app.modules.accounting.services.accounting_service import AccountingService
+from app.modules.budget.repositories.budget_line_repository import BudgetLineRepository
+from app.modules.budget.repositories.budget_repository import BudgetRepository
+from app.modules.budget.schemas.budget_schema import BudgetCreate, BudgetLineCreate
+from app.modules.budget.services.budget_service import BudgetService
 from app.modules.product.repositories.product_repository import ProductRepository
 from app.modules.product.schemas.product_schema import ProductCreate
 from app.modules.product.services.product_service import ProductService
@@ -353,6 +363,87 @@ async def main() -> None:
                 print(f"Inventory transaction dibuat: {transaction.id}")
             else:
                 print(f"Inventory transaction sudah ada: {transactions[0].id}")
+
+            accounting_service = AccountingService(
+                AccountRepository(session),
+                JournalEntryRepository(session),
+                JournalLineRepository(session),
+                TenantRepository(session),
+            )
+            accounts = await accounting_service.list_accounts()
+            if not accounts:
+                cash_account = await accounting_service.create_account(
+                    AccountCreate(
+                        tenant_id=str(tenant.id),
+                        code="110000",
+                        name="Kas dan Bank",
+                        category="ASSET",
+                        normal_balance="DEBIT",
+                    )
+                )
+                expense_account = await accounting_service.create_account(
+                    AccountCreate(
+                        tenant_id=str(tenant.id),
+                        code="510000",
+                        name="Biaya Bahan",
+                        category="COST_OF_SERVICE",
+                        normal_balance="DEBIT",
+                    )
+                )
+                inventory_account = await accounting_service.create_account(
+                    AccountCreate(
+                        tenant_id=str(tenant.id),
+                        code="130000",
+                        name="Persediaan Bahan",
+                        category="ASSET",
+                        normal_balance="DEBIT",
+                    )
+                )
+                grni_account = await accounting_service.create_account(
+                    AccountCreate(
+                        tenant_id=str(tenant.id),
+                        code="240000",
+                        name="Barang Diterima Belum Ditagih",
+                        category="LIABILITY",
+                        normal_balance="CREDIT",
+                    )
+                )
+                await session.commit()
+                print(f"Accounts dibuat: {cash_account.id}, {expense_account.id}, {inventory_account.id}, {grni_account.id}")
+            else:
+                cash_account = accounts[0]
+                expense_account = accounts[min(1, len(accounts) - 1)]
+                print(f"Accounts sudah ada: {cash_account.id}")
+
+            budget_service = BudgetService(
+                BudgetRepository(session),
+                BudgetLineRepository(session),
+                TenantRepository(session),
+                AccountRepository(session),
+            )
+            budgets = await budget_service.list_budgets()
+            if not budgets:
+                budget_bundle = await budget_service.create_budget(
+                    BudgetCreate(
+                        tenant_id=str(tenant.id),
+                        name="Budget Operasional Juli 2026",
+                        date_start=date(2026, 7, 1),
+                        date_end=date(2026, 7, 31),
+                        notes="Budget demo operasional",
+                        lines=[
+                            BudgetLineCreate(
+                                category_name="BAHAN_BAKU",
+                                account_id=str(expense_account.id),
+                                planned_amount=50000000,
+                                control_mode="WARNING",
+                            )
+                        ],
+                    )
+                )
+                await session.commit()
+                print(f"Budget dibuat: {budget_bundle['budget'].id}")
+            else:
+                print(f"Budget sudah ada: {budgets[0].id}")
     finally:
         await engine.dispose()
 
