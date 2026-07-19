@@ -3280,6 +3280,464 @@ def test_funding_source_agreement_disbursement_repayment_flow_works() -> None:
     assert summary_payload["totals"]["margin_realized"] >= 150000
 
 
+def test_fleet_vehicle_driver_assignment_and_maintenance_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        vehicle_type_response = client.post(
+            "/api/v1/fleet/vehicle-types",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"VAN-{code_suffix}",
+                "name": "Van Pendingin Test",
+                "description": "Tipe armada tes",
+                "capacity_portions": 1200,
+                "capacity_kg": 850,
+                "temperature_controlled": True,
+                "is_active": True,
+            },
+        )
+        assert vehicle_type_response.status_code == 201, vehicle_type_response.json()
+        vehicle_type_id = vehicle_type_response.json()["data"]["id"]
+
+        vehicle_response = client.post(
+            "/api/v1/fleet/vehicles",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "tenant_id": tenant_id,
+                "home_sppg_id": sppg_id,
+                "vehicle_type_id": vehicle_type_id,
+                "vehicle_code": f"VH-{code_suffix}",
+                "plate_number": f"B-{code_suffix}",
+                "ownership_status": "OWNED",
+                "brand_name": "Toyota",
+                "model_name": "HiAce",
+                "manufacture_year": 2024,
+                "capacity_portions": 1000,
+                "fuel_type": "DIESEL",
+                "status": "ACTIVE",
+                "is_active": True,
+                "notes": "Armada tes utama",
+            },
+        )
+        assert vehicle_response.status_code == 201, vehicle_response.json()
+        vehicle_id = vehicle_response.json()["data"]["id"]
+
+        driver_response = client.post(
+            "/api/v1/fleet/drivers",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "driver_code": f"DRV-{code_suffix}",
+                "full_name": "Agus Driver Test",
+                "phone_number": "081234567890",
+                "license_number": f"SIM-{code_suffix}",
+                "license_type": "B1",
+                "license_expiry_date": "2027-07-19",
+                "status": "ACTIVE",
+                "is_active": True,
+                "notes": "Driver tes",
+            },
+        )
+        assert driver_response.status_code == 201, driver_response.json()
+        driver_id = driver_response.json()["data"]["id"]
+
+        assignment_response = client.post(
+            f"/api/v1/fleet/vehicles/{vehicle_id}/assignments",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "sppg_id": sppg_id,
+                "driver_id": driver_id,
+                "assignment_date": "2026-07-19",
+                "assignment_role": "DELIVERY",
+                "status": "ASSIGNED",
+                "is_active": True,
+                "notes": "Assignment armada tes",
+            },
+        )
+        assert assignment_response.status_code == 201, assignment_response.json()
+
+        maintenance_response = client.post(
+            f"/api/v1/fleet/vehicles/{vehicle_id}/maintenances",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "sppg_id": sppg_id,
+                "maintenance_date": "2026-07-19",
+                "maintenance_type": "SERVICE_BERKALA",
+                "odometer_km": 15000,
+                "cost_amount": 1250000,
+                "vendor_name": "Bengkel Armada",
+                "status": "COMPLETED",
+                "notes": "Servis awal",
+            },
+        )
+        assert maintenance_response.status_code == 201, maintenance_response.json()
+
+        vehicle_detail_response = client.get(
+            f"/api/v1/fleet/vehicles/{vehicle_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        vehicle_list_response = client.get("/api/v1/fleet/vehicles", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        driver_list_response = client.get("/api/v1/fleet/drivers", headers={"X-Tenant-ID": tenant_id})
+        assignment_list_response = client.get("/api/v1/fleet/assignments", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        maintenance_list_response = client.get("/api/v1/fleet/maintenances", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+
+    assert vehicle_type_response.json()["code"] == "VEHICLE_TYPE_CREATED"
+    assert vehicle_response.json()["code"] == "VEHICLE_CREATED"
+    assert driver_response.json()["code"] == "DRIVER_CREATED"
+    assert assignment_response.json()["code"] == "VEHICLE_ASSIGNED"
+    assert maintenance_response.json()["code"] == "VEHICLE_MAINTENANCE_CREATED"
+
+    assert vehicle_detail_response.status_code == 200, vehicle_detail_response.json()
+    detail_payload = vehicle_detail_response.json()["data"]
+    assert detail_payload["vehicle"]["id"] == vehicle_id
+    assert len(detail_payload["assignments"]) == 1
+    assert len(detail_payload["maintenances"]) == 1
+
+    assert vehicle_list_response.status_code == 200
+    assert any(item["id"] == vehicle_id for item in vehicle_list_response.json()["data"])
+    assert driver_list_response.status_code == 200
+    assert any(item["id"] == driver_id for item in driver_list_response.json()["data"])
+    assert assignment_list_response.status_code == 200
+    assert any(item["vehicle_id"] == vehicle_id for item in assignment_list_response.json()["data"])
+    assert maintenance_list_response.status_code == 200
+    assert any(item["vehicle_id"] == vehicle_id for item in maintenance_list_response.json()["data"])
+
+
+def test_feedback_submission_complaint_score_and_summary_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        school_id = client.get("/api/v1/geography/schools/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        feedback_day = 20 + (uuid4().int % 8)
+        feedback_date = f"2026-07-{feedback_day:02d}"
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": feedback_date,
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 15,
+                "budget_cost_per_portion": 15000,
+                "notes": "Feedback flow test",
+            },
+        )
+        assert meal_plan_response.status_code == 201, meal_plan_response.json()
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/reserve-materials", headers={"Authorization": f"Bearer {access_token}"})
+
+        create_po = client.post(
+            f"/api/v1/production-orders/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        production_order_id = create_po.json()["data"]["production_order"]["id"]
+        client.post(
+            f"/api/v1/production-orders/{production_order_id}/complete",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"actual_portions": 15, "accepted_portions": 15, "rejected_portions": 0},
+        )
+        delivery_response = client.post(
+            f"/api/v1/delivery-orders/from-production-order/{production_order_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "school_id": school_id,
+                "planned_departure": "2026-07-19T06:30:00Z",
+                "planned_arrival": "2026-07-19T07:15:00Z",
+                "receiver_name": "Petugas Sekolah",
+            },
+        )
+        assert delivery_response.status_code == 201, delivery_response.json()
+        delivery_order_id = delivery_response.json()["data"]["delivery_order"]["id"]
+
+        submission_response = client.post(
+            "/api/v1/feedback/submissions",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                    "tenant_id": tenant_id,
+                    "sppg_id": sppg_id,
+                    "school_id": school_id,
+                    "meal_plan_id": meal_plan_id,
+                    "delivery_order_id": delivery_order_id,
+                    "feedback_date": feedback_date,
+                    "source_type": "SCHOOL",
+                "respondent_name": "Ibu Rina",
+                "respondent_role": "KEPALA_SEKOLAH",
+                "overall_rating": 88,
+                "acceptance_rate": 92,
+                "food_waste_portions": 4,
+                "delivery_timeliness_rating": 90,
+                "temperature_rating": 85,
+                "comment_text": "Menu diterima baik oleh siswa",
+                "status": "SUBMITTED",
+                "items": [
+                    {
+                        "item_type": "TASTE",
+                        "metric_name": "taste_rating",
+                        "score": 89,
+                        "sentiment": "POSITIVE",
+                        "comment_text": "Rasa cukup enak",
+                    }
+                ],
+            },
+        )
+        assert submission_response.status_code == 201, submission_response.json()
+        submission_id = submission_response.json()["data"]["submission"]["id"]
+
+        complaint_response = client.post(
+            "/api/v1/feedback/complaints",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "feedback_submission_id": submission_id,
+                "complaint_date": "2026-07-19T09:30:00",
+                "category": "TEMPERATURE",
+                "severity": "MEDIUM",
+                "complaint_text": "Makanan tiba kurang hangat.",
+                "resolution_status": "OPEN",
+                "resolved_at": None,
+                "notes": "Perlu evaluasi distribusi",
+            },
+        )
+        assert complaint_response.status_code == 201, complaint_response.json()
+
+        score_response = client.post(
+            "/api/v1/feedback/service-quality-scores",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                    "tenant_id": tenant_id,
+                    "sppg_id": sppg_id,
+                    "score_date": feedback_date,
+                "acceptance_score": 92,
+                "waste_score": 88,
+                "delivery_score": 90,
+                "temperature_score": 85,
+                "taste_score": 89,
+                "nutrition_score": 91,
+                "complaint_score": 80,
+                "score_status": "CALCULATED",
+                "notes": "SQI harian",
+            },
+        )
+        assert score_response.status_code == 201, score_response.json()
+
+        detail_response = client.get(
+            f"/api/v1/feedback/submissions/{submission_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        submissions_response = client.get("/api/v1/feedback/submissions", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        complaints_response = client.get("/api/v1/feedback/complaints", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        scores_response = client.get("/api/v1/feedback/service-quality-scores", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        summary_response = client.get("/api/v1/feedback/summary", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+
+    assert submission_response.json()["code"] == "FEEDBACK_SUBMISSION_CREATED"
+    assert complaint_response.json()["code"] == "COMPLAINT_CREATED"
+    assert score_response.json()["code"] == "SERVICE_QUALITY_SCORE_CREATED"
+
+    assert detail_response.status_code == 200, detail_response.json()
+    detail_payload = detail_response.json()["data"]
+    assert detail_payload["submission"]["id"] == submission_id
+    assert len(detail_payload["items"]) == 1
+    assert len(detail_payload["complaints"]) == 1
+
+    assert submissions_response.status_code == 200
+    assert any(item["id"] == submission_id for item in submissions_response.json()["data"])
+    assert complaints_response.status_code == 200
+    assert any(item["feedback_submission_id"] == submission_id for item in complaints_response.json()["data"])
+    assert scores_response.status_code == 200
+    assert len(scores_response.json()["data"]) >= 1
+
+    assert summary_response.status_code == 200, summary_response.json()
+    summary_payload = summary_response.json()["data"]
+    assert summary_payload["totals"]["submissions"] >= 1
+    assert summary_payload["totals"]["complaints"] >= 1
+    assert summary_payload["totals"]["service_quality_scores"] >= 1
+    assert summary_payload["averages"]["overall_rating"] >= 88
+
+
+def test_asset_category_asset_assignment_and_depreciation_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {account["code"]: account for account in accounts}
+        needed_accounts = [
+            ("150000", "Asset Tetap Peralatan", "ASSET", "DEBIT"),
+            ("170100", "Akumulasi Depresiasi Peralatan", "ASSET", "CREDIT"),
+            ("520100", "Beban Depresiasi Peralatan", "EXPENSE", "DEBIT"),
+        ]
+        for code, name, category, normal_balance in needed_accounts:
+            if code not in account_by_code:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201, resp.json()
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {account["code"]: account for account in accounts}
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        category_response = client.post(
+            "/api/v1/assets/categories",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"EQP-{code_suffix}",
+                "name": "Peralatan Dapur Test",
+                "asset_account_id": account_by_code["150000"]["id"],
+                "depreciation_expense_account_id": account_by_code["520100"]["id"],
+                "accumulated_depreciation_account_id": account_by_code["170100"]["id"],
+                "useful_life_months": 60,
+                "depreciation_method": "STRAIGHT_LINE",
+                "is_active": True,
+            },
+        )
+        assert category_response.status_code == 201, category_response.json()
+        category_id = category_response.json()["data"]["id"]
+
+        asset_response = client.post(
+            "/api/v1/assets/",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "asset_category_id": category_id,
+                "asset_code": f"AST-{code_suffix}",
+                "asset_name": "Oven Industri Test",
+                "acquisition_date": "2026-07-19",
+                "acquisition_cost": 24000000,
+                "residual_value": 2000000,
+                "useful_life_months": 60,
+                "depreciation_method": "STRAIGHT_LINE",
+                "status": "ACTIVE",
+                "serial_number": f"OVN-{code_suffix}",
+                "condition_status": "GOOD",
+                "location_name": "Dapur Utama",
+                "is_active": True,
+                "notes": "Asset test",
+            },
+        )
+        assert asset_response.status_code == 201, asset_response.json()
+        asset_id = asset_response.json()["data"]["id"]
+
+        assignment_response = client.post(
+            f"/api/v1/assets/{asset_id}/assignments",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "sppg_id": sppg_id,
+                "assigned_to_name": "Koordinator Produksi",
+                "assignment_date": "2026-07-19",
+                "assignment_role": "OPERATIONAL",
+                "status": "ASSIGNED",
+                "is_active": True,
+                "notes": "Assignment asset test",
+            },
+        )
+        assert assignment_response.status_code == 201, assignment_response.json()
+
+        depreciation_response = client.post(
+            f"/api/v1/assets/{asset_id}/depreciations",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "depreciation_date": "2026-07-31",
+                "debit_account_code": "520100",
+                "credit_account_code": "170100",
+                "status": "POSTED",
+                "notes": "Depresiasi bulan Juli",
+            },
+        )
+        assert depreciation_response.status_code == 201, depreciation_response.json()
+
+        detail_response = client.get(
+            f"/api/v1/assets/{asset_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        assets_response = client.get("/api/v1/assets/", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        assignments_response = client.get("/api/v1/assets/assignments/", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        depreciations_response = client.get("/api/v1/assets/depreciations/", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+
+    assert category_response.json()["code"] == "ASSET_CATEGORY_CREATED"
+    assert asset_response.json()["code"] == "ASSET_CREATED"
+    assert assignment_response.json()["code"] == "ASSET_ASSIGNED"
+    assert depreciation_response.json()["code"] == "ASSET_DEPRECIATION_CREATED"
+
+    assert detail_response.status_code == 200, detail_response.json()
+    detail_payload = detail_response.json()["data"]
+    assert detail_payload["asset"]["id"] == asset_id
+    assert len(detail_payload["assignments"]) == 1
+    assert len(detail_payload["depreciations"]) == 1
+
+    assert assets_response.status_code == 200
+    assert any(item["id"] == asset_id for item in assets_response.json()["data"])
+    assert assignments_response.status_code == 200
+    assert any(item["asset_id"] == asset_id for item in assignments_response.json()["data"])
+    assert depreciations_response.status_code == 200
+    assert any(item["asset_id"] == asset_id for item in depreciations_response.json()["data"])
+
+
 def test_create_delivery_order_and_record_proof_flow_works() -> None:
     with TestClient(app) as client:
         login_response = client.post(

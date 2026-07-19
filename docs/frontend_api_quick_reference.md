@@ -77,6 +77,34 @@ Authorization: Bearer <access_token>
 | `GET` | `/api/v1/funding/repayments` | No | - | List funding repayment |
 | `POST` | `/api/v1/funding/agreements/{agreement_id}/repayments` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Catat pengembalian pokok/margin dan posting jurnal |
 | `GET` | `/api/v1/funding/summary` | No | - | Ringkasan funding tenant |
+| `GET` | `/api/v1/fleet/vehicle-types` | No | - | List tipe kendaraan |
+| `POST` | `/api/v1/fleet/vehicle-types` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat tipe kendaraan |
+| `GET` | `/api/v1/fleet/vehicles` | No | - | List kendaraan |
+| `GET` | `/api/v1/fleet/vehicles/{vehicle_id}` | No | - | Detail kendaraan, assignment, maintenance |
+| `POST` | `/api/v1/fleet/vehicles` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat kendaraan |
+| `GET` | `/api/v1/fleet/drivers` | No | - | List driver |
+| `POST` | `/api/v1/fleet/drivers` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat driver |
+| `GET` | `/api/v1/fleet/assignments` | No | - | List assignment kendaraan |
+| `POST` | `/api/v1/fleet/vehicles/{vehicle_id}/assignments` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Assign kendaraan ke SPPG/driver |
+| `GET` | `/api/v1/fleet/maintenances` | No | - | List maintenance kendaraan |
+| `POST` | `/api/v1/fleet/vehicles/{vehicle_id}/maintenances` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Catat maintenance kendaraan |
+| `GET` | `/api/v1/feedback/submissions` | No | - | List feedback submission |
+| `GET` | `/api/v1/feedback/submissions/{submission_id}` | No | - | Detail feedback, item, complaint terkait |
+| `POST` | `/api/v1/feedback/submissions` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer`, `delivery_officer` | Buat feedback submission |
+| `GET` | `/api/v1/feedback/complaints` | No | - | List complaint |
+| `POST` | `/api/v1/feedback/complaints` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer`, `delivery_officer` | Catat complaint |
+| `GET` | `/api/v1/feedback/service-quality-scores` | No | - | List service quality score |
+| `POST` | `/api/v1/feedback/service-quality-scores` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer` | Catat service quality score |
+| `GET` | `/api/v1/feedback/summary` | No | - | Ringkasan feedback dan complaint |
+| `GET` | `/api/v1/assets/categories` | No | - | List kategori asset |
+| `POST` | `/api/v1/assets/categories` | Yes | `super_admin`, `tenant_admin`, `finance_manager`, `operations_manager` | Buat kategori asset |
+| `GET` | `/api/v1/assets/` | No | - | List asset |
+| `GET` | `/api/v1/assets/{asset_id}` | No | - | Detail asset, assignment, depresiasi |
+| `POST` | `/api/v1/assets/` | Yes | `super_admin`, `tenant_admin`, `finance_manager`, `operations_manager` | Buat asset |
+| `GET` | `/api/v1/assets/assignments/` | No | - | List assignment asset |
+| `POST` | `/api/v1/assets/{asset_id}/assignments` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Assign asset ke SPPG |
+| `GET` | `/api/v1/assets/depreciations/` | No | - | List depresiasi asset |
+| `POST` | `/api/v1/assets/{asset_id}/depreciations` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Catat depresiasi asset dan posting jurnal |
 | `GET` | `/api/v1/workforce/positions` | No | - | List posisi kerja |
 | `POST` | `/api/v1/workforce/positions` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat posisi kerja |
 | `GET` | `/api/v1/workforce/employees` | No | - | List employee |

@@ -7,12 +7,15 @@ from app.core.config.settings import Settings, get_settings
 from app.core.database.session import close_database, initialize_database
 from app.core.tenancy.middleware import TenantContextMiddleware
 from app.modules.accounting.manifest import manifest as accounting_manifest
+from app.modules.asset.manifest import manifest as asset_manifest
 from app.modules.audit.manifest import manifest as audit_manifest
 from app.modules.beneficiary.manifest import manifest as beneficiary_manifest
 from app.modules.budget.manifest import manifest as budget_manifest
 from app.modules.costing.manifest import manifest as costing_manifest
 from app.modules.delivery.manifest import manifest as delivery_manifest
 from app.modules.document.manifest import manifest as document_manifest
+from app.modules.feedback.manifest import manifest as feedback_manifest
+from app.modules.fleet.manifest import manifest as fleet_manifest
 from app.modules.funding.manifest import manifest as funding_manifest
 from app.modules.geography.manifest import manifest as geography_manifest
 from app.modules.government_claim.manifest import manifest as government_claim_manifest
@@ -48,6 +51,7 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         identity_manifest,
         audit_manifest,
         accounting_manifest,
+        asset_manifest,
         budget_manifest,
         tenant_manifest,
         sppg_manifest,
@@ -56,6 +60,8 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         costing_manifest,
         delivery_manifest,
         document_manifest,
+        feedback_manifest,
+        fleet_manifest,
         funding_manifest,
         government_claim_manifest,
         integration_manifest,

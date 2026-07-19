@@ -92,44 +92,72 @@ http://127.0.0.1:8000
 60. `GET /api/v1/funding/repayments`
 61. `POST /api/v1/funding/agreements/{agreement_id}/repayments`
 62. `GET /api/v1/funding/summary`
-63. `GET /api/v1/workforce/positions`
-64. `POST /api/v1/workforce/positions`
-65. `GET /api/v1/workforce/employees`
-66. `GET /api/v1/workforce/employees/{employee_id}`
-67. `POST /api/v1/workforce/employees`
-68. `POST /api/v1/workforce/employees/{employee_id}/assignments`
-69. `GET /api/v1/workforce/shifts`
-70. `POST /api/v1/workforce/shifts`
-71. `GET /api/v1/workforce/attendance`
-72. `POST /api/v1/workforce/attendance`
-73. `GET /api/v1/workforce/timesheets`
-74. `POST /api/v1/workforce/timesheets`
-75. `GET /api/v1/workforce/labor-costs`
-76. `POST /api/v1/workforce/labor-costs`
-77. `GET /api/v1/workflows/definitions`
-78. `GET /api/v1/workflows/definitions/{definition_id}`
-79. `POST /api/v1/workflows/definitions`
-80. `POST /api/v1/workflows/definitions/{definition_id}/transitions`
-81. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
-82. `GET /api/v1/audit/events/`
-83. `GET /api/v1/audit/events/{event_id}`
-84. `GET /api/v1/documents`
-85. `GET /api/v1/documents/{document_id}`
-86. `POST /api/v1/documents`
-87. `POST /api/v1/documents/{document_id}/versions`
-88. `POST /api/v1/documents/{document_id}/links`
-89. `GET /api/v1/reporting/dashboard/tenant`
-90. `GET /api/v1/reporting/dashboard/sppg`
-91. `GET /api/v1/reporting/stock-summary`
-92. `GET /api/v1/reporting/delivery-performance`
-93. `GET /api/v1/reporting/budget-summary`
-94. `GET /api/v1/integration/external-systems`
-95. `GET /api/v1/integration/external-systems/{external_system_id}`
-96. `POST /api/v1/integration/external-systems`
-97. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
-98. `GET /api/v1/integration/sync-logs`
-99. `GET /api/v1/integration/sync-logs/{sync_log_id}`
-100. `POST /api/v1/integration/sync-logs`
+63. `GET /api/v1/fleet/vehicle-types`
+64. `POST /api/v1/fleet/vehicle-types`
+65. `GET /api/v1/fleet/vehicles`
+66. `GET /api/v1/fleet/vehicles/{vehicle_id}`
+67. `POST /api/v1/fleet/vehicles`
+68. `GET /api/v1/fleet/drivers`
+69. `POST /api/v1/fleet/drivers`
+70. `GET /api/v1/fleet/assignments`
+71. `POST /api/v1/fleet/vehicles/{vehicle_id}/assignments`
+72. `GET /api/v1/fleet/maintenances`
+73. `POST /api/v1/fleet/vehicles/{vehicle_id}/maintenances`
+74. `GET /api/v1/feedback/submissions`
+75. `GET /api/v1/feedback/submissions/{submission_id}`
+76. `POST /api/v1/feedback/submissions`
+77. `GET /api/v1/feedback/complaints`
+78. `POST /api/v1/feedback/complaints`
+79. `GET /api/v1/feedback/service-quality-scores`
+80. `POST /api/v1/feedback/service-quality-scores`
+81. `GET /api/v1/feedback/summary`
+82. `GET /api/v1/assets/categories`
+83. `POST /api/v1/assets/categories`
+84. `GET /api/v1/assets/`
+85. `GET /api/v1/assets/{asset_id}`
+86. `POST /api/v1/assets/`
+87. `GET /api/v1/assets/assignments/`
+88. `POST /api/v1/assets/{asset_id}/assignments`
+89. `GET /api/v1/assets/depreciations/`
+90. `POST /api/v1/assets/{asset_id}/depreciations`
+91. `GET /api/v1/workforce/positions`
+92. `POST /api/v1/workforce/positions`
+93. `GET /api/v1/workforce/employees`
+94. `GET /api/v1/workforce/employees/{employee_id}`
+95. `POST /api/v1/workforce/employees`
+96. `POST /api/v1/workforce/employees/{employee_id}/assignments`
+97. `GET /api/v1/workforce/shifts`
+98. `POST /api/v1/workforce/shifts`
+99. `GET /api/v1/workforce/attendance`
+100. `POST /api/v1/workforce/attendance`
+101. `GET /api/v1/workforce/timesheets`
+102. `POST /api/v1/workforce/timesheets`
+103. `GET /api/v1/workforce/labor-costs`
+104. `POST /api/v1/workforce/labor-costs`
+105. `GET /api/v1/workflows/definitions`
+106. `GET /api/v1/workflows/definitions/{definition_id}`
+107. `POST /api/v1/workflows/definitions`
+108. `POST /api/v1/workflows/definitions/{definition_id}/transitions`
+109. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
+110. `GET /api/v1/audit/events/`
+111. `GET /api/v1/audit/events/{event_id}`
+112. `GET /api/v1/documents`
+113. `GET /api/v1/documents/{document_id}`
+114. `POST /api/v1/documents`
+115. `POST /api/v1/documents/{document_id}/versions`
+116. `POST /api/v1/documents/{document_id}/links`
+117. `GET /api/v1/reporting/dashboard/tenant`
+118. `GET /api/v1/reporting/dashboard/sppg`
+119. `GET /api/v1/reporting/stock-summary`
+120. `GET /api/v1/reporting/delivery-performance`
+121. `GET /api/v1/reporting/budget-summary`
+122. `GET /api/v1/integration/external-systems`
+123. `GET /api/v1/integration/external-systems/{external_system_id}`
+124. `POST /api/v1/integration/external-systems`
+125. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
+126. `GET /api/v1/integration/sync-logs`
+127. `GET /api/v1/integration/sync-logs/{sync_log_id}`
+128. `POST /api/v1/integration/sync-logs`
 
 ### Meal Plan
 
@@ -1277,6 +1305,370 @@ Mengembalikan ringkasan tenant:
 - breakdown agreement aktif/closed
 
 Frontend sebaiknya mengirim `X-Tenant-ID` untuk hasil yang spesifik tenant.
+
+### Fleet
+
+`GET /api/v1/fleet/vehicle-types`
+
+Mengambil daftar tipe kendaraan per tenant.
+
+`POST /api/v1/fleet/vehicle-types`
+
+Membuat master tipe kendaraan.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "code": "VAN-COLD",
+  "name": "Van Pendingin",
+  "description": "Kendaraan berpendingin untuk distribusi makanan",
+  "capacity_portions": 1200,
+  "capacity_kg": 850,
+  "temperature_controlled": true,
+  "is_active": true
+}
+```
+
+`GET /api/v1/fleet/vehicles`
+
+Mengambil daftar kendaraan sesuai scope tenant dan opsional `X-SPPG-ID`.
+
+`GET /api/v1/fleet/vehicles/{vehicle_id}`
+
+Mengembalikan bundle:
+
+- `vehicle`
+- `assignments`
+- `maintenances`
+
+`POST /api/v1/fleet/vehicles`
+
+Membuat master kendaraan.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "home_sppg_id": "sppg-uuid",
+  "vehicle_type_id": "vehicle-type-uuid",
+  "vehicle_code": "VH-001",
+  "plate_number": "B 1234 MBG",
+  "ownership_status": "OWNED",
+  "brand_name": "Toyota",
+  "model_name": "HiAce",
+  "manufacture_year": 2024,
+  "capacity_portions": 1000,
+  "fuel_type": "DIESEL",
+  "status": "ACTIVE",
+  "is_active": true,
+  "notes": "Unit distribusi utama"
+}
+```
+
+`GET /api/v1/fleet/drivers`
+
+Mengambil daftar driver tenant.
+
+`POST /api/v1/fleet/drivers`
+
+Membuat master driver.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "driver_code": "DRV-001",
+  "full_name": "Agus Supir",
+  "phone_number": "081234567890",
+  "license_number": "SIMB-00112233",
+  "license_type": "B1",
+  "license_expiry_date": "2027-07-19",
+  "status": "ACTIVE",
+  "is_active": true,
+  "notes": "Driver distribusi utama"
+}
+```
+
+`GET /api/v1/fleet/assignments`
+
+Mengambil daftar assignment kendaraan ke SPPG.
+
+`POST /api/v1/fleet/vehicles/{vehicle_id}/assignments`
+
+Menugaskan kendaraan ke SPPG dan opsional ke driver.
+
+Payload:
+
+```json
+{
+  "sppg_id": "sppg-uuid",
+  "driver_id": "driver-uuid",
+  "assignment_date": "2026-07-19",
+  "end_date": null,
+  "assignment_role": "DELIVERY",
+  "status": "ASSIGNED",
+  "is_active": true,
+  "notes": "Unit aktif untuk distribusi pagi"
+}
+```
+
+`GET /api/v1/fleet/maintenances`
+
+Mengambil daftar maintenance kendaraan.
+
+`POST /api/v1/fleet/vehicles/{vehicle_id}/maintenances`
+
+Mencatat maintenance kendaraan.
+
+Payload:
+
+```json
+{
+  "sppg_id": "sppg-uuid",
+  "maintenance_date": "2026-07-19",
+  "maintenance_type": "SERVICE_BERKALA",
+  "odometer_km": 15250,
+  "cost_amount": 1250000,
+  "vendor_name": "Bengkel Armada Sejahtera",
+  "status": "COMPLETED",
+  "notes": "Ganti oli dan pengecekan rem"
+}
+```
+
+Frontend sebaiknya mengirim `X-Tenant-ID` untuk semua operasi fleet, dan `X-SPPG-ID` saat ingin membatasi kendaraan/assignment/maintenance pada satu dapur tertentu.
+
+### Feedback
+
+`GET /api/v1/feedback/submissions`
+
+Mengambil daftar feedback submission sesuai scope tenant dan opsional SPPG.
+
+`GET /api/v1/feedback/submissions/{submission_id}`
+
+Mengembalikan bundle:
+
+- `submission`
+- `items`
+- `complaints`
+
+`POST /api/v1/feedback/submissions`
+
+Membuat feedback submission lengkap dengan item penilaian detail.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "school_id": "school-uuid",
+  "meal_plan_id": "meal-plan-uuid",
+  "delivery_order_id": "delivery-order-uuid",
+  "feedback_date": "2026-07-19",
+  "source_type": "SCHOOL",
+  "respondent_name": "Ibu Rina",
+  "respondent_role": "KEPALA_SEKOLAH",
+  "overall_rating": 88,
+  "acceptance_rate": 92,
+  "food_waste_portions": 4,
+  "delivery_timeliness_rating": 90,
+  "temperature_rating": 85,
+  "comment_text": "Menu diterima baik oleh siswa",
+  "status": "SUBMITTED",
+  "items": [
+    {
+      "item_type": "TASTE",
+      "metric_name": "taste_rating",
+      "score": 89,
+      "sentiment": "POSITIVE",
+      "comment_text": "Rasa cukup enak"
+    }
+  ]
+}
+```
+
+`GET /api/v1/feedback/complaints`
+
+Mengambil daftar complaint sesuai scope tenant dan SPPG.
+
+`POST /api/v1/feedback/complaints`
+
+Mencatat complaint operasional atau kualitas layanan.
+
+Payload:
+
+```json
+{
+  "feedback_submission_id": "feedback-submission-uuid",
+  "complaint_date": "2026-07-19T09:30:00",
+  "category": "TEMPERATURE",
+  "severity": "MEDIUM",
+  "complaint_text": "Makanan tiba dalam kondisi kurang hangat.",
+  "resolution_status": "OPEN",
+  "resolved_at": null,
+  "notes": "Perlu evaluasi proses loading"
+}
+```
+
+`GET /api/v1/feedback/service-quality-scores`
+
+Mengambil daftar service quality score.
+
+`POST /api/v1/feedback/service-quality-scores`
+
+Mencatat indeks kualitas layanan per tanggal dan SPPG.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "score_date": "2026-07-19",
+  "acceptance_score": 92,
+  "waste_score": 88,
+  "delivery_score": 90,
+  "temperature_score": 85,
+  "taste_score": 89,
+  "nutrition_score": 91,
+  "complaint_score": 80,
+  "total_score": 87.857143,
+  "score_status": "CALCULATED",
+  "notes": "SQI harian"
+}
+```
+
+`GET /api/v1/feedback/summary`
+
+Mengembalikan ringkasan:
+
+- jumlah submission
+- jumlah complaint
+- jumlah service quality score
+- rata-rata overall rating
+- rata-rata acceptance rate
+- rata-rata food waste
+- rata-rata service quality score
+- complaint open/resolved/high severity
+
+Frontend sebaiknya mengirim `X-Tenant-ID` untuk seluruh endpoint feedback dan `X-SPPG-ID` untuk data level dapur.
+
+### Asset
+
+`GET /api/v1/assets/categories`
+
+Mengambil daftar kategori asset tenant.
+
+`POST /api/v1/assets/categories`
+
+Membuat master kategori asset dan akun-akun default depresiasi.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "code": "EQP",
+  "name": "Peralatan Dapur",
+  "asset_account_id": "asset-account-uuid",
+  "depreciation_expense_account_id": "expense-account-uuid",
+  "accumulated_depreciation_account_id": "contra-account-uuid",
+  "useful_life_months": 60,
+  "depreciation_method": "STRAIGHT_LINE",
+  "is_active": true
+}
+```
+
+`GET /api/v1/assets/`
+
+Mengambil daftar asset sesuai scope tenant dan opsional `X-SPPG-ID`.
+
+`GET /api/v1/assets/{asset_id}`
+
+Mengembalikan bundle:
+
+- `asset`
+- `assignments`
+- `depreciations`
+
+`POST /api/v1/assets/`
+
+Membuat asset register.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "asset_category_id": "asset-category-uuid",
+  "asset_code": "AST-001",
+  "asset_name": "Oven Industri",
+  "acquisition_date": "2026-07-19",
+  "acquisition_cost": 24000000,
+  "residual_value": 2000000,
+  "useful_life_months": 60,
+  "depreciation_method": "STRAIGHT_LINE",
+  "status": "ACTIVE",
+  "serial_number": "OVN-2026-001",
+  "condition_status": "GOOD",
+  "location_name": "Dapur Utama",
+  "is_active": true,
+  "notes": "Asset produksi utama"
+}
+```
+
+`GET /api/v1/assets/assignments/`
+
+Mengambil daftar assignment asset.
+
+`POST /api/v1/assets/{asset_id}/assignments`
+
+Menempatkan asset ke SPPG atau PIC operasional tertentu.
+
+Payload:
+
+```json
+{
+  "sppg_id": "sppg-uuid",
+  "assigned_to_name": "Koordinator Produksi",
+  "assignment_date": "2026-07-19",
+  "end_date": null,
+  "assignment_role": "OPERATIONAL",
+  "status": "ASSIGNED",
+  "is_active": true,
+  "notes": "Dipakai untuk lini produksi utama"
+}
+```
+
+`GET /api/v1/assets/depreciations/`
+
+Mengambil daftar depresiasi asset.
+
+`POST /api/v1/assets/{asset_id}/depreciations`
+
+Mencatat depresiasi asset dan otomatis membuat jurnal `POSTED`.
+
+Payload:
+
+```json
+{
+  "depreciation_date": "2026-07-31",
+  "depreciation_amount": 366666.666667,
+  "debit_account_code": "520100",
+  "credit_account_code": "170100",
+  "status": "POSTED",
+  "notes": "Depresiasi bulan Juli 2026"
+}
+```
+
+Jika `depreciation_amount` tidak dikirim, backend menghitung nilai straight-line dari `acquisition_cost - residual_value` dibagi `useful_life_months`.
+
+Frontend sebaiknya selalu mengirim `X-Tenant-ID` untuk modul asset dan `X-SPPG-ID` saat bekerja pada asset spesifik dapur.
 
 ### Workforce
 

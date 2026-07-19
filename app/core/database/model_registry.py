@@ -2,6 +2,10 @@ def import_all_models() -> None:
     import app.modules.accounting.models.account  # noqa: F401
     import app.modules.accounting.models.journal_entry  # noqa: F401
     import app.modules.accounting.models.journal_line  # noqa: F401
+    import app.modules.asset.models.asset  # noqa: F401
+    import app.modules.asset.models.asset_assignment  # noqa: F401
+    import app.modules.asset.models.asset_category  # noqa: F401
+    import app.modules.asset.models.asset_depreciation  # noqa: F401
     import app.modules.audit.models.audit_event  # noqa: F401
     import app.modules.beneficiary.models.beneficiary  # noqa: F401
     import app.modules.budget.models.budget  # noqa: F401
@@ -12,6 +16,15 @@ def import_all_models() -> None:
     import app.modules.document.models.document  # noqa: F401
     import app.modules.document.models.document_link  # noqa: F401
     import app.modules.document.models.document_version  # noqa: F401
+    import app.modules.feedback.models.complaint  # noqa: F401
+    import app.modules.feedback.models.feedback_item  # noqa: F401
+    import app.modules.feedback.models.feedback_submission  # noqa: F401
+    import app.modules.feedback.models.service_quality_score  # noqa: F401
+    import app.modules.fleet.models.driver  # noqa: F401
+    import app.modules.fleet.models.vehicle  # noqa: F401
+    import app.modules.fleet.models.vehicle_assignment  # noqa: F401
+    import app.modules.fleet.models.vehicle_maintenance  # noqa: F401
+    import app.modules.fleet.models.vehicle_type  # noqa: F401
     import app.modules.funding.models.funding_agreement  # noqa: F401
     import app.modules.funding.models.funding_disbursement  # noqa: F401
     import app.modules.funding.models.funding_repayment  # noqa: F401
