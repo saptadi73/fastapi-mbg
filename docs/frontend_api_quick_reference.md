@@ -43,6 +43,12 @@ Authorization: Bearer <access_token>
 | `PUT` | `/api/v1/identity/users/{user_id}/sppg-access` | Yes | `super_admin`, `tenant_admin` | Ubah akses SPPG user |
 | `GET` | `/api/v1/tenants/` | No | - | List tenant |
 | `GET` | `/api/v1/sppg/` | No | - | List SPPG |
+| `GET` | `/api/v1/programs/` | No | - | List program |
+| `GET` | `/api/v1/programs/{program_id}` | No | - | Detail program beserta assignment |
+| `POST` | `/api/v1/programs/` | Yes | `super_admin`, `tenant_admin` | Buat program |
+| `POST` | `/api/v1/programs/{program_id}/periods` | Yes | `super_admin`, `tenant_admin` | Buat periode program |
+| `POST` | `/api/v1/programs/{program_id}/tenants` | Yes | `super_admin`, `tenant_admin` | Assign tenant ke program |
+| `POST` | `/api/v1/programs/{program_id}/sppg` | Yes | `super_admin`, `tenant_admin` | Assign SPPG ke program |
 | `GET` | `/api/v1/geography/schools/` | No | - | List sekolah |
 | `GET` | `/api/v1/beneficiaries/` | No | - | List beneficiary |
 | `GET` | `/api/v1/uoms/` | No | - | List UoM |
@@ -108,6 +114,9 @@ Authorization: Bearer <access_token>
 | `JOURNAL_ENTRY_POST_INVALID_STATUS` | Nonaktifkan tombol post bila status bukan `DRAFT` |
 | `BUDGET_SUBMIT_INVALID_STATUS` | Nonaktifkan submit bila budget bukan `DRAFT` |
 | `BUDGET_APPROVE_INVALID_STATUS` | Nonaktifkan approve bila budget bukan `SUBMITTED` |
+| `PROGRAM_CODE_ALREADY_EXISTS` | Validasi kode program agar tidak duplikat |
+| `PROGRAM_TENANT_ASSIGNMENT_REQUIRED` | Assign tenant program lebih dulu sebelum assign SPPG |
+| `PROGRAM_SPPG_TENANT_MISMATCH` | Validasi tenant pada form assignment SPPG |
 | `SUPPLIER_INVOICE_ALREADY_EXISTS_FOR_RECEIPT` | Disable tombol create invoice jika GR sudah punya invoice |
 | `SUPPLIER_PAYMENT_ALREADY_EXISTS_FOR_INVOICE` | Disable tombol bayar jika invoice sudah punya payment |
 
@@ -166,6 +175,35 @@ Authorization: Bearer <access_token>
   "is_active": true,
   "accessible_sppg_ids": ["{{sppg_id}}"],
   "active_sppg_id": "{{sppg_id}}"
+}
+```
+
+### Create Program
+
+```json
+{
+  "code": "PRG-MBG-APBD-2026",
+  "name": "Program MBG APBD 2026",
+  "description": "Program bantuan gizi daerah",
+  "program_type": "PUBLIC",
+  "funding_source_name": "APBD Provinsi",
+  "start_date": "2026-07-19",
+  "end_date": "2026-12-31",
+  "status": "DRAFT",
+  "is_active": true
+}
+```
+
+### Assign SPPG To Program
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "start_date": "2026-07-19",
+  "end_date": "2026-12-31",
+  "is_active": true,
+  "notes": "SPPG masuk program APBD"
 }
 ```
 

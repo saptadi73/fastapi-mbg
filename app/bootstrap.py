@@ -16,6 +16,7 @@ from app.modules.identity.manifest import manifest as identity_manifest
 from app.modules.inventory.manifest import manifest as inventory_manifest
 from app.modules.manifest import ModuleManifest
 from app.modules.meal_plan.manifest import manifest as meal_plan_manifest
+from app.modules.program.manifest import manifest as program_manifest
 from app.modules.product.manifest import manifest as product_manifest
 from app.modules.production.manifest import manifest as production_manifest
 from app.modules.procurement.manifest import manifest as procurement_manifest
@@ -42,6 +43,7 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         beneficiary_manifest,
         delivery_manifest,
         inventory_manifest,
+        program_manifest,
         uom_manifest,
         product_manifest,
         production_manifest,

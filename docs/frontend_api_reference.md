@@ -36,23 +36,29 @@ http://127.0.0.1:8000
 4. `GET /api/v1/sppg/`
 5. `GET /api/v1/sppg/{sppg_id}`
 6. `POST /api/v1/sppg/`
-7. `GET /api/v1/geography/schools/`
-8. `GET /api/v1/geography/schools/{school_id}`
-9. `POST /api/v1/geography/schools/`
-10. `GET /api/v1/beneficiaries/`
-11. `GET /api/v1/beneficiaries/{beneficiary_id}`
-12. `POST /api/v1/beneficiaries/`
-13. `GET /api/v1/uoms/`
-14. `GET /api/v1/uoms/{uom_id}`
-15. `POST /api/v1/uoms/`
-16. `GET /api/v1/products/`
-17. `GET /api/v1/products/{product_id}`
-18. `POST /api/v1/products/`
-19. `GET /api/v1/recipes/`
-20. `GET /api/v1/recipes/{recipe_id}`
-21. `POST /api/v1/recipes/`
-22. `GET /api/v1/recipes/{recipe_id}/lines`
-23. `POST /api/v1/recipes/{recipe_id}/lines`
+7. `GET /api/v1/programs/`
+8. `GET /api/v1/programs/{program_id}`
+9. `POST /api/v1/programs/`
+10. `POST /api/v1/programs/{program_id}/periods`
+11. `POST /api/v1/programs/{program_id}/tenants`
+12. `POST /api/v1/programs/{program_id}/sppg`
+13. `GET /api/v1/geography/schools/`
+14. `GET /api/v1/geography/schools/{school_id}`
+15. `POST /api/v1/geography/schools/`
+16. `GET /api/v1/beneficiaries/`
+17. `GET /api/v1/beneficiaries/{beneficiary_id}`
+18. `POST /api/v1/beneficiaries/`
+19. `GET /api/v1/uoms/`
+20. `GET /api/v1/uoms/{uom_id}`
+21. `POST /api/v1/uoms/`
+22. `GET /api/v1/products/`
+23. `GET /api/v1/products/{product_id}`
+24. `POST /api/v1/products/`
+25. `GET /api/v1/recipes/`
+26. `GET /api/v1/recipes/{recipe_id}`
+27. `POST /api/v1/recipes/`
+28. `GET /api/v1/recipes/{recipe_id}/lines`
+29. `POST /api/v1/recipes/{recipe_id}/lines`
 
 ### Meal Plan
 
@@ -195,8 +201,13 @@ Endpoint write saat ini butuh token:
 | `404` | `ACCOUNT_NOT_FOUND` | Account tidak ditemukan |
 | `404` | `JOURNAL_ENTRY_NOT_FOUND` | Journal entry tidak ditemukan |
 | `404` | `BUDGET_NOT_FOUND` | Budget tidak ditemukan |
+| `404` | `PROGRAM_NOT_FOUND` | Program tidak ditemukan |
 | `409` | `TENANT_CODE_ALREADY_EXISTS` | Kode tenant sudah dipakai |
 | `409` | `SPPG_CODE_ALREADY_EXISTS` | Kode SPPG sudah dipakai |
+| `409` | `PROGRAM_CODE_ALREADY_EXISTS` | Kode program sudah dipakai |
+| `409` | `PROGRAM_PERIOD_CODE_ALREADY_EXISTS` | Kode periode program sudah dipakai di program yang sama |
+| `409` | `PROGRAM_TENANT_ALREADY_ASSIGNED` | Tenant sudah pernah diassign ke program |
+| `409` | `PROGRAM_SPPG_ALREADY_ASSIGNED` | SPPG sudah pernah diassign ke program |
 | `409` | `SCHOOL_CODE_ALREADY_EXISTS` | Kode sekolah sudah dipakai |
 | `409` | `BENEFICIARY_EXTERNAL_REFERENCE_ALREADY_EXISTS` | External reference beneficiary sudah dipakai |
 | `409` | `UOM_CODE_ALREADY_EXISTS` | Kode UoM sudah dipakai |
@@ -435,6 +446,157 @@ Contoh response sukses:
   }
 }
 ```
+
+### Program Management
+
+`GET /api/v1/programs/`
+
+Mengembalikan daftar program. Endpoint ini mendukung filter context:
+
+- `X-Tenant-ID` untuk hanya menampilkan program yang sudah terhubung ke tenant tersebut
+- `X-SPPG-ID` untuk hanya menampilkan program yang sudah terhubung ke SPPG tersebut
+
+Contoh response item:
+
+```json
+{
+  "id": "uuid",
+  "code": "PRG-MBG-APBD-2026",
+  "name": "Program MBG APBD 2026",
+  "description": "Program bantuan gizi daerah",
+  "program_type": "PUBLIC",
+  "funding_source_name": "APBD Provinsi",
+  "start_date": "2026-07-19",
+  "end_date": "2026-12-31",
+  "status": "DRAFT",
+  "is_active": true,
+  "created_at": "2026-07-19T10:00:00Z",
+  "updated_at": "2026-07-19T10:00:00Z"
+}
+```
+
+`GET /api/v1/programs/{program_id}`
+
+Mengembalikan bundle detail program:
+
+- `program`
+- `periods`
+- `tenant_assignments`
+- `sppg_assignments`
+
+Frontend bisa memakai endpoint ini sebagai halaman detail program tunggal.
+
+`POST /api/v1/programs/`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "code": "PRG-MBG-APBD-2026",
+  "name": "Program MBG APBD 2026",
+  "description": "Program bantuan gizi daerah",
+  "program_type": "PUBLIC",
+  "funding_source_name": "APBD Provinsi",
+  "start_date": "2026-07-19",
+  "end_date": "2026-12-31",
+  "status": "DRAFT",
+  "is_active": true
+}
+```
+
+Error penting:
+
+- `PROGRAM_CODE_ALREADY_EXISTS`
+- `INVALID_PROGRAM_DATE_RANGE`
+
+`POST /api/v1/programs/{program_id}/periods`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "code": "2026-H2",
+  "name": "Semester 2 2026",
+  "date_start": "2026-07-19",
+  "date_end": "2026-12-31",
+  "status": "OPEN",
+  "notes": "Periode operasional semester dua"
+}
+```
+
+Error penting:
+
+- `PROGRAM_NOT_FOUND`
+- `PROGRAM_PERIOD_CODE_ALREADY_EXISTS`
+- `INVALID_PROGRAM_PERIOD_DATE_RANGE`
+- `PROGRAM_PERIOD_BEFORE_PROGRAM_START`
+- `PROGRAM_PERIOD_AFTER_PROGRAM_END`
+
+`POST /api/v1/programs/{program_id}/tenants`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "start_date": "2026-07-19",
+  "end_date": "2026-12-31",
+  "is_active": true,
+  "notes": "Tenant mengikuti program APBD"
+}
+```
+
+Aturan:
+
+- bila frontend mengirim `X-Tenant-ID`, maka `tenant_id` payload harus sama
+- tenant tidak boleh diassign dua kali ke program yang sama
+
+`POST /api/v1/programs/{program_id}/sppg`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "sppg_id": "uuid",
+  "start_date": "2026-07-19",
+  "end_date": "2026-12-31",
+  "is_active": true,
+  "notes": "SPPG aktif pada program APBD"
+}
+```
+
+Aturan:
+
+- tenant pemilik SPPG harus sudah diassign ke program lebih dulu
+- bila frontend mengirim `X-SPPG-ID`, maka `sppg_id` payload harus sama
+- bila `tenant_id` dikirim, nilainya harus sama dengan tenant pemilik SPPG
+
+Error penting:
+
+- `PROGRAM_TENANT_ASSIGNMENT_REQUIRED`
+- `PROGRAM_SPPG_TENANT_MISMATCH`
+- `PROGRAM_SPPG_ALREADY_ASSIGNED`
 
 ### Meal Plan Workflow
 

@@ -352,6 +352,115 @@ def test_budget_list_supports_tenant_scope_header() -> None:
     assert all(item["tenant_id"] == tenant_id for item in payload["data"])
 
 
+def test_program_endpoint_returns_items() -> None:
+    with TestClient(app) as client:
+        response = client.get("/api/v1/programs/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert isinstance(payload["data"], list)
+    assert "total" in payload["meta"]
+
+
+def test_program_create_and_assignment_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        create_response = client.post(
+            "/api/v1/programs/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "code": f"PRG-{code_suffix}",
+                "name": "Program MBG APBD Test",
+                "description": "Program uji otomatis",
+                "program_type": "PUBLIC",
+                "funding_source_name": "APBD Provinsi",
+                "start_date": "2026-07-19",
+                "end_date": "2026-12-31",
+                "status": "DRAFT",
+                "is_active": True,
+            },
+        )
+        assert create_response.status_code == 201, create_response.json()
+        program_id = create_response.json()["data"]["id"]
+
+        tenant_assignment_response = client.post(
+            f"/api/v1/programs/{program_id}/tenants",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "start_date": "2026-07-19",
+                "end_date": "2026-12-31",
+                "is_active": True,
+                "notes": "Tenant assignment test",
+            },
+        )
+        period_response = client.post(
+            f"/api/v1/programs/{program_id}/periods",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "code": "2026-H2",
+                "name": "Semester 2 2026",
+                "date_start": "2026-07-19",
+                "date_end": "2026-12-31",
+                "status": "OPEN",
+                "notes": "Periode semester 2",
+            },
+        )
+        sppg_assignment_response = client.post(
+            f"/api/v1/programs/{program_id}/sppg",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "start_date": "2026-07-19",
+                "end_date": "2026-12-31",
+                "is_active": True,
+                "notes": "SPPG assignment test",
+            },
+        )
+        detail_response = client.get(
+            f"/api/v1/programs/{program_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        scoped_list_response = client.get(
+            "/api/v1/programs/",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert tenant_assignment_response.status_code == 201, tenant_assignment_response.json()
+    assert tenant_assignment_response.json()["code"] == "PROGRAM_TENANT_ASSIGNED"
+
+    assert period_response.status_code == 201, period_response.json()
+    assert period_response.json()["code"] == "PROGRAM_PERIOD_CREATED"
+
+    assert sppg_assignment_response.status_code == 201, sppg_assignment_response.json()
+    assert sppg_assignment_response.json()["code"] == "PROGRAM_SPPG_ASSIGNED"
+
+    assert detail_response.status_code == 200, detail_response.json()
+    detail_payload = detail_response.json()
+    assert detail_payload["code"] == "PROGRAM_FOUND"
+    assert detail_payload["data"]["program"]["id"] == program_id
+    assert len(detail_payload["data"]["periods"]) == 1
+    assert len(detail_payload["data"]["tenant_assignments"]) == 1
+    assert len(detail_payload["data"]["sppg_assignments"]) == 1
+
+    assert scoped_list_response.status_code == 200, scoped_list_response.json()
+    scoped_items = scoped_list_response.json()["data"]
+    assert any(item["id"] == program_id for item in scoped_items)
+
+
 def test_uom_create_rejects_tenant_write_scope_violation() -> None:
     with TestClient(app) as client:
         login_response = client.post(

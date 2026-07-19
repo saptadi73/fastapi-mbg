@@ -14,6 +14,10 @@ def import_all_models() -> None:
     import app.modules.inventory.models.inventory_transaction  # noqa: F401
     import app.modules.inventory.models.warehouse  # noqa: F401
     import app.modules.meal_plan.models.meal_plan  # noqa: F401
+    import app.modules.program.models.program  # noqa: F401
+    import app.modules.program.models.program_period  # noqa: F401
+    import app.modules.program.models.program_sppg  # noqa: F401
+    import app.modules.program.models.program_tenant  # noqa: F401
     import app.modules.product.models.product  # noqa: F401
     import app.modules.production.models.production_material_consumption  # noqa: F401
     import app.modules.production.models.production_order  # noqa: F401
