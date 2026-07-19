@@ -49,6 +49,18 @@ Authorization: Bearer <access_token>
 | `POST` | `/api/v1/programs/{program_id}/periods` | Yes | `super_admin`, `tenant_admin` | Buat periode program |
 | `POST` | `/api/v1/programs/{program_id}/tenants` | Yes | `super_admin`, `tenant_admin` | Assign tenant ke program |
 | `POST` | `/api/v1/programs/{program_id}/sppg` | Yes | `super_admin`, `tenant_admin` | Assign SPPG ke program |
+| `GET` | `/api/v1/quality/inspections/` | No | - | List inspeksi QC |
+| `GET` | `/api/v1/quality/inspections/{inspection_id}` | No | - | Detail inspeksi QC |
+| `POST` | `/api/v1/quality/inspections/` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer` | Buat inspeksi QC |
+| `POST` | `/api/v1/quality/inspections/{inspection_id}/lines` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer` | Tambah parameter hasil QC |
+| `POST` | `/api/v1/quality/inspections/{inspection_id}/finalize` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer` | Finalisasi hasil QC |
+| `GET` | `/api/v1/workflows/definitions` | No | - | List workflow definition per tenant |
+| `GET` | `/api/v1/workflows/definitions/{definition_id}` | No | - | Detail workflow definition |
+| `POST` | `/api/v1/workflows/definitions` | Yes | `super_admin`, `tenant_admin` | Buat workflow definition |
+| `POST` | `/api/v1/workflows/definitions/{definition_id}/transitions` | Yes | `super_admin`, `tenant_admin` | Tambah transisi workflow |
+| `GET` | `/api/v1/workflows/documents/{document_type}/{document_id}` | No | - | Lihat instance workflow dan history dokumen |
+| `GET` | `/api/v1/audit/events/` | Yes | `super_admin`, `tenant_admin` | List audit event |
+| `GET` | `/api/v1/audit/events/{event_id}` | Yes | `super_admin`, `tenant_admin` | Detail audit event |
 | `GET` | `/api/v1/geography/schools/` | No | - | List sekolah |
 | `GET` | `/api/v1/beneficiaries/` | No | - | List beneficiary |
 | `GET` | `/api/v1/uoms/` | No | - | List UoM |
@@ -117,6 +129,13 @@ Authorization: Bearer <access_token>
 | `PROGRAM_CODE_ALREADY_EXISTS` | Validasi kode program agar tidak duplikat |
 | `PROGRAM_TENANT_ASSIGNMENT_REQUIRED` | Assign tenant program lebih dulu sebelum assign SPPG |
 | `PROGRAM_SPPG_TENANT_MISMATCH` | Validasi tenant pada form assignment SPPG |
+| `QC_INSPECTION_LINES_REQUIRED` | Minta user isi minimal satu parameter QC sebelum finalize |
+| `QC_INSPECTION_ALREADY_FINALIZED` | Disable tambah line bila QC sudah final |
+| `PRODUCTION_QC_RELEASE_BLOCKED` | Blok pembuatan delivery bila QC wajib produksi belum lolos |
+| `WORKFLOW_TENANT_CONTEXT_REQUIRED` | Kirim `X-Tenant-ID` saat membuka workflow dokumen |
+| `WORKFLOW_TRANSITION_NOT_ALLOWED` | Nonaktifkan tombol aksi bila transisi tidak tersedia |
+| `WORKFLOW_INSTANCE_STATE_MISMATCH` | Refresh detail dokumen jika state workflow sudah berubah |
+| `AUDIT_EVENT_NOT_FOUND` | Refresh daftar audit bila detail event sudah tidak sesuai scope |
 | `SUPPLIER_INVOICE_ALREADY_EXISTS_FOR_RECEIPT` | Disable tombol create invoice jika GR sudah punya invoice |
 | `SUPPLIER_PAYMENT_ALREADY_EXISTS_FOR_INVOICE` | Disable tombol bayar jika invoice sudah punya payment |
 
@@ -205,6 +224,54 @@ Authorization: Bearer <access_token>
   "is_active": true,
   "notes": "SPPG masuk program APBD"
 }
+```
+
+### Create QC Inspection
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "inspection_type": "PRODUCTION",
+  "stage": "PRODUCTION_OUTPUT",
+  "reference_type": "PRODUCTION_ORDER",
+  "reference_id": "{{production_order_id}}",
+  "inspection_at": "2026-07-19T08:00:00Z",
+  "inspector_name": "Petugas QC",
+  "is_mandatory_for_release": true,
+  "notes": "QC batch produksi"
+}
+```
+
+### Add QC Inspection Line
+
+```json
+{
+  "parameter_name": "Suhu makanan",
+  "expected_value": ">=60C",
+  "actual_value": "65C",
+  "result_status": "PASS",
+  "notes": "Aman"
+}
+```
+
+### Create Workflow Definition
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "code": "CUSTOM-WF-DEMO",
+  "name": "Workflow Dokumen Demo",
+  "document_type": "custom_document_demo",
+  "initial_state": "DRAFT",
+  "is_active": true
+}
+```
+
+### Audit Filter Example
+
+```text
+GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
 ```
 
 ### Switch Active SPPG

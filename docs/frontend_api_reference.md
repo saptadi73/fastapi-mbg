@@ -42,23 +42,35 @@ http://127.0.0.1:8000
 10. `POST /api/v1/programs/{program_id}/periods`
 11. `POST /api/v1/programs/{program_id}/tenants`
 12. `POST /api/v1/programs/{program_id}/sppg`
-13. `GET /api/v1/geography/schools/`
-14. `GET /api/v1/geography/schools/{school_id}`
-15. `POST /api/v1/geography/schools/`
-16. `GET /api/v1/beneficiaries/`
-17. `GET /api/v1/beneficiaries/{beneficiary_id}`
-18. `POST /api/v1/beneficiaries/`
-19. `GET /api/v1/uoms/`
-20. `GET /api/v1/uoms/{uom_id}`
-21. `POST /api/v1/uoms/`
-22. `GET /api/v1/products/`
-23. `GET /api/v1/products/{product_id}`
-24. `POST /api/v1/products/`
-25. `GET /api/v1/recipes/`
-26. `GET /api/v1/recipes/{recipe_id}`
-27. `POST /api/v1/recipes/`
-28. `GET /api/v1/recipes/{recipe_id}/lines`
-29. `POST /api/v1/recipes/{recipe_id}/lines`
+13. `GET /api/v1/quality/inspections/`
+14. `GET /api/v1/quality/inspections/{inspection_id}`
+15. `POST /api/v1/quality/inspections/`
+16. `POST /api/v1/quality/inspections/{inspection_id}/lines`
+17. `POST /api/v1/quality/inspections/{inspection_id}/finalize`
+18. `GET /api/v1/workflows/definitions`
+19. `GET /api/v1/workflows/definitions/{definition_id}`
+20. `POST /api/v1/workflows/definitions`
+21. `POST /api/v1/workflows/definitions/{definition_id}/transitions`
+22. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
+23. `GET /api/v1/audit/events/`
+24. `GET /api/v1/audit/events/{event_id}`
+25. `GET /api/v1/geography/schools/`
+26. `GET /api/v1/geography/schools/{school_id}`
+27. `POST /api/v1/geography/schools/`
+28. `GET /api/v1/beneficiaries/`
+29. `GET /api/v1/beneficiaries/{beneficiary_id}`
+30. `POST /api/v1/beneficiaries/`
+31. `GET /api/v1/uoms/`
+32. `GET /api/v1/uoms/{uom_id}`
+33. `POST /api/v1/uoms/`
+34. `GET /api/v1/products/`
+35. `GET /api/v1/products/{product_id}`
+36. `POST /api/v1/products/`
+37. `GET /api/v1/recipes/`
+38. `GET /api/v1/recipes/{recipe_id}`
+39. `POST /api/v1/recipes/`
+40. `GET /api/v1/recipes/{recipe_id}/lines`
+41. `POST /api/v1/recipes/{recipe_id}/lines`
 
 ### Meal Plan
 
@@ -202,6 +214,10 @@ Endpoint write saat ini butuh token:
 | `404` | `JOURNAL_ENTRY_NOT_FOUND` | Journal entry tidak ditemukan |
 | `404` | `BUDGET_NOT_FOUND` | Budget tidak ditemukan |
 | `404` | `PROGRAM_NOT_FOUND` | Program tidak ditemukan |
+| `404` | `QC_INSPECTION_NOT_FOUND` | Inspeksi QC tidak ditemukan |
+| `404` | `WORKFLOW_DEFINITION_NOT_FOUND` | Workflow definition tidak ditemukan |
+| `404` | `WORKFLOW_INSTANCE_NOT_FOUND` | Workflow instance tidak ditemukan |
+| `404` | `AUDIT_EVENT_NOT_FOUND` | Audit event tidak ditemukan |
 | `409` | `TENANT_CODE_ALREADY_EXISTS` | Kode tenant sudah dipakai |
 | `409` | `SPPG_CODE_ALREADY_EXISTS` | Kode SPPG sudah dipakai |
 | `409` | `PROGRAM_CODE_ALREADY_EXISTS` | Kode program sudah dipakai |
@@ -214,6 +230,15 @@ Endpoint write saat ini butuh token:
 | `409` | `PRODUCT_CODE_ALREADY_EXISTS` | Kode produk sudah dipakai |
 | `409` | `RECIPE_CODE_VERSION_ALREADY_EXISTS` | Code dan version recipe sudah dipakai |
 | `409` | `ACCOUNT_CODE_ALREADY_EXISTS` | Kode account sudah dipakai |
+| `409` | `WORKFLOW_DEFINITION_ALREADY_EXISTS` | Workflow definition untuk document type tenant ini sudah ada |
+| `409` | `WORKFLOW_TRANSITION_ALREADY_EXISTS` | Workflow transition yang sama sudah ada |
+| `400` | `QC_INSPECTION_LINES_REQUIRED` | QC belum punya line saat finalize |
+| `400` | `QC_INSPECTION_ALREADY_FINALIZED` | QC sudah final |
+| `400` | `QC_RESULT_STATUS_INVALID` | Status result QC bukan PASS/FAIL |
+| `400` | `PRODUCTION_QC_RELEASE_BLOCKED` | Production order belum lolos QC wajib |
+| `400` | `WORKFLOW_TENANT_CONTEXT_REQUIRED` | Header `X-Tenant-ID` wajib untuk baca workflow dokumen |
+| `400` | `WORKFLOW_TRANSITION_NOT_ALLOWED` | Action tidak terdaftar di workflow definition |
+| `400` | `WORKFLOW_INSTANCE_STATE_MISMATCH` | State workflow instance tidak cocok |
 | `422` | `REQUEST_VALIDATION_ERROR` | Payload tidak valid |
 
 ## Demo Credentials
@@ -597,6 +622,229 @@ Error penting:
 - `PROGRAM_TENANT_ASSIGNMENT_REQUIRED`
 - `PROGRAM_SPPG_TENANT_MISMATCH`
 - `PROGRAM_SPPG_ALREADY_ASSIGNED`
+
+### Quality Control
+
+`GET /api/v1/quality/inspections/`
+
+Mengembalikan daftar inspeksi QC. Endpoint ini mendukung context:
+
+- `X-Tenant-ID`
+- `X-SPPG-ID`
+
+Contoh item:
+
+```json
+{
+  "id": "uuid",
+  "tenant_id": "uuid",
+  "sppg_id": "uuid",
+  "inspection_number": "QC-20260719-0001",
+  "inspection_type": "PRODUCTION",
+  "stage": "PRODUCTION_OUTPUT",
+  "reference_type": "PRODUCTION_ORDER",
+  "reference_id": "uuid",
+  "inspection_at": "2026-07-19T08:00:00Z",
+  "inspector_name": "Petugas QC",
+  "status": "DRAFT",
+  "overall_result": null,
+  "is_mandatory_for_release": true,
+  "notes": "QC batch produksi"
+}
+```
+
+`GET /api/v1/quality/inspections/{inspection_id}`
+
+Mengembalikan bundle:
+
+- `inspection`
+- `lines`
+
+`POST /api/v1/quality/inspections/`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+- `operations_manager`
+- `quality_officer`
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "sppg_id": "uuid",
+  "inspection_type": "PRODUCTION",
+  "stage": "PRODUCTION_OUTPUT",
+  "reference_type": "PRODUCTION_ORDER",
+  "reference_id": "uuid",
+  "inspection_at": "2026-07-19T08:00:00Z",
+  "inspector_name": "Petugas QC",
+  "is_mandatory_for_release": true,
+  "notes": "QC batch produksi"
+}
+```
+
+Aturan:
+
+- untuk `reference_type = PRODUCTION_ORDER`, referensinya harus milik tenant dan SPPG yang sama
+- bila frontend mengirim `X-Tenant-ID` dan `X-SPPG-ID`, nilainya harus sama dengan payload
+
+`POST /api/v1/quality/inspections/{inspection_id}/lines`
+
+Payload:
+
+```json
+{
+  "parameter_name": "Suhu makanan",
+  "expected_value": ">=60C",
+  "actual_value": "65C",
+  "result_status": "PASS",
+  "notes": "Aman"
+}
+```
+
+Aturan:
+
+- `result_status` hanya boleh `PASS` atau `FAIL`
+- inspeksi yang sudah final tidak boleh ditambah line lagi
+
+`POST /api/v1/quality/inspections/{inspection_id}/finalize`
+
+Aturan:
+
+- minimal harus ada satu line
+- bila ada minimal satu line `FAIL`, maka hasil akhir inspeksi menjadi `FAILED`
+- bila semua line `PASS`, hasil akhir menjadi `PASSED`
+- inspection yang `is_mandatory_for_release = true` akan memblokir pembuatan delivery order dari production order bila hasilnya belum `PASSED`
+
+### Workflow
+
+`GET /api/v1/workflows/definitions`
+
+Mengembalikan daftar workflow definition untuk tenant aktif. Frontend sebaiknya selalu mengirim `X-Tenant-ID`.
+
+`GET /api/v1/workflows/definitions/{definition_id}`
+
+Mengembalikan:
+
+- `definition`
+- `transitions`
+
+`POST /api/v1/workflows/definitions`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "code": "CUSTOM-WF-DEMO",
+  "name": "Workflow Dokumen Demo",
+  "document_type": "custom_document_demo",
+  "initial_state": "DRAFT",
+  "is_active": true
+}
+```
+
+`POST /api/v1/workflows/definitions/{definition_id}/transitions`
+
+Payload:
+
+```json
+{
+  "from_state": "DRAFT",
+  "action_name": "SUBMIT",
+  "to_state": "SUBMITTED",
+  "allowed_role": "tenant_admin",
+  "requires_approval": false
+}
+```
+
+`GET /api/v1/workflows/documents/{document_type}/{document_id}`
+
+Header wajib:
+
+```http
+X-Tenant-ID: <tenant_uuid>
+```
+
+Response mengembalikan:
+
+- `definition`
+- `instance`
+- `transitions`
+- `history`
+
+Implementasi saat ini sudah otomatis dipakai oleh:
+
+- `meal_plan`
+- `budget`
+
+Artinya setiap create, submit, dan approve pada dua domain itu langsung menambah workflow history tanpa menghilangkan field `status` bisnis di tabel utamanya.
+
+### Audit
+
+`GET /api/v1/audit/events/`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Query opsional:
+
+- `module_name`
+- `event_type`
+
+Contoh:
+
+```text
+GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
+```
+
+Response item:
+
+```json
+{
+  "id": "uuid",
+  "tenant_id": "uuid",
+  "sppg_id": "uuid",
+  "actor_user_id": "uuid",
+  "actor_name": "Demo Operator MBG",
+  "event_type": "OPERATIONS",
+  "module_name": "meal_plan",
+  "action_name": "CREATE",
+  "entity_type": "meal_plan",
+  "entity_id": "uuid",
+  "request_id": "uuid",
+  "success": true,
+  "ip_address": "testclient",
+  "summary": "Meal plan dibuat.",
+  "metadata_json": {
+    "plan_date": "2026-08-03",
+    "planned_portions": 10
+  },
+  "occurred_at": "2026-07-19T10:00:00Z"
+}
+```
+
+`GET /api/v1/audit/events/{event_id}`
+
+Mengembalikan satu event audit lengkap. Frontend admin dapat memakai endpoint ini untuk halaman detail aktivitas.
+
+Implementasi audit saat ini sudah mencatat aksi penting pada:
+
+- `identity`
+- `meal_plan`
+- `budget`
+- `quality`
+- `workflow`
 
 ### Meal Plan Workflow
 

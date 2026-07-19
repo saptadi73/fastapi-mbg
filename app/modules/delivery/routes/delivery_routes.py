@@ -28,6 +28,8 @@ from app.modules.production.repositories.production_material_consumption_reposit
 )
 from app.modules.production.repositories.production_order_repository import ProductionOrderRepository
 from app.modules.production.services.production_service import ProductionService
+from app.modules.quality.repositories.qc_inspection_repository import QCInspectionRepository
+from app.modules.quality.services.quality_service import QualityService
 from app.modules.recipe.repositories.recipe_line_repository import RecipeLineRepository
 from app.modules.recipe.repositories.recipe_repository import RecipeRepository
 from app.modules.sppg.repositories.sppg_repository import SppgRepository
@@ -73,6 +75,12 @@ def get_delivery_service(session: AsyncSession = Depends(get_db_session)) -> Del
         SppgRepository(session),
         SchoolRepository(session),
         production_service,
+        QualityService(
+            QCInspectionRepository(session),
+            TenantRepository(session),
+            SppgRepository(session),
+            ProductionOrderRepository(session),
+        ),
     )
 
 

@@ -7,6 +7,7 @@ from app.core.config.settings import Settings, get_settings
 from app.core.database.session import close_database, initialize_database
 from app.core.tenancy.middleware import TenantContextMiddleware
 from app.modules.accounting.manifest import manifest as accounting_manifest
+from app.modules.audit.manifest import manifest as audit_manifest
 from app.modules.beneficiary.manifest import manifest as beneficiary_manifest
 from app.modules.budget.manifest import manifest as budget_manifest
 from app.modules.delivery.manifest import manifest as delivery_manifest
@@ -20,10 +21,12 @@ from app.modules.program.manifest import manifest as program_manifest
 from app.modules.product.manifest import manifest as product_manifest
 from app.modules.production.manifest import manifest as production_manifest
 from app.modules.procurement.manifest import manifest as procurement_manifest
+from app.modules.quality.manifest import manifest as quality_manifest
 from app.modules.recipe.manifest import manifest as recipe_manifest
 from app.modules.sppg.manifest import manifest as sppg_manifest
 from app.modules.tenant.manifest import manifest as tenant_manifest
 from app.modules.uom.manifest import manifest as uom_manifest
+from app.modules.workflow.manifest import manifest as workflow_manifest
 from app.support.exceptions.handlers import register_exception_handlers
 from app.support.middleware.cors import register_cors
 from app.support.middleware.request_id import register_request_id
@@ -35,6 +38,7 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
     return (
         health_manifest,
         identity_manifest,
+        audit_manifest,
         accounting_manifest,
         budget_manifest,
         tenant_manifest,
@@ -44,7 +48,9 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         delivery_manifest,
         inventory_manifest,
         program_manifest,
+        quality_manifest,
         uom_manifest,
+        workflow_manifest,
         product_manifest,
         production_manifest,
         procurement_manifest,

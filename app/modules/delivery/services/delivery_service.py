@@ -9,6 +9,7 @@ from app.modules.delivery.repositories.delivery_proof_repository import Delivery
 from app.modules.delivery.schemas.delivery_schema import DeliveryCreateFromProduction, DeliveryProofCreate
 from app.modules.geography.repositories.school_repository import SchoolRepository
 from app.modules.production.services.production_service import PRODUCTION_COMPLETED, ProductionService
+from app.modules.quality.services.quality_service import QualityService
 from app.modules.sppg.repositories.sppg_repository import SppgRepository
 from app.modules.tenant.repositories.tenant_repository import TenantRepository
 from app.support.exceptions.base import BadRequestException, NotFoundException
@@ -29,6 +30,7 @@ class DeliveryService:
         sppg_repository: SppgRepository,
         school_repository: SchoolRepository,
         production_service: ProductionService,
+        quality_service: QualityService | None = None,
     ) -> None:
         self.delivery_order_repository = delivery_order_repository
         self.delivery_proof_repository = delivery_proof_repository
@@ -36,6 +38,7 @@ class DeliveryService:
         self.sppg_repository = sppg_repository
         self.school_repository = school_repository
         self.production_service = production_service
+        self.quality_service = quality_service
 
     def _get_scope(self) -> tuple[UUID | None, UUID | None]:
         tenant_id = None
@@ -86,6 +89,8 @@ class DeliveryService:
                 code="PRODUCTION_ORDER_NOT_READY_FOR_DELIVERY",
                 message="Production order harus selesai sebelum dibuat delivery order.",
             )
+        if self.quality_service is not None:
+            await self.quality_service.validate_release_for_reference("PRODUCTION_ORDER", production_order.id)
         if await self.tenant_repository.get_by_id(production_order.tenant_id) is None:
             raise NotFoundException(code="TENANT_NOT_FOUND", message="Tenant delivery tidak ditemukan.")
         if await self.sppg_repository.get_by_id(production_order.sppg_id) is None:

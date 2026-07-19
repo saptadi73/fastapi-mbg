@@ -461,6 +461,340 @@ def test_program_create_and_assignment_flow_works() -> None:
     assert any(item["id"] == program_id for item in scoped_items)
 
 
+def test_quality_inspection_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-31",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 6,
+                "budget_cost_per_portion": 15000,
+                "notes": "QC inspection test",
+            },
+        )
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+        reserve_response = client.post(
+            f"/api/v1/meal-plans/{meal_plan_id}/reserve-materials",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert reserve_response.status_code == 200
+        create_po_response = client.post(
+            f"/api/v1/production-orders/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        production_order_id = create_po_response.json()["data"]["production_order"]["id"]
+        complete_response = client.post(
+            f"/api/v1/production-orders/{production_order_id}/complete",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"actual_portions": 6, "accepted_portions": 6, "rejected_portions": 0},
+        )
+        assert complete_response.status_code == 200
+
+        create_inspection_response = client.post(
+            "/api/v1/quality/inspections/",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "inspection_type": "PRODUCTION",
+                "stage": "PRODUCTION_OUTPUT",
+                "reference_type": "PRODUCTION_ORDER",
+                "reference_id": production_order_id,
+                "inspection_at": "2026-07-19T08:00:00Z",
+                "inspector_name": "Petugas QC",
+                "is_mandatory_for_release": True,
+                "notes": "QC batch produksi",
+            },
+        )
+        assert create_inspection_response.status_code == 201, create_inspection_response.json()
+        inspection_id = create_inspection_response.json()["data"]["id"]
+
+        add_line_response = client.post(
+            f"/api/v1/quality/inspections/{inspection_id}/lines",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "parameter_name": "Suhu makanan",
+                "expected_value": ">=60C",
+                "actual_value": "65C",
+                "result_status": "PASS",
+                "notes": "Aman",
+            },
+        )
+        finalize_response = client.post(
+            f"/api/v1/quality/inspections/{inspection_id}/finalize",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        detail_response = client.get(
+            f"/api/v1/quality/inspections/{inspection_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert add_line_response.status_code == 201
+    assert add_line_response.json()["code"] == "QC_INSPECTION_LINE_CREATED"
+    assert finalize_response.status_code == 200
+    assert finalize_response.json()["data"]["inspection"]["status"] == "PASSED"
+    assert detail_response.status_code == 200
+    assert len(detail_response.json()["data"]["lines"]) == 1
+
+
+def test_quality_failed_inspection_blocks_delivery_release() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        school_id = client.get("/api/v1/geography/schools/").json()["data"][0]["id"]
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-08-01",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 5,
+                "budget_cost_per_portion": 15000,
+                "notes": "QC release block test",
+            },
+        )
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+        reserve_response = client.post(
+            f"/api/v1/meal-plans/{meal_plan_id}/reserve-materials",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert reserve_response.status_code == 200
+        create_po_response = client.post(
+            f"/api/v1/production-orders/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        production_order_id = create_po_response.json()["data"]["production_order"]["id"]
+        complete_response = client.post(
+            f"/api/v1/production-orders/{production_order_id}/complete",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"actual_portions": 5, "accepted_portions": 5, "rejected_portions": 0},
+        )
+        assert complete_response.status_code == 200
+
+        create_inspection_response = client.post(
+            "/api/v1/quality/inspections/",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "inspection_type": "PRODUCTION",
+                "stage": "PRODUCTION_OUTPUT",
+                "reference_type": "PRODUCTION_ORDER",
+                "reference_id": production_order_id,
+                "inspection_at": "2026-07-19T09:00:00Z",
+                "inspector_name": "Petugas QC",
+                "is_mandatory_for_release": True,
+                "notes": "QC gagal",
+            },
+        )
+        inspection_id = create_inspection_response.json()["data"]["id"]
+        client.post(
+            f"/api/v1/quality/inspections/{inspection_id}/lines",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "parameter_name": "Kemasan",
+                "expected_value": "Rapat",
+                "actual_value": "Bocor",
+                "result_status": "FAIL",
+                "notes": "Harus rework",
+            },
+        )
+        client.post(
+            f"/api/v1/quality/inspections/{inspection_id}/finalize",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        delivery_response = client.post(
+            f"/api/v1/delivery-orders/from-production-order/{production_order_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "school_id": school_id,
+                "planned_departure": "2026-08-01T07:00:00Z",
+                "planned_arrival": "2026-08-01T08:00:00Z",
+                "receiver_name": "Petugas Sekolah",
+            },
+        )
+
+    assert delivery_response.status_code == 400
+    assert delivery_response.json()["code"] == "PRODUCTION_QC_RELEASE_BLOCKED"
+
+
+def test_workflow_definition_endpoints_and_document_history_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        create_definition_response = client.post(
+            "/api/v1/workflows/definitions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"CUSTOM-WF-{code_suffix}",
+                "name": "Workflow Dokumen Demo",
+                "document_type": f"custom_document_{code_suffix.lower()}",
+                "initial_state": "DRAFT",
+                "is_active": True,
+            },
+        )
+        assert create_definition_response.status_code == 201, create_definition_response.json()
+        definition_id = create_definition_response.json()["data"]["id"]
+
+        create_transition_response = client.post(
+            f"/api/v1/workflows/definitions/{definition_id}/transitions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "from_state": "DRAFT",
+                "action_name": "SUBMIT",
+                "to_state": "SUBMITTED",
+                "allowed_role": "tenant_admin",
+                "requires_approval": False,
+            },
+        )
+        list_definitions_response = client.get(
+            "/api/v1/workflows/definitions",
+            headers={"X-Tenant-ID": tenant_id},
+        )
+        get_definition_response = client.get(
+            f"/api/v1/workflows/definitions/{definition_id}",
+            headers={"X-Tenant-ID": tenant_id},
+        )
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-08-02",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 12,
+                "budget_cost_per_portion": 15000,
+                "notes": "Workflow meal plan test",
+            },
+        )
+        assert meal_plan_response.status_code == 201, meal_plan_response.json()
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        submit_response = client.post(
+            f"/api/v1/meal-plans/{meal_plan_id}/submit",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        approve_response = client.post(
+            f"/api/v1/meal-plans/{meal_plan_id}/approve",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        workflow_document_response = client.get(
+            f"/api/v1/workflows/documents/meal_plan/{meal_plan_id}",
+            headers={"X-Tenant-ID": tenant_id},
+        )
+
+    assert create_transition_response.status_code == 201
+    assert create_transition_response.json()["code"] == "WORKFLOW_TRANSITION_CREATED"
+    assert list_definitions_response.status_code == 200
+    assert any(item["id"] == definition_id for item in list_definitions_response.json()["data"])
+    assert get_definition_response.status_code == 200
+    assert len(get_definition_response.json()["data"]["transitions"]) == 1
+    assert submit_response.status_code == 200
+    assert approve_response.status_code == 200
+    assert workflow_document_response.status_code == 200, workflow_document_response.json()
+    workflow_payload = workflow_document_response.json()["data"]
+    assert workflow_payload["instance"]["current_state"] == "APPROVED"
+    assert [item["action_name"] for item in workflow_payload["history"]] == ["CREATE", "SUBMIT", "APPROVE"]
+
+
+def test_audit_event_endpoints_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-08-03",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 10,
+                "budget_cost_per_portion": 15000,
+                "notes": "Audit event test",
+            },
+        )
+        assert meal_plan_response.status_code == 201
+
+        list_response = client.get(
+            "/api/v1/audit/events/?module_name=meal_plan",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        assert list_response.status_code == 200, list_response.json()
+        items = list_response.json()["data"]
+        assert len(items) >= 1
+        event_id = items[0]["id"]
+
+        detail_response = client.get(
+            f"/api/v1/audit/events/{event_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+
+    assert detail_response.status_code == 200
+    detail_payload = detail_response.json()["data"]
+    assert detail_payload["module_name"] == "meal_plan"
+    assert detail_payload["action_name"] in {"CREATE", "SUBMIT", "APPROVE", "RESERVE_MATERIALS"}
+
+
 def test_uom_create_rejects_tenant_write_scope_violation() -> None:
     with TestClient(app) as client:
         login_response = client.post(

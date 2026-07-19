@@ -12,6 +12,7 @@ from app.modules.recipe.repositories.recipe_line_repository import RecipeLineRep
 from app.modules.recipe.repositories.recipe_repository import RecipeRepository
 from app.modules.sppg.repositories.sppg_repository import SppgRepository
 from app.modules.tenant.repositories.tenant_repository import TenantRepository
+from app.modules.workflow.services.workflow_service import WorkflowService
 from app.support.exceptions.base import BadRequestException, NotFoundException
 
 MEAL_PLAN_DRAFT = "DRAFT"
@@ -31,6 +32,7 @@ class MealPlanService:
         product_repository: ProductRepository,
         inventory_balance_repository: InventoryBalanceRepository | None = None,
         warehouse_repository: WarehouseRepository | None = None,
+        workflow_service: WorkflowService | None = None,
     ) -> None:
         self.repository = repository
         self.tenant_repository = tenant_repository
@@ -40,6 +42,7 @@ class MealPlanService:
         self.product_repository = product_repository
         self.inventory_balance_repository = inventory_balance_repository
         self.warehouse_repository = warehouse_repository
+        self.workflow_service = workflow_service
 
     def _get_scope(self) -> tuple[UUID | None, UUID | None]:
         tenant_id = None
@@ -82,7 +85,7 @@ class MealPlanService:
             raise NotFoundException(code="MEAL_PLAN_NOT_FOUND", message="Meal plan tidak ditemukan.")
         return meal_plan
 
-    async def create_meal_plan(self, payload: MealPlanCreate) -> MealPlan:
+    async def create_meal_plan(self, payload: MealPlanCreate, actor=None) -> MealPlan:
         tenant_id = UUID(payload.tenant_id)
         sppg_id = UUID(payload.sppg_id)
         enforce_tenant_write_scope(tenant_id)
@@ -107,26 +110,68 @@ class MealPlanService:
             budget_cost_per_portion=payload.budget_cost_per_portion,
             notes=payload.notes,
         )
-        return await self.repository.add(meal_plan)
+        meal_plan = await self.repository.add(meal_plan)
+        if self.workflow_service is not None:
+            await self.workflow_service.ensure_definition_with_transitions(
+                tenant_id=tenant_id,
+                code="MEAL_PLAN_STANDARD",
+                name="Meal Plan Approval Workflow",
+                document_type="meal_plan",
+                initial_state=MEAL_PLAN_DRAFT,
+                transitions=[
+                    {"from_state": "DRAFT", "action_name": "SUBMIT", "to_state": "SUBMITTED", "allowed_role": "operations_manager"},
+                    {"from_state": "SUBMITTED", "action_name": "APPROVE", "to_state": "APPROVED", "allowed_role": "tenant_admin", "requires_approval": True},
+                    {"from_state": "APPROVED", "action_name": "RESERVE_MATERIALS", "to_state": "MATERIAL_RESERVED", "allowed_role": "operations_manager"},
+                ],
+            )
+            await self.workflow_service.ensure_instance(
+                tenant_id=tenant_id,
+                document_type="meal_plan",
+                document_id=meal_plan.id,
+                initial_state=MEAL_PLAN_DRAFT,
+                actor=actor,
+                notes="Meal plan dibuat.",
+            )
+        return meal_plan
 
-    async def submit_meal_plan(self, meal_plan_id: UUID) -> MealPlan:
+    async def submit_meal_plan(self, meal_plan_id: UUID, actor=None) -> MealPlan:
         meal_plan = await self.get_meal_plan(meal_plan_id)
         if meal_plan.status != MEAL_PLAN_DRAFT:
             raise BadRequestException(
                 code="MEAL_PLAN_SUBMIT_INVALID_STATUS",
                 message="Meal plan hanya bisa disubmit dari status DRAFT.",
-            )
+        )
         meal_plan.status = MEAL_PLAN_SUBMITTED
+        if self.workflow_service is not None:
+            await self.workflow_service.apply_transition(
+                tenant_id=meal_plan.tenant_id,
+                document_type="meal_plan",
+                document_id=meal_plan.id,
+                action_name="SUBMIT",
+                expected_state=MEAL_PLAN_DRAFT,
+                actor=actor,
+                notes="Meal plan disubmit.",
+            )
         return meal_plan
 
-    async def approve_meal_plan(self, meal_plan_id: UUID) -> MealPlan:
+    async def approve_meal_plan(self, meal_plan_id: UUID, actor=None) -> MealPlan:
         meal_plan = await self.get_meal_plan(meal_plan_id)
         if meal_plan.status != MEAL_PLAN_SUBMITTED:
             raise BadRequestException(
                 code="MEAL_PLAN_APPROVE_INVALID_STATUS",
                 message="Meal plan hanya bisa diapprove dari status SUBMITTED.",
-            )
+        )
         meal_plan.status = MEAL_PLAN_APPROVED
+        if self.workflow_service is not None:
+            await self.workflow_service.apply_transition(
+                tenant_id=meal_plan.tenant_id,
+                document_type="meal_plan",
+                document_id=meal_plan.id,
+                action_name="APPROVE",
+                expected_state=MEAL_PLAN_SUBMITTED,
+                actor=actor,
+                notes="Meal plan diapprove.",
+            )
         return meal_plan
 
     async def calculate_material_requirements(self, meal_plan_id: UUID) -> list[dict]:
@@ -207,6 +252,16 @@ class MealPlanService:
                 )
 
         meal_plan.status = MEAL_PLAN_MATERIAL_RESERVED
+        if self.workflow_service is not None:
+            await self.workflow_service.apply_transition(
+                tenant_id=meal_plan.tenant_id,
+                document_type="meal_plan",
+                document_id=meal_plan.id,
+                action_name="RESERVE_MATERIALS",
+                expected_state=MEAL_PLAN_APPROVED,
+                actor=None,
+                notes="Material meal plan direservasi.",
+            )
         return {
             "meal_plan_id": str(meal_plan.id),
             "status": meal_plan.status,

@@ -11,6 +11,7 @@ from app.modules.budget.repositories.budget_repository import BudgetRepository
 from app.modules.budget.schemas.budget_schema import BudgetCreate
 from app.modules.identity.models.user import User
 from app.modules.tenant.repositories.tenant_repository import TenantRepository
+from app.modules.workflow.services.workflow_service import WorkflowService
 from app.support.exceptions.base import BadRequestException, NotFoundException
 
 
@@ -21,11 +22,13 @@ class BudgetService:
         budget_line_repository: BudgetLineRepository,
         tenant_repository: TenantRepository,
         account_repository: AccountRepository,
+        workflow_service: WorkflowService | None = None,
     ) -> None:
         self.budget_repository = budget_repository
         self.budget_line_repository = budget_line_repository
         self.tenant_repository = tenant_repository
         self.account_repository = account_repository
+        self.workflow_service = workflow_service
 
     def _get_tenant_scope(self) -> UUID | None:
         current_tenant = get_current_tenant()
@@ -54,7 +57,7 @@ class BudgetService:
         lines = await self.budget_line_repository.list_by_budget(budget_id)
         return {"budget": budget, "lines": lines}
 
-    async def create_budget(self, payload: BudgetCreate) -> dict:
+    async def create_budget(self, payload: BudgetCreate, actor: User | None = None) -> dict:
         tenant_id = UUID(payload.tenant_id)
         enforce_tenant_write_scope(tenant_id)
         if await self.tenant_repository.get_by_id(tenant_id) is None:
@@ -101,14 +104,44 @@ class BudgetService:
                     )
                 )
             )
+        if self.workflow_service is not None:
+            await self.workflow_service.ensure_definition_with_transitions(
+                tenant_id=tenant_id,
+                code="BUDGET_STANDARD",
+                name="Budget Approval Workflow",
+                document_type="budget",
+                initial_state="DRAFT",
+                transitions=[
+                    {"from_state": "DRAFT", "action_name": "SUBMIT", "to_state": "SUBMITTED", "allowed_role": "finance_manager"},
+                    {"from_state": "SUBMITTED", "action_name": "APPROVE", "to_state": "APPROVED", "allowed_role": "tenant_admin", "requires_approval": True},
+                ],
+            )
+            await self.workflow_service.ensure_instance(
+                tenant_id=tenant_id,
+                document_type="budget",
+                document_id=budget.id,
+                initial_state="DRAFT",
+                actor=actor,
+                notes="Budget dibuat.",
+            )
         return {"budget": budget, "lines": lines}
 
-    async def submit_budget(self, budget_id: UUID) -> dict:
+    async def submit_budget(self, budget_id: UUID, actor: User | None = None) -> dict:
         bundle = await self.get_budget_bundle(budget_id)
         budget = bundle["budget"]
         if budget.status != "DRAFT":
             raise BadRequestException(code="BUDGET_SUBMIT_INVALID_STATUS", message="Budget hanya bisa disubmit dari DRAFT.")
         budget.status = "SUBMITTED"
+        if self.workflow_service is not None:
+            await self.workflow_service.apply_transition(
+                tenant_id=budget.tenant_id,
+                document_type="budget",
+                document_id=budget.id,
+                action_name="SUBMIT",
+                expected_state="DRAFT",
+                actor=actor,
+                notes="Budget disubmit.",
+            )
         return bundle
 
     async def approve_budget(self, budget_id: UUID, actor: User) -> dict:
@@ -119,6 +152,16 @@ class BudgetService:
         budget.status = "APPROVED"
         budget.approved_by = actor.id
         budget.approved_at = datetime.now(timezone.utc)
+        if self.workflow_service is not None:
+            await self.workflow_service.apply_transition(
+                tenant_id=budget.tenant_id,
+                document_type="budget",
+                document_id=budget.id,
+                action_name="APPROVE",
+                expected_state="SUBMITTED",
+                actor=actor,
+                notes="Budget diapprove.",
+            )
         return bundle
 
     async def get_budget_availability(self, budget_id: UUID) -> dict:
