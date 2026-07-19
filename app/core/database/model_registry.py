@@ -33,6 +33,7 @@ def import_all_models() -> None:
     import app.modules.funding.models.funding_repayment  # noqa: F401
     import app.modules.funding.models.funding_source  # noqa: F401
     import app.modules.geography.models.school  # noqa: F401
+    import app.modules.gis.models.service_area  # noqa: F401
     import app.modules.government_claim.models.claim_adjustment  # noqa: F401
     import app.modules.government_claim.models.claim_evidence  # noqa: F401
     import app.modules.government_claim.models.claim_payment  # noqa: F401

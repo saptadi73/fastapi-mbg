@@ -45,6 +45,25 @@ http://127.0.0.1:8000
 13. `POST /api/v1/ai/media/analyze-image`
 14. `POST /api/v1/ai/media/analyze-video`
 
+### GIS
+
+1. `GET /api/v1/gis/sppg-map`
+2. `GET /api/v1/gis/kitchens`
+3. `GET /api/v1/gis/schools`
+4. `GET /api/v1/gis/service-coverage`
+5. `GET /api/v1/gis/delivery-routes`
+6. `GET /api/v1/gis/deliveries/{delivery_id}/route`
+7. `GET /api/v1/gis/unserved-schools`
+8. `GET /api/v1/gis/sppg-risk-heatmap`
+9. `GET /api/v1/gis/heatmaps/distribution`
+10. `GET /api/v1/gis/service-areas`
+11. `GET /api/v1/gis/service-areas/{service_area_id}`
+12. `GET /api/v1/gis/kitchens/{kitchen_id}/service-area`
+13. `POST /api/v1/gis/service-areas`
+14. `PUT /api/v1/gis/kitchens/{kitchen_id}/service-area`
+15. `GET /api/v1/gis/schools/{school_id}/nearest-kitchens`
+16. `POST /api/v1/gis/assignments/validate`
+
 ### Master Data
 
 1. `GET /api/v1/tenants/`
@@ -509,6 +528,304 @@ Aturan penting media AI:
 - `mime_type` wajib sesuai endpoint: `image/*` untuk image dan `video/*` untuk video
 - file hasil download dibatasi oleh `GOOGLE_AI_MEDIA_MAX_DOWNLOAD_MB`
 - untuk video besar, implementasi saat ini lebih cocok untuk clip pendek; bila nanti butuh video panjang, sebaiknya dikembangkan ke workflow upload file terpisah
+
+Rekomendasi konfigurasi awal:
+
+- `OPENAI_NL2SQL_MODEL=gpt-5.6-terra`
+- `GOOGLE_AI_MEDIA_MODEL=gemini-2.5-flash`
+
+Catatan implementasi provider:
+
+- backend OpenAI memakai Responses API
+- backend Google AI saat ini memakai `generateContent`
+- menurut dokumentasi Google terbaru, Interactions API sekarang direkomendasikan untuk implementasi baru, sehingga modul media AI ini cocok dijadikan kandidat migrasi tahap berikutnya
+
+### GIS
+
+`GET /api/v1/gis/sppg-map`
+
+Mengembalikan daftar marker SPPG yang siap dipakai frontend peta.
+
+Setiap item berisi:
+
+- identitas SPPG
+- koordinat
+- radius layanan
+- jumlah sekolah yang tercakup radius
+
+Contoh struktur `data`:
+
+```json
+{
+  "items": [
+    {
+      "sppg_id": "uuid",
+      "tenant_id": "uuid",
+      "code": "SPPG-JKT-01",
+      "name": "SPPG Jakarta Pusat 01",
+      "city": "Jakarta Pusat",
+      "is_active": true,
+      "service_radius_meter": 3000,
+      "coordinate": {
+        "latitude": -6.17,
+        "longitude": 106.82
+      },
+      "covered_school_count": 12
+    }
+  ]
+}
+```
+
+`GET /api/v1/gis/kitchens`
+
+Mengembalikan `GeoJSON FeatureCollection` untuk layer dapur dalam area `bbox`.
+
+Query utama:
+
+- `bbox=106.800,-6.200,106.900,-6.100`
+- `snapshot_date=2026-07-19`
+- `status=active`
+- `metric=performance_score`
+- `limit=2000`
+
+Property utama setiap feature:
+
+- `kitchen_id`
+- `tenant_id`
+- `code`
+- `name`
+- `city`
+- `is_active`
+- `service_radius_meter`
+- `covered_school_count`
+
+`GET /api/v1/gis/schools`
+
+Mengembalikan `GeoJSON FeatureCollection` untuk layer sekolah.
+
+Filter yang tersedia:
+
+- `bbox`
+- `kitchen_id`
+- `date_from`
+- `date_to`
+- `feedback_min`
+- `complaint_only`
+- `distribution_min`
+- `limit`
+
+Property utama setiap feature:
+
+- `school_id`
+- `tenant_id`
+- `code`
+- `name`
+- `school_level`
+- `student_count`
+- `active_beneficiary_count`
+- `delivery_count`
+- `avg_feedback`
+- `complaint_count`
+
+`GET /api/v1/gis/service-coverage`
+
+Menghitung coverage sekolah terhadap radius layanan SPPG. Query opsional:
+
+- `sppg_id`
+
+Response utama:
+
+- `covered_school_count`
+- `out_of_radius_school_count`
+- `nearest_school_distance_km`
+- `farthest_covered_school_distance_km`
+- `average_covered_distance_km`
+
+Contoh `data`:
+
+```json
+{
+  "items": [
+    {
+      "sppg_id": "uuid",
+      "tenant_id": "uuid",
+      "code": "SPPG-JKT-01",
+      "name": "SPPG Jakarta Pusat 01",
+      "service_radius_meter": 3000,
+      "covered_school_count": 12,
+      "out_of_radius_school_count": 3,
+      "nearest_school_distance_km": 0.45,
+      "farthest_covered_school_distance_km": 2.82,
+      "average_covered_distance_km": 1.71
+    }
+  ],
+  "totals": {
+    "sppg_count": 1,
+    "school_count": 15,
+    "covered_school_count": 12,
+    "unserved_school_count": 3
+  }
+}
+```
+
+`GET /api/v1/gis/delivery-routes`
+
+Mengembalikan garis rute sederhana dari titik SPPG ke titik sekolah berdasarkan delivery order yang sudah ada.
+
+Setiap item berisi:
+
+- `delivery_order_id`
+- `delivery_number`
+- `status`
+- `from_coordinate`
+- `to_coordinate`
+- `distance_km`
+- `line`
+
+`line` saat ini terdiri dari dua titik:
+
+- titik asal SPPG
+- titik tujuan sekolah
+
+`GET /api/v1/gis/deliveries/{delivery_id}/route`
+
+Mengembalikan detail satu rute delivery dalam format yang sama dengan item pada `delivery-routes`.
+
+`GET /api/v1/gis/unserved-schools`
+
+Mengembalikan sekolah yang belum masuk ke radius layanan SPPG terdekat.
+
+Setiap item berisi:
+
+- identitas sekolah
+- koordinat
+- `nearest_sppg_id`
+- `nearest_sppg_name`
+- `nearest_distance_km`
+
+`GET /api/v1/gis/sppg-risk-heatmap`
+
+Mengembalikan skor risiko operasional ringan berbasis GIS untuk tiap SPPG.
+
+Field penting:
+
+- `risk_score`
+- `risk_level`
+- `metrics.covered_school_count`
+- `metrics.average_covered_distance_km`
+- `metrics.farthest_covered_distance_km`
+- `metrics.radius_utilization_ratio`
+
+`GET /api/v1/gis/heatmaps/distribution`
+
+Mengembalikan `GeoJSON FeatureCollection` per sekolah dengan property `distribution_count`.
+
+Catatan implementasi GIS v1:
+
+- seluruh endpoint GIS mendukung `X-Tenant-ID`
+- bila frontend mengirim `X-SPPG-ID`, hasil akan difokuskan pada satu dapur
+- implementasi saat ini sudah memakai PostGIS native berbasis `geometry(...,4326)` untuk point SPPG dan sekolah
+- polygon area layanan sekarang dinormalisasi menjadi `MultiPolygon`
+- analisa spasial utama memakai `ST_DWithin`, `ST_Distance`, `ST_Covers`, `ST_MakeLine`, dan serialisasi GeoJSON
+
+`GET /api/v1/gis/service-areas`
+
+Mengembalikan daftar polygon area layanan yang sudah disimpan untuk tenant/SPPG aktif.
+
+`GET /api/v1/gis/service-areas/{service_area_id}`
+
+Mengembalikan detail satu service area, termasuk:
+
+- `boundary_wkt`
+- `boundary_geojson`
+
+`GET /api/v1/gis/kitchens/{kitchen_id}/service-area`
+
+Mengembalikan service area terbaru untuk satu dapur dalam scope tenant aktif.
+
+`POST /api/v1/gis/service-areas`
+
+Membuat area layanan PostGIS. Tenant diambil dari `X-Tenant-ID`, dan `sppg_id` dapat diambil dari `X-SPPG-ID` atau payload.
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+- `operations_manager`
+
+Payload:
+
+```json
+{
+  "name": "Area Layanan Jakarta Pusat 01",
+  "boundary_geojson": {
+    "type": "Polygon",
+    "coordinates": [
+      [[106.82, -6.17], [106.825, -6.17], [106.825, -6.175], [106.82, -6.175], [106.82, -6.17]]
+    ]
+  },
+  "valid_from": "2026-07-19",
+  "valid_to": null
+}
+```
+
+`PUT /api/v1/gis/kitchens/{kitchen_id}/service-area`
+
+Menyimpan service area dapur sebagai `MultiPolygon`. Endpoint ini juga menormalisasi payload `Polygon` menjadi `MultiPolygon`.
+
+`GET /api/v1/gis/schools/{school_id}/nearest-kitchens`
+
+Mengembalikan daftar dapur terdekat untuk sekolah, termasuk:
+
+- `distance_m`
+- `inside_service_area`
+- `service_radius_meter`
+
+`POST /api/v1/gis/assignments/validate`
+
+Memvalidasi apakah sekolah layak di-assign ke dapur tertentu.
+
+Payload:
+
+```json
+{
+  "kitchen_id": "uuid",
+  "school_id": "uuid",
+  "planned_portions": 120
+}
+```
+
+Response `data`:
+
+```json
+{
+  "is_valid": false,
+  "distance_m": 17840.32,
+  "inside_service_area": false,
+  "capacity_available": false,
+  "warnings": [
+    "Sekolah berada di luar service area dapur."
+  ]
+}
+```
+
+Contoh response `data`:
+
+```json
+{
+  "id": "uuid",
+  "tenant_id": "uuid",
+  "sppg_id": "uuid",
+  "name": "Area Layanan Jakarta Pusat 01",
+  "valid_from": "2026-07-19",
+  "valid_to": null,
+  "boundary_wkt": "POLYGON((106.82 -6.17,106.825 -6.17,106.825 -6.175,106.82 -6.175,106.82 -6.17))",
+  "boundary_geojson": {
+    "type": "Polygon",
+    "coordinates": [[[106.82, -6.17], [106.825, -6.17], [106.825, -6.175], [106.82, -6.175], [106.82, -6.17]]]
+  }
+}
+```
 
 ## Standard JSON Response
 

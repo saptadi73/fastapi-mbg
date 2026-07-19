@@ -48,6 +48,11 @@ class Settings(BaseSettings):
 
     default_timezone: str = "Asia/Jakarta"
     default_currency: str = "IDR"
+    postgis_srid: int = 4326
+    default_service_radius_meters: int = 10000
+    max_gis_bbox_area_km2: int = 250000
+    max_geojson_features: int = 5000
+    max_geojson_vertices: int = 5000
 
     openai_enabled: bool = False
     openai_api_key: str | None = None

@@ -19,6 +19,7 @@ from app.modules.feedback.manifest import manifest as feedback_manifest
 from app.modules.fleet.manifest import manifest as fleet_manifest
 from app.modules.funding.manifest import manifest as funding_manifest
 from app.modules.geography.manifest import manifest as geography_manifest
+from app.modules.gis.manifest import manifest as gis_manifest
 from app.modules.government_claim.manifest import manifest as government_claim_manifest
 from app.modules.health.manifest import manifest as health_manifest
 from app.modules.identity.manifest import manifest as identity_manifest
@@ -58,6 +59,7 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         tenant_manifest,
         sppg_manifest,
         geography_manifest,
+        gis_manifest,
         beneficiary_manifest,
         costing_manifest,
         delivery_manifest,

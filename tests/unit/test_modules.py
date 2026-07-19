@@ -330,6 +330,208 @@ def test_ai_provider_status_returns_standard_envelope() -> None:
     assert "google_ai_media" in payload["data"]["providers"]
 
 
+def test_gis_endpoints_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        school_id = client.get("/api/v1/geography/schools/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        gis_plan_date = (date(2027, 1, 1) + timedelta(days=uuid4().int % 365)).isoformat()
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": gis_plan_date,
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 5,
+                "budget_cost_per_portion": 15000,
+                "notes": "GIS flow test",
+            },
+        )
+        assert meal_plan_response.status_code == 201, meal_plan_response.json()
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/reserve-materials", headers={"Authorization": f"Bearer {access_token}"})
+
+        production_order_response = client.post(
+            f"/api/v1/production-orders/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert production_order_response.status_code == 201, production_order_response.json()
+        production_order_id = production_order_response.json()["data"]["production_order"]["id"]
+        client.post(
+            f"/api/v1/production-orders/{production_order_id}/complete",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"actual_portions": 5, "accepted_portions": 5, "rejected_portions": 0},
+        )
+        delivery_response = client.post(
+            f"/api/v1/delivery-orders/from-production-order/{production_order_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "school_id": school_id,
+                "planned_departure": "2026-07-20T07:00:00Z",
+                "planned_arrival": "2026-07-20T08:00:00Z",
+                "receiver_name": "Petugas Sekolah GIS",
+            },
+        )
+        assert delivery_response.status_code == 201, delivery_response.json()
+
+        headers = {"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id}
+        sppg_map_response = client.get("/api/v1/gis/sppg-map", headers=headers)
+        kitchens_layer_response = client.get(
+            "/api/v1/gis/kitchens",
+            params={"bbox": "106.800,-6.200,106.900,-6.100", "snapshot_date": "2026-07-19"},
+            headers=headers,
+        )
+        schools_layer_response = client.get(
+            "/api/v1/gis/schools",
+            params={"bbox": "106.800,-6.200,106.900,-6.100", "kitchen_id": sppg_id},
+            headers=headers,
+        )
+        coverage_response = client.get("/api/v1/gis/service-coverage", headers=headers)
+        unserved_response = client.get("/api/v1/gis/unserved-schools", headers=headers)
+        risk_response = client.get("/api/v1/gis/sppg-risk-heatmap", headers=headers)
+        distribution_heatmap_response = client.get("/api/v1/gis/heatmaps/distribution", headers=headers)
+        routes_response = client.get("/api/v1/gis/delivery-routes", headers=headers)
+        delivery_id = delivery_response.json()["data"]["delivery_order"]["id"]
+        route_detail_response = client.get(
+            f"/api/v1/gis/deliveries/{delivery_id}/route",
+            headers=headers,
+        )
+        nearest_kitchens_response = client.get(
+            f"/api/v1/gis/schools/{school_id}/nearest-kitchens",
+            headers=headers,
+        )
+        assignment_validation_response = client.post(
+            "/api/v1/gis/assignments/validate",
+            headers=headers,
+            json={"kitchen_id": sppg_id, "school_id": school_id, "planned_portions": 1},
+        )
+
+    assert sppg_map_response.status_code == 200, sppg_map_response.json()
+    assert sppg_map_response.json()["code"] == "GIS_SPPG_MAP_FOUND"
+    assert len(sppg_map_response.json()["data"]["items"]) >= 1
+
+    assert kitchens_layer_response.status_code == 200, kitchens_layer_response.json()
+    assert kitchens_layer_response.json()["data"]["type"] == "FeatureCollection"
+    assert len(kitchens_layer_response.json()["data"]["features"]) >= 1
+
+    assert schools_layer_response.status_code == 200, schools_layer_response.json()
+    assert schools_layer_response.json()["data"]["type"] == "FeatureCollection"
+    assert len(schools_layer_response.json()["data"]["features"]) >= 1
+
+    assert coverage_response.status_code == 200, coverage_response.json()
+    coverage_payload = coverage_response.json()["data"]
+    assert coverage_payload["totals"]["sppg_count"] >= 1
+    assert len(coverage_payload["items"]) >= 1
+
+    assert unserved_response.status_code == 200, unserved_response.json()
+    assert "unserved_school_count" in unserved_response.json()["data"]["totals"]
+
+    assert risk_response.status_code == 200, risk_response.json()
+    assert len(risk_response.json()["data"]["items"]) >= 1
+
+    assert distribution_heatmap_response.status_code == 200, distribution_heatmap_response.json()
+    assert distribution_heatmap_response.json()["data"]["type"] == "FeatureCollection"
+
+    assert routes_response.status_code == 200, routes_response.json()
+    route_items = routes_response.json()["data"]["items"]
+    assert len(route_items) >= 1
+    assert route_items[0]["distance_km"] >= 0
+    assert len(route_items[0]["line"]) == 2
+
+    assert route_detail_response.status_code == 200, route_detail_response.json()
+    assert route_detail_response.json()["data"]["delivery_order_id"] == delivery_id
+
+    assert nearest_kitchens_response.status_code == 200, nearest_kitchens_response.json()
+    assert nearest_kitchens_response.json()["data"]["school_id"] == school_id
+    assert len(nearest_kitchens_response.json()["data"]["items"]) >= 1
+
+    assert assignment_validation_response.status_code == 200, assignment_validation_response.json()
+    assert "is_valid" in assignment_validation_response.json()["data"]
+
+
+def test_gis_service_area_endpoints_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+
+        create_response = client.post(
+            "/api/v1/gis/service-areas",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "name": f"Area Layanan {str(uuid4())[:8]}",
+                "boundary_geojson": {
+                    "type": "Polygon",
+                    "coordinates": [[[106.820, -6.170], [106.825, -6.170], [106.825, -6.175], [106.820, -6.175], [106.820, -6.170]]],
+                },
+                "valid_from": "2026-07-19",
+                "valid_to": None,
+            },
+        )
+        assert create_response.status_code == 201, create_response.json()
+        service_area_id = create_response.json()["data"]["id"]
+
+        list_response = client.get(
+            "/api/v1/gis/service-areas",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        detail_response = client.get(
+            f"/api/v1/gis/service-areas/{service_area_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        kitchen_service_area_response = client.get(
+            f"/api/v1/gis/kitchens/{sppg_id}/service-area",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        upsert_response = client.put(
+            f"/api/v1/gis/kitchens/{sppg_id}/service-area",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "name": "Area Revisi",
+                "boundary_geojson": {
+                    "type": "MultiPolygon",
+                    "coordinates": [[[[106.821, -6.171], [106.826, -6.171], [106.826, -6.176], [106.821, -6.176], [106.821, -6.171]]]],
+                },
+            },
+        )
+
+    assert create_response.json()["code"] == "GIS_SERVICE_AREA_CREATED"
+    assert list_response.status_code == 200, list_response.json()
+    assert any(item["id"] == service_area_id for item in list_response.json()["data"]["items"])
+    assert detail_response.status_code == 200, detail_response.json()
+    assert detail_response.json()["data"]["id"] == service_area_id
+    assert detail_response.json()["data"]["boundary_geojson"]["type"] == "MultiPolygon"
+    assert kitchen_service_area_response.status_code == 200, kitchen_service_area_response.json()
+    assert kitchen_service_area_response.json()["data"]["sppg_id"] == sppg_id
+    assert upsert_response.status_code == 200, upsert_response.json()
+    assert upsert_response.json()["data"]["boundary_geojson"]["type"] == "MultiPolygon"
+
+
 def test_sppg_endpoint_supports_tenant_context_filter() -> None:
     with TestClient(app) as client:
         first_tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]

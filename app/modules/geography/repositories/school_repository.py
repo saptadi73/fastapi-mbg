@@ -10,12 +10,21 @@ class SchoolRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def list_all(self) -> list[School]:
-        result = await self.session.execute(select(School).order_by(School.name))
+    async def list_all(self, tenant_id: UUID | None = None) -> list[School]:
+        query = select(School).order_by(School.name)
+        if tenant_id is not None:
+            query = query.where(School.tenant_id == tenant_id)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_by_id(self, school_id: UUID) -> School | None:
         return await self.session.get(School, school_id)
+
+    async def get_by_id_and_tenant(self, school_id: UUID, tenant_id: UUID) -> School | None:
+        result = await self.session.execute(
+            select(School).where(School.id == school_id, School.tenant_id == tenant_id)
+        )
+        return result.scalar_one_or_none()
 
     async def get_by_tenant_and_code(self, tenant_id: UUID, code: str) -> School | None:
         result = await self.session.execute(

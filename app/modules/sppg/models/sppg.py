@@ -1,6 +1,7 @@
 from sqlalchemy import Boolean, Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
+from geoalchemy2 import Geometry
 
 from app.core.database.base import Base
 from app.core.database.mixins import TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -27,6 +28,10 @@ class Sppg(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     village: Mapped[str | None] = mapped_column(String(120), nullable=True)
     latitude: Mapped[float] = mapped_column(Float)
     longitude: Mapped[float] = mapped_column(Float)
+    location: Mapped[object] = mapped_column(
+        Geometry(geometry_type="POINT", srid=4326, spatial_index=False),
+        nullable=False,
+    )
     service_radius_meter: Mapped[float] = mapped_column(Float, default=3000, nullable=False)
     timezone: Mapped[str] = mapped_column(String(60), default="Asia/Jakarta", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

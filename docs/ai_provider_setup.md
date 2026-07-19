@@ -35,14 +35,14 @@ Untuk OpenAI:
 
 - set `OPENAI_ENABLED=true`
 - isi `OPENAI_API_KEY`
-- isi `OPENAI_NL2SQL_MODEL` dengan model yang Anda pilih untuk reasoning ringan analitik
+- default yang sudah dipasang adalah `gpt-5.6-terra`
 - biarkan `OPENAI_NL2SQL_ALLOW_EXECUTION=false` pada tahap awal agar frontend hanya menerima SQL hasil generate tanpa langsung mengeksekusi query
 
 Untuk Google AI:
 
 - set `GOOGLE_AI_ENABLED=true`
 - isi `GOOGLE_AI_API_KEY`
-- isi `GOOGLE_AI_MEDIA_MODEL`
+- default yang sudah dipasang adalah `gemini-2.5-flash`
 - atur `GOOGLE_AI_MEDIA_MAX_DOWNLOAD_MB` sesuai batas file yang aman untuk workload Anda
 
 ## Endpoint Yang Tersedia
@@ -78,6 +78,13 @@ Implementasi Google AI saat ini:
 - memanggil endpoint `generateContent`
 - cocok untuk foto dan video pendek
 - mengembalikan `analysis_text` dan `raw_response`
+
+Catatan rekomendasi API saat ini:
+
+- dokumentasi OpenAI saat ini menempatkan Responses API sebagai interface utama
+- dokumentasi Google AI saat ini merekomendasikan Interactions API untuk implementasi baru
+- backend ini masih memakai `generateContent` untuk Google AI karena tetap didukung dan cukup sederhana untuk tahap integrasi awal
+- bila nanti kita ingin workflow media yang lebih panjang atau observability yang lebih baik, modul Google AI ini sebaiknya dimigrasikan ke Interactions API
 
 Saran operasional:
 

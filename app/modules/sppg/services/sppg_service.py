@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from geoalchemy2.elements import WKTElement
+
 from app.core.tenancy.context import get_current_tenant
 from app.core.tenancy.write_scope import enforce_tenant_write_scope
 from app.modules.sppg.models.sppg import Sppg
@@ -80,6 +82,7 @@ class SppgService:
             village=payload.village,
             latitude=payload.latitude,
             longitude=payload.longitude,
+            location=WKTElement(f"POINT({payload.longitude} {payload.latitude})", srid=4326),
             service_radius_meter=payload.service_radius_meter,
             timezone=payload.timezone,
             is_active=payload.is_active,

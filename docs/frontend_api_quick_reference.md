@@ -55,6 +55,22 @@ Authorization: Bearer <access_token>
 | `POST` | `/api/v1/ai/nl2sql/query` | Yes | `super_admin`, `tenant_admin`, `finance_manager`, `operations_manager` | Ubah pertanyaan analitik menjadi SQL aman |
 | `POST` | `/api/v1/ai/media/analyze-image` | Yes | `super_admin`, `tenant_admin`, `quality_officer`, `operations_manager` | Analisa foto dengan Google AI |
 | `POST` | `/api/v1/ai/media/analyze-video` | Yes | `super_admin`, `tenant_admin`, `quality_officer`, `operations_manager` | Analisa video dengan Google AI |
+| `GET` | `/api/v1/gis/sppg-map` | No | - | Marker dan radius layanan SPPG |
+| `GET` | `/api/v1/gis/kitchens` | No | - | Layer GeoJSON dapur dalam bbox |
+| `GET` | `/api/v1/gis/schools` | No | - | Layer GeoJSON sekolah dengan filter spasial dan operasional |
+| `GET` | `/api/v1/gis/service-coverage` | No | - | Analisa coverage sekolah terhadap radius layanan SPPG |
+| `GET` | `/api/v1/gis/delivery-routes` | No | - | Garis rute delivery dari SPPG ke sekolah |
+| `GET` | `/api/v1/gis/deliveries/{delivery_id}/route` | No | - | Detail rute untuk satu delivery |
+| `GET` | `/api/v1/gis/unserved-schools` | No | - | Daftar sekolah yang belum tercakup radius layanan |
+| `GET` | `/api/v1/gis/sppg-risk-heatmap` | No | - | Heatmap risiko operasional berbasis coverage GIS |
+| `GET` | `/api/v1/gis/heatmaps/distribution` | No | - | Heatmap distribusi per sekolah |
+| `GET` | `/api/v1/gis/service-areas` | No | - | List polygon area layanan PostGIS |
+| `GET` | `/api/v1/gis/service-areas/{service_area_id}` | No | - | Detail polygon area layanan |
+| `GET` | `/api/v1/gis/kitchens/{kitchen_id}/service-area` | No | - | Ambil service area terbaru dapur |
+| `POST` | `/api/v1/gis/service-areas` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat polygon area layanan |
+| `PUT` | `/api/v1/gis/kitchens/{kitchen_id}/service-area` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Simpan service area `MultiPolygon` dapur |
+| `GET` | `/api/v1/gis/schools/{school_id}/nearest-kitchens` | No | - | Cari dapur terdekat |
+| `POST` | `/api/v1/gis/assignments/validate` | No | - | Validasi spasial assignment sekolah ke dapur |
 | `GET` | `/api/v1/tenants/` | No | - | List tenant |
 | `GET` | `/api/v1/sppg/` | No | - | List SPPG |
 | `GET` | `/api/v1/programs/` | No | - | List program |
@@ -591,10 +607,20 @@ Catatan `GET /api/v1/costing/production-costs/{production_order_id}`:
 
 ### AI Integration Notes
 
-- Aktifkan OpenAI lewat `OPENAI_ENABLED=true`, isi `OPENAI_API_KEY`, dan pilih `OPENAI_NL2SQL_MODEL`.
-- Aktifkan Google AI lewat `GOOGLE_AI_ENABLED=true`, isi `GOOGLE_AI_API_KEY`, dan pilih `GOOGLE_AI_MEDIA_MODEL`.
+- Aktifkan OpenAI lewat `OPENAI_ENABLED=true`, isi `OPENAI_API_KEY`, dan gunakan default `OPENAI_NL2SQL_MODEL=gpt-5.6-terra` bila belum punya preferensi lain.
+- Aktifkan Google AI lewat `GOOGLE_AI_ENABLED=true`, isi `GOOGLE_AI_API_KEY`, dan gunakan default `GOOGLE_AI_MEDIA_MODEL=gemini-2.5-flash`.
 - Untuk browser frontend, pastikan header `X-SPPG-ID` ikut diizinkan CORS karena dipakai luas di modul multi-SPPG.
 - Default `OPENAI_NL2SQL_ALLOW_EXECUTION=false`, jadi endpoint NL2SQL aman dipakai dulu untuk generate query tanpa eksekusi database.
+- Implementasi Google AI backend saat ini masih memakai `generateContent`; ini tetap didukung, walau dokumentasi Google sekarang merekomendasikan Interactions API untuk implementasi baru.
+
+### GIS Notes
+
+- Seluruh endpoint GIS mendukung `X-Tenant-ID` untuk filter tenant, dan `X-SPPG-ID` untuk fokus ke satu dapur.
+- `service-coverage` menerima query opsional `sppg_id`.
+- GIS sekarang memakai kolom PostGIS native untuk point SPPG dan sekolah.
+- Endpoint `kitchens`, `schools`, dan `heatmaps/distribution` mengembalikan `GeoJSON FeatureCollection`.
+- `service-areas` sekarang dinormalisasi menjadi `MultiPolygon` PostGIS dan menerima payload `boundary_geojson` atau `boundary_wkt`.
+- Endpoint `delivery-routes` membentuk line geometry dari titik SPPG ke titik sekolah berdasarkan delivery order yang sudah ada.
 
 ### Create Account
 
