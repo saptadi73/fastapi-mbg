@@ -1,0 +1,324 @@
+{
+  "info": {
+    "_postman_id": "5d502977-b0f2-4ef2-87a0-d7f84709c28d",
+    "name": "ERP MBG Frontend Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection untuk testing endpoint backend ERP MBG dari perspektif frontend."
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "access_token", "value": "" },
+    { "key": "tenant_id", "value": "3ddb74ec-1d0d-4ca7-8372-0d65e570ae8e" },
+    { "key": "sppg_id", "value": "e36ce909-457b-4784-ba7c-9767bc55fb0b" },
+    { "key": "school_id", "value": "91dd5bec-a3db-4583-8dc6-6e00cc8fd831" },
+    { "key": "beneficiary_id", "value": "32e00486-5f3e-4a52-8411-692a6246a922" },
+    { "key": "uom_id", "value": "3d3279c0-de81-4741-ae0e-92c6377b5837" },
+    { "key": "product_id", "value": "922752e0-0f72-4496-b166-52984da118e5" },
+    { "key": "recipe_id", "value": "05dc03e4-ba9c-4bae-87c5-021037ff6dd0" },
+    { "key": "meal_plan_id", "value": "3c955e8c-f8b6-43e1-af87-ff8543458b4a" },
+    { "key": "warehouse_id", "value": "f6e55f49-f4f2-427f-bdb1-7d225f06d748" },
+    { "key": "purchase_request_id", "value": "" },
+    { "key": "goods_receipt_id", "value": "" },
+    { "key": "production_order_id", "value": "" },
+    { "key": "delivery_order_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        { "name": "Live", "request": { "method": "GET", "header": [], "url": "{{base_url}}/health/live" } },
+        { "name": "Ready", "request": { "method": "GET", "header": [], "url": "{{base_url}}/health/ready" } },
+        { "name": "Database", "request": { "method": "GET", "header": [], "url": "{{base_url}}/health/database" } }
+      ]
+    },
+    {
+      "name": "Identity",
+      "item": [
+        {
+          "name": "Login Super Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.access_token) pm.collectionVariables.set('access_token', payload.data.access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "operator@example.com", "type": "text" },
+                { "key": "password", "value": "mbg12345", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/identity/login"
+          }
+        },
+        {
+          "name": "Current User",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/identity/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meal Plan",
+      "item": [
+        { "name": "List Meal Plans", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/meal-plans/" } },
+        { "name": "Get Meal Plan Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/meal-plans/{{meal_plan_id}}" } },
+        {
+          "name": "Create Meal Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"sppg_id\": \"{{sppg_id}}\",\n  \"recipe_id\": \"{{recipe_id}}\",\n  \"plan_date\": \"2026-07-21\",\n  \"meal_type\": \"LUNCH\",\n  \"status\": \"DRAFT\",\n  \"planned_portions\": 500,\n  \"budget_cost_per_portion\": 15000,\n  \"notes\": \"Rencana makan siang\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/meal-plans/"
+          }
+        },
+        {
+          "name": "Submit Meal Plan",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/meal-plans/{{meal_plan_id}}/submit"
+          }
+        },
+        {
+          "name": "Approve Meal Plan",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/meal-plans/{{meal_plan_id}}/approve"
+          }
+        },
+        {
+          "name": "Calculate Requirements",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/meal-plans/{{meal_plan_id}}/calculate-requirements"
+          }
+        },
+        {
+          "name": "Reserve Materials",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/meal-plans/{{meal_plan_id}}/reserve-materials"
+          }
+        },
+        {
+          "name": "Cost Preview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/meal-plans/{{meal_plan_id}}/cost-preview"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        { "name": "List Warehouses", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/inventory/warehouses/" } },
+        { "name": "Get Warehouse Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/inventory/warehouses/{{warehouse_id}}" } },
+        {
+          "name": "Create Warehouse",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"sppg_id\": \"{{sppg_id}}\",\n  \"code\": \"WH-NEW-01\",\n  \"name\": \"Gudang Baru\",\n  \"warehouse_type\": \"MAIN\",\n  \"location\": \"Area SPPG\",\n  \"is_active\": true\n}"
+            },
+            "url": "{{base_url}}/api/v1/inventory/warehouses/"
+          }
+        },
+        { "name": "List Transactions", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/inventory/transactions/" } },
+        {
+          "name": "Create Inventory Receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"sppg_id\": \"{{sppg_id}}\",\n  \"transaction_type\": \"RECEIPT\",\n  \"reference_type\": \"MANUAL\",\n  \"reference_id\": null,\n  \"product_id\": \"{{product_id}}\",\n  \"destination_warehouse_id\": \"{{warehouse_id}}\",\n  \"quantity\": 10,\n  \"uom_id\": \"{{uom_id}}\",\n  \"unit_cost\": 12000,\n  \"transaction_at\": \"2026-07-19T10:00:00Z\",\n  \"notes\": \"Manual receipt\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/inventory/transactions/"
+          }
+        },
+        { "name": "List Balances", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/inventory/balances/" } }
+      ]
+    },
+    {
+      "name": "Procurement",
+      "item": [
+        { "name": "List Purchase Requests", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/procurement/purchase-requests/" } },
+        { "name": "Get Purchase Request Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/procurement/purchase-requests/{{purchase_request_id}}" } },
+        {
+          "name": "Create Purchase Request From Meal Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.purchase_request?.id) pm.collectionVariables.set('purchase_request_id', payload.data.purchase_request.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/procurement/purchase-requests/from-meal-plan/{{meal_plan_id}}"
+          }
+        },
+        { "name": "List Goods Receipts", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/procurement/purchase-requests/goods-receipts/" } },
+        { "name": "Get Goods Receipt Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/procurement/purchase-requests/goods-receipts/{{goods_receipt_id}}" } },
+        {
+          "name": "Create Goods Receipt From Purchase Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.goods_receipt?.id) pm.collectionVariables.set('goods_receipt_id', payload.data.goods_receipt.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouse_id\": \"{{warehouse_id}}\",\n  \"receipt_date\": \"2026-07-19\",\n  \"notes\": \"Received from supplier\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{{purchase_request_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Production",
+      "item": [
+        { "name": "List Production Orders", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/production-orders/" } },
+        { "name": "Get Production Order Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/production-orders/{{production_order_id}}" } },
+        {
+          "name": "Create Production Order From Meal Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.production_order?.id) pm.collectionVariables.set('production_order_id', payload.data.production_order.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/production-orders/from-meal-plan/{{meal_plan_id}}"
+          }
+        },
+        {
+          "name": "Complete Production Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actual_portions\": 100,\n  \"accepted_portions\": 98,\n  \"rejected_portions\": 2\n}"
+            },
+            "url": "{{base_url}}/api/v1/production-orders/{{production_order_id}}/complete"
+          }
+        },
+        { "name": "Get Cost Sheet", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/production-orders/{{production_order_id}}/cost-sheet" } }
+      ]
+    },
+    {
+      "name": "Delivery",
+      "item": [
+        { "name": "List Delivery Orders", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/delivery-orders/" } },
+        { "name": "Get Delivery Order Detail", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/delivery-orders/{{delivery_order_id}}" } },
+        {
+          "name": "Create Delivery Order From Production",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.delivery_order?.id) pm.collectionVariables.set('delivery_order_id', payload.data.delivery_order.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"school_id\": \"{{school_id}}\",\n  \"planned_departure\": \"2026-07-25T07:00:00Z\",\n  \"planned_arrival\": \"2026-07-25T08:00:00Z\",\n  \"receiver_name\": \"Petugas Sekolah\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/delivery-orders/from-production-order/{{production_order_id}}"
+          }
+        },
+        {
+          "name": "Record Delivery Proof",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"received_at\": \"2026-07-25T08:05:00Z\",\n  \"receiver_name\": \"Petugas Sekolah\",\n  \"receiver_gps\": \"-6.1702,106.8283\",\n  \"received_portions\": 98,\n  \"rejected_portions\": 2,\n  \"temperature_celsius\": 62.5,\n  \"condition_notes\": \"Diterima dengan baik\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/delivery-orders/{{delivery_order_id}}/proof"
+          }
+        }
+      ]
+    }
+  ]
+}

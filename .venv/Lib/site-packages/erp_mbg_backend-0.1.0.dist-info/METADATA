@@ -1,0 +1,63 @@
+Metadata-Version: 2.4
+Name: erp-mbg-backend
+Version: 0.1.0
+Summary: FastAPI modular monolith scaffold for ERP MBG backend.
+Requires-Python: <3.14,>=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi<1.0.0,>=0.116.0
+Requires-Dist: uvicorn[standard]<1.0.0,>=0.35.0
+Requires-Dist: pydantic<3.0.0,>=2.11.0
+Requires-Dist: pydantic-settings<3.0.0,>=2.10.0
+Requires-Dist: python-dotenv<2.0.0,>=1.1.0
+Requires-Dist: python-multipart<1.0.0,>=0.0.20
+Requires-Dist: email-validator<3.0.0,>=2.2.0
+Requires-Dist: sqlalchemy[asyncio]<3.0.0,>=2.0.42
+Requires-Dist: alembic<2.0.0,>=1.16.0
+Requires-Dist: asyncpg<1.0.0,>=0.30.0
+Requires-Dist: psycopg2-binary<3.0.0,>=2.9.10
+Requires-Dist: greenlet<4.0.0,>=3.2.3
+Requires-Dist: httpx<1.0.0,>=0.28.1
+Requires-Dist: passlib[bcrypt]<2.0.0,>=1.7.4
+Requires-Dist: python-jose[cryptography]<4.0.0,>=3.5.0
+Provides-Extra: test
+Requires-Dist: pytest<9.0.0,>=8.4.0; extra == "test"
+Requires-Dist: pytest-asyncio<2.0.0,>=1.1.0; extra == "test"
+Requires-Dist: pytest-cov<7.0.0,>=6.2.0; extra == "test"
+Provides-Extra: dev
+Requires-Dist: ruff<1.0.0,>=0.12.4; extra == "dev"
+
+# ERP MBG Backend
+
+Scaffold FastAPI modular monolith untuk backend ERP Pengelolaan Dapur MBG, mengikuti desain teknis pada folder `docs/`.
+
+## Menjalankan
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip setuptools wheel
+.\.venv\Scripts\python.exe -m pip install -e .[test,dev]
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+## Migrasi database
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe scripts\test_db_connection.py
+```
+
+## Endpoint awal
+
+- `GET /health/live`
+- `GET /health/ready`
+- `GET /health/database`
+- `GET /api/v1/identity/me`
+- `GET /api/v1/tenants`
+- `GET /api/v1/sppg`
+
+## Catatan
+
+- Struktur proyek mengikuti pola `routes -> services -> repositories -> models/database`.
+- Modul bisnis saat ini masih berupa scaffold MVP foundation dan siap dikembangkan lebih lanjut.
+- `DATABASE_URL` dibiarkan opsional pada tahap scaffold agar aplikasi bisa bootstrap tanpa PostgreSQL aktif.

@@ -1,0 +1,22 @@
+def import_all_models() -> None:
+    import app.modules.beneficiary.models.beneficiary  # noqa: F401
+    import app.modules.delivery.models.delivery_order  # noqa: F401
+    import app.modules.delivery.models.delivery_proof  # noqa: F401
+    import app.modules.geography.models.school  # noqa: F401
+    import app.modules.identity.models.user  # noqa: F401
+    import app.modules.inventory.models.inventory_balance  # noqa: F401
+    import app.modules.inventory.models.inventory_transaction  # noqa: F401
+    import app.modules.inventory.models.warehouse  # noqa: F401
+    import app.modules.meal_plan.models.meal_plan  # noqa: F401
+    import app.modules.product.models.product  # noqa: F401
+    import app.modules.production.models.production_material_consumption  # noqa: F401
+    import app.modules.production.models.production_order  # noqa: F401
+    import app.modules.procurement.models.purchase_request  # noqa: F401
+    import app.modules.procurement.models.purchase_request_line  # noqa: F401
+    import app.modules.procurement.models.goods_receipt  # noqa: F401
+    import app.modules.procurement.models.goods_receipt_line  # noqa: F401
+    import app.modules.recipe.models.recipe  # noqa: F401
+    import app.modules.recipe.models.recipe_line  # noqa: F401
+    import app.modules.sppg.models.sppg  # noqa: F401
+    import app.modules.tenant.models.tenant  # noqa: F401
+    import app.modules.uom.models.uom  # noqa: F401
