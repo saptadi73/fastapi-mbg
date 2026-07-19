@@ -49,6 +49,24 @@ Authorization: Bearer <access_token>
 | `POST` | `/api/v1/programs/{program_id}/periods` | Yes | `super_admin`, `tenant_admin` | Buat periode program |
 | `POST` | `/api/v1/programs/{program_id}/tenants` | Yes | `super_admin`, `tenant_admin` | Assign tenant ke program |
 | `POST` | `/api/v1/programs/{program_id}/sppg` | Yes | `super_admin`, `tenant_admin` | Assign SPPG ke program |
+| `GET` | `/api/v1/costing/policies` | No | - | List cost policy |
+| `POST` | `/api/v1/costing/policies` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Buat cost policy |
+| `GET` | `/api/v1/costing/production-costs/{production_order_id}` | No | - | Ringkasan costing produksi dan variance |
+| `GET` | `/api/v1/notifications/templates` | No | - | List notification template |
+| `POST` | `/api/v1/notifications/templates` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat notification template |
+| `GET` | `/api/v1/notifications/preferences/me` | Yes | login | Ambil preferensi notifikasi user aktif |
+| `PUT` | `/api/v1/notifications/preferences/me` | Yes | login | Simpan preferensi notifikasi user aktif |
+| `GET` | `/api/v1/notifications/inbox` | Yes | login | Ambil inbox notifikasi user aktif |
+| `POST` | `/api/v1/notifications` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer`, `finance_manager` | Buat/enqueue notification |
+| `GET` | `/api/v1/notifications/{notification_id}` | No | - | Detail notification, recipient, delivery |
+| `POST` | `/api/v1/notifications/inbox/{recipient_id}/mark-read` | Yes | login | Tandai inbox item sudah dibaca |
+| `GET` | `/api/v1/government-claims` | No | - | List government claim |
+| `GET` | `/api/v1/government-claims/{claim_id}` | No | - | Detail government claim |
+| `POST` | `/api/v1/government-claims` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Buat government claim dari delivery aktual |
+| `POST` | `/api/v1/government-claims/{claim_id}/submit` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Submit government claim |
+| `POST` | `/api/v1/government-claims/{claim_id}/verify` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Verifikasi government claim |
+| `POST` | `/api/v1/government-claims/{claim_id}/adjustments` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Tambah adjustment claim |
+| `POST` | `/api/v1/government-claims/{claim_id}/payments` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Catat pembayaran claim dan posting jurnal |
 | `GET` | `/api/v1/quality/inspections/` | No | - | List inspeksi QC |
 | `GET` | `/api/v1/quality/inspections/{inspection_id}` | No | - | Detail inspeksi QC |
 | `POST` | `/api/v1/quality/inspections/` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer` | Buat inspeksi QC |
@@ -160,6 +178,25 @@ Authorization: Bearer <access_token>
 | `INTEGRATION_CREDENTIAL_ALREADY_EXISTS` | Hindari nama credential yang sama pada system yang sama |
 | `INTEGRATION_IDEMPOTENCY_KEY_REQUIRED` | idempotency key wajib saat buat sync log |
 | `SYNC_LOG_IDEMPOTENCY_CONFLICT` | Jangan kirim ulang sync log dengan key yang sama |
+| `COST_POLICY_CODE_ALREADY_EXISTS` | Validasi kode cost policy agar tidak duplikat |
+| `INVALID_COST_POLICY_DATE_RANGE` | Validasi tanggal aktif cost policy |
+| `NOTIFICATION_TEMPLATE_CODE_ALREADY_EXISTS` | Validasi kode notification template agar tidak duplikat |
+| `NOTIFICATION_TEMPLATE_NOT_FOUND` | Notification template tidak ditemukan |
+| `NOTIFICATION_RECIPIENT_REQUIRED` | Minimal satu recipient wajib diisi |
+| `NOTIFICATION_RECIPIENT_ADDRESS_REQUIRED` | Alamat recipient wajib diisi jika tanpa `user_id` |
+| `NOTIFICATION_CHANNEL_DISABLED` | Channel notifikasi untuk user sedang dinonaktifkan |
+| `NOTIFICATION_NOT_FOUND` | Notification tidak ditemukan |
+| `NOTIFICATION_RECIPIENT_NOT_FOUND` | Inbox notification item tidak ditemukan |
+| `INVALID_CLAIM_PERIOD` | Periode government claim tidak valid |
+| `CLAIM_DELIVERY_REQUIRED` | Minimal satu delivery order wajib dipilih |
+| `DELIVERY_ORDER_NOT_RECEIVED` | Delivery order belum memiliki proof penerimaan |
+| `GOVERNMENT_CLAIM_NOT_FOUND` | Government claim tidak ditemukan |
+| `CLAIM_SUBMIT_INVALID_STATUS` | Claim belum berada pada status yang dapat disubmit |
+| `CLAIM_EMPTY_AMOUNT` | Claim belum memiliki nilai yang bisa diajukan |
+| `CLAIM_EVIDENCE_REQUIRED` | Claim wajib memiliki evidence |
+| `CLAIM_VERIFY_INVALID_STATUS` | Claim belum berada pada status yang dapat diverifikasi |
+| `CLAIM_PAYMENT_INVALID_STATUS` | Claim belum berada pada status yang dapat dibayar |
+| `INVALID_CLAIM_PAYMENT_AMOUNT` | Jumlah pembayaran claim tidak valid |
 | `SUPPLIER_INVOICE_ALREADY_EXISTS_FOR_RECEIPT` | Disable tombol create invoice jika GR sudah punya invoice |
 | `SUPPLIER_PAYMENT_ALREADY_EXISTS_FOR_INVOICE` | Disable tombol bayar jika invoice sudah punya payment |
 
@@ -330,6 +367,63 @@ GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
   "base_url": "https://partner.example.com/api",
   "is_active": true,
   "notes": "Sistem partner demo"
+}
+```
+
+### Create Cost Policy
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "code": "COST-SPPG-2026",
+  "name": "Cost Policy Demo",
+  "effective_from": "2026-07-19",
+  "effective_to": null,
+  "labor_cost_per_portion": 1200,
+  "utility_cost_per_portion": 300,
+  "packaging_cost_per_portion": 250,
+  "distribution_cost_per_portion": 400,
+  "overhead_cost_per_portion": 500,
+  "waste_cost_percentage": 5,
+  "is_active": true
+}
+```
+
+### Dispatch Notification
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "template_id": "template-uuid",
+  "source_module": "meal_plan",
+  "source_entity_type": "meal_plan",
+  "source_entity_id": "meal-plan-uuid",
+  "title": "Meal Plan Butuh Persetujuan",
+  "message": "Silakan review meal plan untuk besok pagi.",
+  "priority": "HIGH",
+  "recipients": [
+    {
+      "user_id": "user-uuid",
+      "channel": "IN_APP"
+    }
+  ]
+}
+```
+
+### Create Government Claim
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "period_start": "2026-08-01",
+  "period_end": "2026-08-31",
+  "claim_type": "ACTUAL_COST",
+  "delivery_order_ids": ["delivery-order-uuid"],
+  "evidence_document_ids": ["document-uuid"],
+  "notes": "Klaim Agustus 2026"
 }
 ```
 

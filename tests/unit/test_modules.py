@@ -1025,6 +1025,402 @@ def test_integration_management_flow_works() -> None:
     assert any(item["id"] == sync_log_id for item in list_sync_logs_response.json()["data"])
     assert detail_sync_log_response.status_code == 200
     assert detail_sync_log_response.json()["data"]["idempotency_key"] == f"idem-{code_suffix.lower()}"
+
+
+def test_costing_policy_and_production_cost_summary_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        create_policy_response = client.post(
+            "/api/v1/costing/policies",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "code": f"COST-{code_suffix}",
+                "name": "Cost Policy Demo",
+                "effective_from": "2026-07-19",
+                "effective_to": None,
+                "labor_cost_per_portion": 1200,
+                "utility_cost_per_portion": 300,
+                "packaging_cost_per_portion": 250,
+                "distribution_cost_per_portion": 400,
+                "overhead_cost_per_portion": 500,
+                "waste_cost_percentage": 5,
+                "is_active": True,
+            },
+        )
+        assert create_policy_response.status_code == 201, create_policy_response.json()
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-08-05",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 9,
+                "budget_cost_per_portion": 15000,
+                "notes": "Costing test",
+            },
+        )
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+        reserve_response = client.post(
+            f"/api/v1/meal-plans/{meal_plan_id}/reserve-materials",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert reserve_response.status_code == 200
+        create_po_response = client.post(
+            f"/api/v1/production-orders/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        production_order_id = create_po_response.json()["data"]["production_order"]["id"]
+        complete_response = client.post(
+            f"/api/v1/production-orders/{production_order_id}/complete",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"actual_portions": 9, "accepted_portions": 8, "rejected_portions": 1},
+        )
+        assert complete_response.status_code == 200
+
+        list_policy_response = client.get(
+            "/api/v1/costing/policies",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        summary_response = client.get(
+            f"/api/v1/costing/production-costs/{production_order_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert list_policy_response.status_code == 200
+    assert any(item["code"] == f"COST-{code_suffix}" for item in list_policy_response.json()["data"])
+    assert summary_response.status_code == 200, summary_response.json()
+    payload = summary_response.json()["data"]
+    assert payload["accepted_portions"] == 8
+    assert payload["actual_cost_per_accepted_portion"] >= 0
+    assert payload["budget_cost_per_portion"] == 15000
+    assert payload["applied_cost_policy_id"] is not None
+
+
+def test_notification_template_preference_dispatch_and_inbox_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        me = client.get(
+            "/api/v1/identity/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        ).json()["data"]
+        tenant_id = me["tenant_id"]
+        sppg_id = me["active_sppg_id"]
+        code_suffix = str(uuid4()).split("-")[0].upper()
+        meal_plan_id = client.get("/api/v1/meal-plans/").json()["data"][0]["id"]
+
+        create_template_response = client.post(
+            "/api/v1/notifications/templates",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"NTF-{code_suffix}",
+                "name": "Notifikasi Operasional",
+                "channel": "IN_APP",
+                "subject_template": "Alert operasional",
+                "body_template": "Terdapat alert baru untuk dapur.",
+                "variables_json": ["meal_plan_id"],
+                "is_active": True,
+            },
+        )
+        assert create_template_response.status_code == 201, create_template_response.json()
+        template_id = create_template_response.json()["data"]["id"]
+
+        preference_response = client.put(
+            "/api/v1/notifications/preferences/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "channel": "IN_APP",
+                "is_enabled": True,
+                "quiet_hours_json": {"start": "22:00", "end": "05:00"},
+                "config_json": {"sound": "default"},
+            },
+        )
+        assert preference_response.status_code == 200, preference_response.json()
+
+        dispatch_response = client.post(
+            "/api/v1/notifications",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "template_id": template_id,
+                "source_module": "meal_plan",
+                "source_entity_type": "meal_plan",
+                "source_entity_id": meal_plan_id,
+                "title": "Meal Plan Butuh Tindakan",
+                "message": "Silakan review meal plan yang menunggu persetujuan.",
+                "priority": "HIGH",
+                "recipients": [
+                    {
+                        "user_id": me["id"],
+                        "channel": "IN_APP",
+                    }
+                ],
+            },
+        )
+        assert dispatch_response.status_code == 201, dispatch_response.json()
+        notification_payload = dispatch_response.json()["data"]
+        notification_id = notification_payload["notification"]["id"]
+        recipient_id = notification_payload["recipients"][0]["id"]
+
+        inbox_response = client.get(
+            "/api/v1/notifications/inbox",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        detail_response = client.get(
+            f"/api/v1/notifications/{notification_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        mark_read_response = client.post(
+            f"/api/v1/notifications/inbox/{recipient_id}/mark-read",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        preferences_list_response = client.get(
+            "/api/v1/notifications/preferences/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        template_list_response = client.get(
+            "/api/v1/notifications/templates",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+
+    assert inbox_response.status_code == 200, inbox_response.json()
+    assert any(item["notification"]["id"] == notification_id for item in inbox_response.json()["data"])
+
+    assert detail_response.status_code == 200, detail_response.json()
+    detail_payload = detail_response.json()["data"]
+    assert detail_payload["notification"]["id"] == notification_id
+    assert len(detail_payload["recipients"]) == 1
+    assert len(detail_payload["deliveries"]) == 1
+
+    assert mark_read_response.status_code == 200, mark_read_response.json()
+    assert mark_read_response.json()["data"]["is_read"] is True
+
+    assert preferences_list_response.status_code == 200, preferences_list_response.json()
+    assert any(item["channel"] == "IN_APP" for item in preferences_list_response.json()["data"])
+
+    assert template_list_response.status_code == 200, template_list_response.json()
+    assert any(item["id"] == template_id for item in template_list_response.json()["data"])
+
+
+def test_government_claim_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        me = client.get(
+            "/api/v1/identity/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        ).json()["data"]
+        tenant_id = me["tenant_id"]
+        sppg_id = me["active_sppg_id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        school_id = client.get("/api/v1/geography/schools/").json()["data"][0]["id"]
+
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {a["code"]: a for a in accounts}
+        needed = [
+            ("110000", "Kas dan Bank", "ASSET", "DEBIT"),
+            ("120500", "Piutang Klaim Pemerintah", "ASSET", "DEBIT"),
+            ("130000", "Persediaan Bahan", "ASSET", "DEBIT"),
+            ("510000", "Biaya Bahan", "COST_OF_SERVICE", "DEBIT"),
+        ]
+        for code, name, category, normal_balance in needed:
+            if code not in account_by_code:
+                resp = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert resp.status_code == 201, resp.json()
+
+        document_response = client.post(
+            "/api/v1/documents",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "document_type": "CLAIM_EVIDENCE",
+                "title": "Berita Acara Klaim",
+                "description": "Dokumen pendukung claim",
+                "owner_entity_type": "government_claim",
+                "owner_entity_id": None,
+                "tags": ["claim", "evidence"],
+            },
+        )
+        assert document_response.status_code == 201, document_response.json()
+        document_id = document_response.json()["data"]["id"]
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-08-08",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 6,
+                "budget_cost_per_portion": 15000,
+                "notes": "Government claim flow test",
+            },
+        )
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/submit", headers={"Authorization": f"Bearer {access_token}"})
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/approve", headers={"Authorization": f"Bearer {access_token}"})
+        reserve_response = client.post(
+            f"/api/v1/meal-plans/{meal_plan_id}/reserve-materials",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert reserve_response.status_code == 200, reserve_response.json()
+
+        production_response = client.post(
+            f"/api/v1/production-orders/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        production_order_id = production_response.json()["data"]["production_order"]["id"]
+        complete_response = client.post(
+            f"/api/v1/production-orders/{production_order_id}/complete",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"actual_portions": 6, "accepted_portions": 6, "rejected_portions": 0},
+        )
+        assert complete_response.status_code == 200, complete_response.json()
+
+        delivery_response = client.post(
+            f"/api/v1/delivery-orders/from-production-order/{production_order_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "school_id": school_id,
+                "planned_departure": "2026-08-08T07:00:00Z",
+                "planned_arrival": "2026-08-08T08:00:00Z",
+                "receiver_name": "Petugas Sekolah",
+            },
+        )
+        assert delivery_response.status_code == 201, delivery_response.json()
+        delivery_order_id = delivery_response.json()["data"]["delivery_order"]["id"]
+
+        proof_response = client.post(
+            f"/api/v1/delivery-orders/{delivery_order_id}/proof",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "received_at": "2026-08-08T08:05:00Z",
+                "receiver_name": "Petugas Sekolah",
+                "receiver_gps": "-6.1702,106.8283",
+                "received_portions": 6,
+                "rejected_portions": 0,
+                "temperature_celsius": 63.1,
+                "condition_notes": "Diterima lengkap",
+            },
+        )
+        assert proof_response.status_code == 201, proof_response.json()
+
+        create_claim_response = client.post(
+            "/api/v1/government-claims",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "period_start": "2026-08-01",
+                "period_end": "2026-08-31",
+                "claim_type": "ACTUAL_COST",
+                "delivery_order_ids": [delivery_order_id],
+                "evidence_document_ids": [document_id],
+                "notes": "Claim bulan Agustus",
+            },
+        )
+        assert create_claim_response.status_code == 201, create_claim_response.json()
+        claim_payload = create_claim_response.json()["data"]
+        claim_id = claim_payload["claim"]["id"]
+
+        submit_response = client.post(
+            f"/api/v1/government-claims/{claim_id}/submit",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"submitted_at": "2026-08-09"},
+        )
+        verify_response = client.post(
+            f"/api/v1/government-claims/{claim_id}/verify",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "verification_date": "2026-08-12",
+                "verification_status": "APPROVED",
+                "verified_amount": claim_payload["claim"]["claimed_amount"],
+                "verifier_name": "Tim Verifikator",
+                "notes": "Sesuai dokumen",
+            },
+        )
+        payment_response = client.post(
+            f"/api/v1/government-claims/{claim_id}/payments",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "payment_date": "2026-08-15",
+                "amount": claim_payload["claim"]["claimed_amount"],
+                "payment_reference": "SP2D-2026-0001",
+                "notes": "Dana diterima penuh",
+                "debit_account_code": "110000",
+                "credit_account_code": "120500",
+            },
+        )
+        detail_response = client.get(
+            f"/api/v1/government-claims/{claim_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        list_response = client.get(
+            "/api/v1/government-claims",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert submit_response.status_code == 200, submit_response.json()
+    assert submit_response.json()["data"]["status"] == "SUBMITTED"
+
+    assert verify_response.status_code == 200, verify_response.json()
+    assert verify_response.json()["data"]["claim"]["status"] == "APPROVED"
+
+    assert payment_response.status_code == 201, payment_response.json()
+    assert payment_response.json()["data"]["claim"]["status"] == "PAID"
+
+    assert detail_response.status_code == 200, detail_response.json()
+    detail_payload = detail_response.json()["data"]
+    assert detail_payload["claim"]["id"] == claim_id
+    assert len(detail_payload["lines"]) == 1
+    assert len(detail_payload["evidences"]) == 1
+    assert len(detail_payload["verifications"]) == 1
+    assert len(detail_payload["payments"]) == 1
+
+    assert list_response.status_code == 200, list_response.json()
+    assert any(item["id"] == claim_id for item in list_response.json()["data"])
+
+
 def test_uom_create_rejects_tenant_write_scope_violation() -> None:
     with TestClient(app) as client:
         login_response = client.post(

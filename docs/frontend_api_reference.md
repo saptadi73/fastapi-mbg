@@ -47,31 +47,49 @@ http://127.0.0.1:8000
 15. `POST /api/v1/quality/inspections/`
 16. `POST /api/v1/quality/inspections/{inspection_id}/lines`
 17. `POST /api/v1/quality/inspections/{inspection_id}/finalize`
-18. `GET /api/v1/workflows/definitions`
-19. `GET /api/v1/workflows/definitions/{definition_id}`
-20. `POST /api/v1/workflows/definitions`
-21. `POST /api/v1/workflows/definitions/{definition_id}/transitions`
-22. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
-23. `GET /api/v1/audit/events/`
-24. `GET /api/v1/audit/events/{event_id}`
-25. `GET /api/v1/documents`
-26. `GET /api/v1/documents/{document_id}`
-27. `POST /api/v1/documents`
-28. `POST /api/v1/documents/{document_id}/versions`
-29. `POST /api/v1/documents/{document_id}/links`
-30. `GET /api/v1/reporting/dashboard/tenant`
-31. `GET /api/v1/reporting/dashboard/sppg`
-32. `GET /api/v1/reporting/stock-summary`
-33. `GET /api/v1/reporting/delivery-performance`
-34. `GET /api/v1/reporting/budget-summary`
-35. `GET /api/v1/integration/external-systems`
-36. `GET /api/v1/integration/external-systems/{external_system_id}`
-37. `POST /api/v1/integration/external-systems`
-38. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
-39. `GET /api/v1/integration/sync-logs`
-40. `GET /api/v1/integration/sync-logs/{sync_log_id}`
-41. `POST /api/v1/integration/sync-logs`
-42. `GET /api/v1/geography/schools/`
+18. `GET /api/v1/costing/policies`
+19. `POST /api/v1/costing/policies`
+20. `GET /api/v1/costing/production-costs/{production_order_id}`
+21. `GET /api/v1/notifications/templates`
+22. `POST /api/v1/notifications/templates`
+23. `GET /api/v1/notifications/preferences/me`
+24. `PUT /api/v1/notifications/preferences/me`
+25. `GET /api/v1/notifications/inbox`
+26. `POST /api/v1/notifications`
+27. `GET /api/v1/notifications/{notification_id}`
+28. `POST /api/v1/notifications/inbox/{recipient_id}/mark-read`
+29. `GET /api/v1/government-claims`
+30. `GET /api/v1/government-claims/{claim_id}`
+31. `POST /api/v1/government-claims`
+32. `POST /api/v1/government-claims/{claim_id}/submit`
+33. `POST /api/v1/government-claims/{claim_id}/verify`
+34. `POST /api/v1/government-claims/{claim_id}/adjustments`
+35. `POST /api/v1/government-claims/{claim_id}/payments`
+36. `GET /api/v1/workflows/definitions`
+37. `GET /api/v1/workflows/definitions/{definition_id}`
+38. `POST /api/v1/workflows/definitions`
+39. `POST /api/v1/workflows/definitions/{definition_id}/transitions`
+40. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
+41. `GET /api/v1/audit/events/`
+42. `GET /api/v1/audit/events/{event_id}`
+43. `GET /api/v1/documents`
+44. `GET /api/v1/documents/{document_id}`
+45. `POST /api/v1/documents`
+46. `POST /api/v1/documents/{document_id}/versions`
+47. `POST /api/v1/documents/{document_id}/links`
+48. `GET /api/v1/reporting/dashboard/tenant`
+49. `GET /api/v1/reporting/dashboard/sppg`
+50. `GET /api/v1/reporting/stock-summary`
+51. `GET /api/v1/reporting/delivery-performance`
+52. `GET /api/v1/reporting/budget-summary`
+53. `GET /api/v1/integration/external-systems`
+54. `GET /api/v1/integration/external-systems/{external_system_id}`
+55. `POST /api/v1/integration/external-systems`
+56. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
+57. `GET /api/v1/integration/sync-logs`
+58. `GET /api/v1/integration/sync-logs/{sync_log_id}`
+59. `POST /api/v1/integration/sync-logs`
+45. `GET /api/v1/geography/schools/`
 43. `GET /api/v1/geography/schools/{school_id}`
 44. `POST /api/v1/geography/schools/`
 45. `GET /api/v1/beneficiaries/`
@@ -238,6 +256,11 @@ Endpoint write saat ini butuh token:
 | `404` | `DOCUMENT_NOT_FOUND` | Dokumen tidak ditemukan |
 | `404` | `EXTERNAL_SYSTEM_NOT_FOUND` | External system tidak ditemukan |
 | `404` | `SYNC_LOG_NOT_FOUND` | Sync log tidak ditemukan |
+| `404` | `COST_POLICY_NOT_FOUND` | Cost policy tidak ditemukan |
+| `404` | `NOTIFICATION_TEMPLATE_NOT_FOUND` | Notification template tidak ditemukan |
+| `404` | `NOTIFICATION_NOT_FOUND` | Notification tidak ditemukan |
+| `404` | `NOTIFICATION_RECIPIENT_NOT_FOUND` | Inbox notification item tidak ditemukan |
+| `404` | `GOVERNMENT_CLAIM_NOT_FOUND` | Government claim tidak ditemukan |
 | `409` | `TENANT_CODE_ALREADY_EXISTS` | Kode tenant sudah dipakai |
 | `409` | `SPPG_CODE_ALREADY_EXISTS` | Kode SPPG sudah dipakai |
 | `409` | `PROGRAM_CODE_ALREADY_EXISTS` | Kode program sudah dipakai |
@@ -256,6 +279,8 @@ Endpoint write saat ini butuh token:
 | `409` | `EXTERNAL_SYSTEM_CODE_ALREADY_EXISTS` | Kode external system tenant ini sudah ada |
 | `409` | `INTEGRATION_CREDENTIAL_ALREADY_EXISTS` | Nama credential untuk external system ini sudah ada |
 | `409` | `SYNC_LOG_IDEMPOTENCY_CONFLICT` | idempotency key sync log sudah pernah dipakai |
+| `409` | `COST_POLICY_CODE_ALREADY_EXISTS` | Kode cost policy tenant ini sudah ada |
+| `409` | `NOTIFICATION_TEMPLATE_CODE_ALREADY_EXISTS` | Kode notification template tenant ini sudah ada |
 | `400` | `QC_INSPECTION_LINES_REQUIRED` | QC belum punya line saat finalize |
 | `400` | `QC_INSPECTION_ALREADY_FINALIZED` | QC sudah final |
 | `400` | `QC_RESULT_STATUS_INVALID` | Status result QC bukan PASS/FAIL |
@@ -265,6 +290,19 @@ Endpoint write saat ini butuh token:
 | `400` | `WORKFLOW_INSTANCE_STATE_MISMATCH` | State workflow instance tidak cocok |
 | `400` | `DOCUMENT_OBJECT_KEY_REQUIRED` | `object_key` versi dokumen wajib diisi |
 | `400` | `INTEGRATION_IDEMPOTENCY_KEY_REQUIRED` | `idempotency_key` sync log wajib diisi |
+| `400` | `INVALID_COST_POLICY_DATE_RANGE` | Tanggal aktif cost policy tidak valid |
+| `400` | `NOTIFICATION_RECIPIENT_REQUIRED` | Minimal satu recipient wajib diisi |
+| `400` | `NOTIFICATION_RECIPIENT_ADDRESS_REQUIRED` | `recipient_address` wajib diisi bila `user_id` kosong |
+| `400` | `NOTIFICATION_CHANNEL_DISABLED` | User mematikan channel notifikasi yang dipilih |
+| `400` | `INVALID_CLAIM_PERIOD` | Periode government claim tidak valid |
+| `400` | `CLAIM_DELIVERY_REQUIRED` | Minimal satu delivery order wajib dipilih |
+| `400` | `DELIVERY_ORDER_NOT_RECEIVED` | Delivery belum memiliki proof penerimaan |
+| `400` | `CLAIM_SUBMIT_INVALID_STATUS` | Status claim tidak valid untuk submit |
+| `400` | `CLAIM_EMPTY_AMOUNT` | Claim belum memiliki amount yang bisa diajukan |
+| `400` | `CLAIM_EVIDENCE_REQUIRED` | Claim wajib punya dokumen evidence |
+| `400` | `CLAIM_VERIFY_INVALID_STATUS` | Status claim tidak valid untuk verifikasi |
+| `400` | `CLAIM_PAYMENT_INVALID_STATUS` | Status claim tidak valid untuk pembayaran |
+| `400` | `INVALID_CLAIM_PAYMENT_AMOUNT` | Nilai pembayaran claim tidak valid |
 | `422` | `REQUEST_VALIDATION_ERROR` | Payload tidak valid |
 
 ## Demo Credentials
@@ -648,6 +686,222 @@ Error penting:
 - `PROGRAM_TENANT_ASSIGNMENT_REQUIRED`
 - `PROGRAM_SPPG_TENANT_MISMATCH`
 - `PROGRAM_SPPG_ALREADY_ASSIGNED`
+
+### Costing
+
+`GET /api/v1/costing/policies`
+
+Mengembalikan daftar cost policy berdasarkan scope tenant dan opsional SPPG.
+
+`POST /api/v1/costing/policies`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+- `finance_manager`
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "sppg_id": "uuid",
+  "code": "COST-SPPG-2026",
+  "name": "Cost Policy Demo",
+  "effective_from": "2026-07-19",
+  "effective_to": null,
+  "labor_cost_per_portion": 1200,
+  "utility_cost_per_portion": 300,
+  "packaging_cost_per_portion": 250,
+  "distribution_cost_per_portion": 400,
+  "overhead_cost_per_portion": 500,
+  "waste_cost_percentage": 5,
+  "is_active": true
+}
+```
+
+`GET /api/v1/costing/production-costs/{production_order_id}`
+
+Mengembalikan:
+
+- actual material cost
+- labor, utility, packaging, distribution, overhead, waste cost
+- total actual cost
+- actual cost per accepted portion
+- budget cost per portion meal plan
+- variance total dan variance per portion
+
+Catatan:
+
+- pembagi cost per portion memakai `accepted_portions`
+- bila ada `cost policy` aktif pada tanggal produksi, biaya tambahan per porsi akan ikut dihitung
+
+### Notification
+
+`GET /api/v1/notifications/templates`
+
+Mengembalikan daftar template notifikasi berdasarkan scope tenant.
+
+`POST /api/v1/notifications/templates`
+
+Membuat template notifikasi baru. Endpoint ini dipakai frontend admin untuk menyiapkan body atau subject reusable per channel.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "code": "NTF-MEALPLAN-APPROVAL",
+  "name": "Meal Plan Approval",
+  "channel": "IN_APP",
+  "subject_template": "Meal plan menunggu approval",
+  "body_template": "Meal plan {{meal_plan_id}} membutuhkan approval.",
+  "variables_json": ["meal_plan_id"],
+  "is_active": true
+}
+```
+
+`GET /api/v1/notifications/preferences/me`
+
+Mengambil preferensi notifikasi milik user aktif.
+
+`PUT /api/v1/notifications/preferences/me`
+
+Menyimpan preferensi notifikasi user aktif untuk satu channel.
+
+Payload:
+
+```json
+{
+  "channel": "IN_APP",
+  "is_enabled": true,
+  "quiet_hours_json": {
+    "start": "22:00",
+    "end": "05:00"
+  },
+  "config_json": {
+    "sound": "default"
+  }
+}
+```
+
+`GET /api/v1/notifications/inbox`
+
+Mengambil daftar inbox notifikasi untuk user yang sedang login. Setiap item berisi `recipient` dan `notification`.
+
+`POST /api/v1/notifications`
+
+Membuat notification baru lalu mendaftarkan recipient dan delivery queue.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "template_id": "template-uuid",
+  "source_module": "meal_plan",
+  "source_entity_type": "meal_plan",
+  "source_entity_id": "meal-plan-uuid",
+  "title": "Meal Plan Butuh Persetujuan",
+  "message": "Silakan review meal plan untuk besok pagi.",
+  "priority": "HIGH",
+  "recipients": [
+    {
+      "user_id": "user-uuid",
+      "channel": "IN_APP"
+    }
+  ]
+}
+```
+
+`GET /api/v1/notifications/{notification_id}`
+
+Mengambil detail notification lengkap dengan recipient dan delivery.
+
+`POST /api/v1/notifications/inbox/{recipient_id}/mark-read`
+
+Menandai item inbox milik user aktif sebagai sudah dibaca.
+
+### Government Claim
+
+`GET /api/v1/government-claims`
+
+Mengambil daftar government claim sesuai scope tenant dan opsional SPPG.
+
+`GET /api/v1/government-claims/{claim_id}`
+
+Mengambil detail government claim beserta lines, evidence, verification, adjustment, dan payment.
+
+`POST /api/v1/government-claims`
+
+Membuat draft government claim dari delivery order yang sudah memiliki proof penerimaan. Nilai klaim dihitung dari `received_portions * production_order.actual_cost_per_portion`, sehingga basisnya adalah biaya aktual yang sudah terealisasi.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "period_start": "2026-08-01",
+  "period_end": "2026-08-31",
+  "claim_type": "ACTUAL_COST",
+  "delivery_order_ids": ["delivery-order-uuid"],
+  "evidence_document_ids": ["document-uuid"],
+  "notes": "Klaim Agustus 2026"
+}
+```
+
+`POST /api/v1/government-claims/{claim_id}/submit`
+
+Submit claim ke tahap pengajuan. Claim harus punya amount dan minimal satu evidence.
+
+Payload:
+
+```json
+{
+  "submitted_at": "2026-08-09"
+}
+```
+
+`POST /api/v1/government-claims/{claim_id}/verify`
+
+Mencatat hasil verifikasi pemerintah atau verifikator internal.
+
+Payload:
+
+```json
+{
+  "verification_date": "2026-08-12",
+  "verification_status": "APPROVED",
+  "verified_amount": 82500,
+  "verifier_name": "Tim Verifikator",
+  "notes": "Sesuai dokumen"
+}
+```
+
+`POST /api/v1/government-claims/{claim_id}/adjustments`
+
+Menambahkan adjustment nominal terhadap claim.
+
+`POST /api/v1/government-claims/{claim_id}/payments`
+
+Mencatat pembayaran claim dan otomatis membuat jurnal accounting ter-posting.
+
+Payload:
+
+```json
+{
+  "payment_date": "2026-08-15",
+  "amount": 82500,
+  "payment_reference": "SP2D-2026-0001",
+  "notes": "Dana diterima penuh",
+  "debit_account_code": "110000",
+  "credit_account_code": "120500"
+}
+```
+- variance dibandingkan terhadap `meal_plan.budget_cost_per_portion`
 
 ### Quality Control
 

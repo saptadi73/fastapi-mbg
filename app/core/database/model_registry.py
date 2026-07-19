@@ -6,12 +6,19 @@ def import_all_models() -> None:
     import app.modules.beneficiary.models.beneficiary  # noqa: F401
     import app.modules.budget.models.budget  # noqa: F401
     import app.modules.budget.models.budget_line  # noqa: F401
+    import app.modules.costing.models.cost_policy  # noqa: F401
     import app.modules.delivery.models.delivery_order  # noqa: F401
     import app.modules.delivery.models.delivery_proof  # noqa: F401
     import app.modules.document.models.document  # noqa: F401
     import app.modules.document.models.document_link  # noqa: F401
     import app.modules.document.models.document_version  # noqa: F401
     import app.modules.geography.models.school  # noqa: F401
+    import app.modules.government_claim.models.claim_adjustment  # noqa: F401
+    import app.modules.government_claim.models.claim_evidence  # noqa: F401
+    import app.modules.government_claim.models.claim_payment  # noqa: F401
+    import app.modules.government_claim.models.claim_verification  # noqa: F401
+    import app.modules.government_claim.models.government_claim  # noqa: F401
+    import app.modules.government_claim.models.government_claim_line  # noqa: F401
     import app.modules.identity.models.user  # noqa: F401
     import app.modules.identity.models.user_sppg_access  # noqa: F401
     import app.modules.integration.models.external_system  # noqa: F401
@@ -21,6 +28,11 @@ def import_all_models() -> None:
     import app.modules.inventory.models.inventory_transaction  # noqa: F401
     import app.modules.inventory.models.warehouse  # noqa: F401
     import app.modules.meal_plan.models.meal_plan  # noqa: F401
+    import app.modules.notification.models.notification  # noqa: F401
+    import app.modules.notification.models.notification_delivery  # noqa: F401
+    import app.modules.notification.models.notification_preference  # noqa: F401
+    import app.modules.notification.models.notification_recipient  # noqa: F401
+    import app.modules.notification.models.notification_template  # noqa: F401
     import app.modules.program.models.program  # noqa: F401
     import app.modules.program.models.program_period  # noqa: F401
     import app.modules.program.models.program_sppg  # noqa: F401
