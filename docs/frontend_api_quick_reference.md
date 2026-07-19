@@ -157,8 +157,13 @@ Authorization: Bearer <access_token>
 | `GET` | `/api/v1/workflows/definitions` | No | - | List workflow definition per tenant |
 | `GET` | `/api/v1/workflows/definitions/{definition_id}` | No | - | Detail workflow definition |
 | `POST` | `/api/v1/workflows/definitions` | Yes | `super_admin`, `tenant_admin` | Buat workflow definition |
+| `POST` | `/api/v1/workflows/definitions/{definition_id}/versions` | Yes | `super_admin`, `tenant_admin` | Tambah workflow version |
+| `POST` | `/api/v1/workflows/versions/{version_id}/states` | Yes | `super_admin`, `tenant_admin` | Tambah workflow state pada version |
+| `POST` | `/api/v1/workflows/versions/{version_id}/actions` | Yes | `super_admin`, `tenant_admin` | Tambah workflow action pada version |
 | `POST` | `/api/v1/workflows/definitions/{definition_id}/transitions` | Yes | `super_admin`, `tenant_admin` | Tambah transisi workflow |
 | `GET` | `/api/v1/workflows/documents/{document_type}/{document_id}` | No | - | Lihat instance workflow dan history dokumen |
+| `POST` | `/api/v1/workflows/instances/{workflow_instance_id}/approval-requests` | Yes | `super_admin`, `tenant_admin` | Buat approval request manual untuk instance workflow |
+| `POST` | `/api/v1/workflows/approval-requests/{approval_request_id}/decisions` | Yes | `super_admin`, `tenant_admin` | Catat approval decision |
 | `GET` | `/api/v1/audit/events/` | Yes | `super_admin`, `tenant_admin` | List audit event |
 | `GET` | `/api/v1/audit/events/{event_id}` | Yes | `super_admin`, `tenant_admin` | Detail audit event |
 | `GET` | `/api/v1/documents` | No | - | List dokumen berdasarkan scope tenant/SPPG |
@@ -168,16 +173,48 @@ Authorization: Bearer <access_token>
 | `POST` | `/api/v1/documents/{document_id}/links` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer`, `finance_manager` | Link dokumen ke entity bisnis |
 | `GET` | `/api/v1/reporting/dashboard/tenant` | No | - | Dashboard tenant |
 | `GET` | `/api/v1/reporting/dashboard/sppg` | No | - | Dashboard SPPG |
+| `GET` | `/api/v1/reporting/dashboard/finance` | No | - | Dashboard finance khusus |
 | `GET` | `/api/v1/reporting/stock-summary` | No | - | Ringkasan stok |
 | `GET` | `/api/v1/reporting/delivery-performance` | No | - | Ringkasan performa delivery |
 | `GET` | `/api/v1/reporting/budget-summary` | No | - | Ringkasan budget |
+| `GET` | `/api/v1/reporting/finance/cash-flow` | No | - | Cash flow dari jurnal kas/bank |
+| `GET` | `/api/v1/reporting/finance/government-receivable-aging` | No | - | Aging piutang government claim |
+| `GET` | `/api/v1/reporting/finance/investor-funding-position` | No | - | Posisi pendanaan investor |
+| `GET` | `/api/v1/reporting/finance/roi-by-sppg` | No | - | ROI per SPPG |
 | `GET` | `/api/v1/integration/external-systems` | No | - | List external system |
 | `GET` | `/api/v1/integration/external-systems/{external_system_id}` | No | - | Detail external system dan credential |
 | `POST` | `/api/v1/integration/external-systems` | Yes | `super_admin`, `tenant_admin` | Buat external system |
 | `POST` | `/api/v1/integration/external-systems/{external_system_id}/credentials` | Yes | `super_admin`, `tenant_admin` | Buat credential metadata |
+| `GET` | `/api/v1/integration/webhook-subscriptions` | Yes | `super_admin`, `tenant_admin` | List webhook subscription |
+| `POST` | `/api/v1/integration/webhook-subscriptions` | Yes | `super_admin`, `tenant_admin` | Buat webhook subscription |
+| `POST` | `/api/v1/integration/webhook-subscriptions/{subscription_id}/receive` | No | - | Terima inbound webhook dan buat inbound message |
+| `GET` | `/api/v1/integration/data-mappings` | Yes | `super_admin`, `tenant_admin` | List data mapping |
+| `POST` | `/api/v1/integration/data-mappings` | Yes | `super_admin`, `tenant_admin` | Buat data mapping |
+| `GET` | `/api/v1/integration/sync-jobs` | Yes | `super_admin`, `tenant_admin` | List sync job |
+| `GET` | `/api/v1/integration/sync-jobs/{sync_job_id}` | Yes | `super_admin`, `tenant_admin` | Detail sync job |
+| `POST` | `/api/v1/integration/sync-jobs` | Yes | `super_admin`, `tenant_admin` | Buat sync job |
+| `POST` | `/api/v1/integration/sync-jobs/{sync_job_id}/run` | Yes | `super_admin`, `tenant_admin` | Jalankan sync job dan buat outbound message |
+| `GET` | `/api/v1/integration/inbound-messages` | Yes | `super_admin`, `tenant_admin` | List inbound message |
+| `GET` | `/api/v1/integration/inbound-messages/{inbound_message_id}` | Yes | `super_admin`, `tenant_admin` | Detail inbound message |
+| `POST` | `/api/v1/integration/inbound-messages` | Yes | `super_admin`, `tenant_admin` | Buat inbound message manual |
+| `GET` | `/api/v1/integration/outbound-messages` | Yes | `super_admin`, `tenant_admin` | List outbound message |
+| `GET` | `/api/v1/integration/outbound-messages/{outbound_message_id}` | Yes | `super_admin`, `tenant_admin` | Detail outbound message |
+| `POST` | `/api/v1/integration/outbound-messages` | Yes | `super_admin`, `tenant_admin` | Buat outbound message manual |
 | `GET` | `/api/v1/integration/sync-logs` | Yes | `super_admin`, `tenant_admin` | List sync log |
 | `GET` | `/api/v1/integration/sync-logs/{sync_log_id}` | Yes | `super_admin`, `tenant_admin` | Detail sync log |
 | `POST` | `/api/v1/integration/sync-logs` | Yes | `super_admin`, `tenant_admin` | Buat sync log outbound/inbound |
+| `GET` | `/api/v1/platform/background-jobs` | Yes | `super_admin`, `tenant_admin` | List background job internal |
+| `POST` | `/api/v1/platform/background-jobs` | Yes | `super_admin`, `tenant_admin` | Buat background job internal |
+| `POST` | `/api/v1/platform/background-jobs/{job_id}/run` | Yes | `super_admin`, `tenant_admin` | Jalankan background job manual |
+| `GET` | `/api/v1/platform/outbox-events` | Yes | `super_admin`, `tenant_admin` | List transactional outbox |
+| `POST` | `/api/v1/platform/outbox-events` | Yes | `super_admin`, `tenant_admin` | Buat outbox event manual |
+| `POST` | `/api/v1/platform/outbox-events/dispatch` | Yes | `super_admin`, `tenant_admin` | Dispatch pending outbox event |
+| `GET` | `/api/v1/platform/read-models/daily-kitchen-operations` | Yes | `super_admin`, `tenant_admin` | List summary table operasi dapur harian |
+| `POST` | `/api/v1/platform/read-models/daily-kitchen-operations/refresh` | Yes | `super_admin`, `tenant_admin` | Refresh summary table operasi dapur harian |
+| `GET` | `/api/v1/platform/read-models/monthly-budget-realizations` | Yes | `super_admin`, `tenant_admin` | List summary table budget bulanan |
+| `POST` | `/api/v1/platform/read-models/monthly-budget-realizations/refresh` | Yes | `super_admin`, `tenant_admin` | Refresh summary table budget bulanan |
+| `GET` | `/api/v1/platform/materialized-views/delivery-performance` | Yes | `super_admin`, `tenant_admin` | Baca materialized view delivery performance |
+| `POST` | `/api/v1/platform/materialized-views/delivery-performance/refresh` | Yes | `super_admin`, `tenant_admin` | Refresh materialized view delivery performance |
 | `GET` | `/api/v1/geography/schools/` | No | - | List sekolah |
 | `GET` | `/api/v1/beneficiaries/` | No | - | List beneficiary |
 | `GET` | `/api/v1/uoms/` | No | - | List UoM |
@@ -190,13 +227,30 @@ Authorization: Bearer <access_token>
 | `GET` | `/api/v1/meal-plans/{meal_plan_id}/cost-preview` | No | - | Preview biaya meal plan |
 | `GET` | `/api/v1/inventory/warehouses/` | No | - | List warehouse |
 | `POST` | `/api/v1/inventory/warehouses/` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `warehouse_operator`, `procurement_officer` | Buat warehouse |
+| `GET` | `/api/v1/inventory/locations/` | No | - | List stock location |
+| `POST` | `/api/v1/inventory/locations/` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `warehouse_operator`, `procurement_officer` | Buat stock location |
+| `GET` | `/api/v1/inventory/batches/` | No | - | List batch inventory |
+| `POST` | `/api/v1/inventory/batches/` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `warehouse_operator`, `procurement_officer` | Buat batch/lot inventory |
 | `GET` | `/api/v1/inventory/transactions/` | No | - | List ledger inventory |
 | `POST` | `/api/v1/inventory/transactions/` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `warehouse_operator`, `procurement_officer` | Post transaksi inventory |
 | `GET` | `/api/v1/inventory/balances/` | No | - | List saldo stok |
+| `GET` | `/api/v1/inventory/expiry-alerts` | No | - | Batch yang mendekati expiry |
+| `POST` | `/api/v1/inventory/issues/fefo-preview` | No | - | Preview pemilihan batch FEFO |
+| `GET` | `/api/v1/procurement/purchase-requests/suppliers` | No | - | List supplier |
+| `GET` | `/api/v1/procurement/purchase-requests/suppliers/{supplier_id}` | No | - | Detail supplier |
+| `POST` | `/api/v1/procurement/purchase-requests/suppliers` | Yes | `super_admin`, `tenant_admin`, `procurement_officer`, `operations_manager` | Buat supplier |
+| `GET` | `/api/v1/procurement/purchase-requests/supplier-products` | No | - | List mapping supplier-produk |
+| `POST` | `/api/v1/procurement/purchase-requests/supplier-products` | Yes | `super_admin`, `tenant_admin`, `procurement_officer`, `operations_manager` | Buat mapping supplier-produk |
+| `GET` | `/api/v1/procurement/purchase-requests/supplier-price-histories` | No | - | List histori harga supplier |
+| `POST` | `/api/v1/procurement/purchase-requests/supplier-price-histories` | Yes | `super_admin`, `tenant_admin`, `procurement_officer`, `operations_manager` | Simpan histori harga supplier |
 | `GET` | `/api/v1/procurement/purchase-requests/` | No | - | List purchase request |
 | `POST` | `/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `procurement_officer` | Buat PR dari shortage |
+| `GET` | `/api/v1/procurement/purchase-requests/purchase-orders/` | No | - | List purchase order/RFQ |
+| `GET` | `/api/v1/procurement/purchase-requests/purchase-orders/{purchase_order_id}` | No | - | Detail purchase order/RFQ |
+| `POST` | `/api/v1/procurement/purchase-requests/purchase-orders/from-purchase-request/{purchase_request_id}` | Yes | `super_admin`, `tenant_admin`, `procurement_officer`, `operations_manager` | Buat PO/RFQ dari PR |
 | `GET` | `/api/v1/procurement/purchase-requests/goods-receipts/` | No | - | List goods receipt |
 | `POST` | `/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `procurement_officer` | Terima barang dan tambah stok |
+| `POST` | `/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-order/{purchase_order_id}` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `procurement_officer` | Terima barang dari PO dengan batch/expiry opsional |
 | `GET` | `/api/v1/procurement/purchase-requests/supplier-invoices/` | No | - | List supplier invoice |
 | `GET` | `/api/v1/procurement/purchase-requests/supplier-invoices/{supplier_invoice_id}` | No | - | Detail supplier invoice |
 | `POST` | `/api/v1/procurement/purchase-requests/supplier-invoices/from-goods-receipt/{goods_receipt_id}` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `procurement_officer`, `finance_manager` | Buat invoice supplier dari goods receipt |
@@ -208,7 +262,11 @@ Authorization: Bearer <access_token>
 | `POST` | `/api/v1/production-orders/{production_order_id}/complete` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Selesaikan produksi |
 | `GET` | `/api/v1/production-orders/{production_order_id}/cost-sheet` | No | - | Lihat actual cost produksi |
 | `GET` | `/api/v1/delivery-orders/` | No | - | List delivery order |
+| `GET` | `/api/v1/delivery-orders/routes` | No | - | List route planning delivery |
+| `GET` | `/api/v1/delivery-orders/routes/{route_id}` | No | - | Detail route, stop, dan incident delivery |
+| `POST` | `/api/v1/delivery-orders/routes` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Buat route planning delivery |
 | `POST` | `/api/v1/delivery-orders/from-production-order/{production_order_id}` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Buat delivery order |
+| `POST` | `/api/v1/delivery-orders/{delivery_order_id}/incidents` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Catat incident distribution |
 | `POST` | `/api/v1/delivery-orders/{delivery_order_id}/proof` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Catat proof of delivery |
 | `GET` | `/api/v1/accounts` | No | - | List chart of accounts |
 | `POST` | `/api/v1/accounts` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Buat account |
@@ -456,6 +514,10 @@ GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
 
 - `/api/v1/reporting/dashboard/tenant` sebaiknya dipanggil dengan `X-Tenant-ID`
 - `/api/v1/reporting/dashboard/sppg` sebaiknya dipanggil dengan `X-Tenant-ID` dan `X-SPPG-ID`
+- `/api/v1/reporting/dashboard/finance` cocok untuk summary layar finance manager
+- `/api/v1/reporting/finance/cash-flow` mendukung `period_start` dan `period_end`
+- `/api/v1/reporting/finance/government-receivable-aging` dan `/api/v1/reporting/finance/investor-funding-position` mendukung `as_of_date`
+- `/api/v1/reporting/finance/roi-by-sppg` menghitung ROI dari claim approved/claimed amount dibanding total biaya produksi dan biaya pendanaan teralokasi
 - read model ini belum menjadi source of truth, hanya agregasi dari modul transaksi yang sudah ada
 
 ### Create External System
@@ -576,10 +638,55 @@ Catatan `GET /api/v1/costing/production-costs/{production_order_id}`:
   "received_at": "2026-07-25T08:05:00Z",
   "receiver_name": "Petugas Sekolah",
   "receiver_gps": "-6.1702,106.8283",
+  "route_stop_id": "uuid",
   "received_portions": 98,
   "rejected_portions": 2,
   "temperature_celsius": 62.5,
-  "condition_notes": "Diterima dengan sedikit reject"
+  "condition_status": "GOOD",
+  "condition_notes": "Diterima dengan sedikit reject",
+  "photo_urls": ["https://example.com/proofs/arrival-1.jpg"],
+  "signature_name": "Petugas Sekolah",
+  "signature_url": "https://example.com/signatures/receiver-signature.png",
+  "signature_signed_at": "2026-07-25T08:05:30Z",
+  "incident_notes": "Ada penurunan suhu saat perjalanan namun masih diterima",
+  "linked_incident_ids": ["uuid"]
+}
+```
+
+### Create Delivery Route
+
+```json
+{
+  "route_name": "Route Sekolah Pagi",
+  "planned_departure": "2026-07-25T07:00:00Z",
+  "planned_arrival": "2026-07-25T08:00:00Z",
+  "notes": "Route planning untuk sekolah utama",
+  "stops": [
+    {
+      "delivery_order_id": "uuid",
+      "planned_arrival": "2026-07-25T08:00:00Z",
+      "recipient_name": "Petugas Sekolah",
+      "stop_gps": "-6.1702,106.8283",
+      "notes": "Stop pertama"
+    }
+  ]
+}
+```
+
+### Record Delivery Incident
+
+```json
+{
+  "incident_time": "2026-07-25T07:45:00Z",
+  "category": "TEMPERATURE",
+  "severity": "MEDIUM",
+  "title": "Suhu turun saat transit",
+  "description": "Perlu pengecekan box termal",
+  "route_stop_id": "uuid",
+  "incident_gps": "-6.1702,106.8283",
+  "temperature_celsius": 58.4,
+  "media_urls": ["https://example.com/incidents/temp-drop.jpg"],
+  "status": "OPEN"
 }
 ```
 

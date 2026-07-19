@@ -23,6 +23,12 @@ class WorkflowInstance(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, B
         nullable=False,
         index=True,
     )
+    workflow_version_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workflow_versions.id"),
+        nullable=True,
+        index=True,
+    )
     document_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     document_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     current_state: Mapped[str] = mapped_column(String(50), nullable=False)

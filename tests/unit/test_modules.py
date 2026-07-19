@@ -1082,6 +1082,43 @@ def test_workflow_definition_endpoints_and_document_history_work() -> None:
         )
         assert create_definition_response.status_code == 201, create_definition_response.json()
         definition_id = create_definition_response.json()["data"]["id"]
+        initial_definition_payload = create_definition_response.json()["data"]
+
+        create_version_response = client.post(
+            f"/api/v1/workflows/definitions/{definition_id}/versions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "status": "ACTIVE",
+                "is_active": True,
+                "notes": "Second version for workflow test",
+            },
+        )
+        assert create_version_response.status_code == 201, create_version_response.json()
+        version_id = create_version_response.json()["data"]["id"]
+
+        create_state_response = client.post(
+            f"/api/v1/workflows/versions/{version_id}/states",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "state_code": "REVIEW",
+                "state_name": "Review",
+                "sequence_number": 10,
+                "is_initial": False,
+                "is_terminal": False,
+                "sla_hours": 24,
+            },
+        )
+        create_action_response = client.post(
+            f"/api/v1/workflows/versions/{version_id}/actions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "action_code": "REQUEST_APPROVAL",
+                "action_name": "Request Approval",
+                "allowed_role": "tenant_admin",
+                "requires_approval": True,
+                "is_active": True,
+            },
+        )
 
         create_transition_response = client.post(
             f"/api/v1/workflows/definitions/{definition_id}/transitions",
@@ -1132,19 +1169,59 @@ def test_workflow_definition_endpoints_and_document_history_work() -> None:
             f"/api/v1/workflows/documents/meal_plan/{meal_plan_id}",
             headers={"X-Tenant-ID": tenant_id},
         )
+        workflow_instance_id = workflow_document_response.json()["data"]["instance"]["id"]
+        approval_request_id = workflow_document_response.json()["data"]["approval_requests"][0]["id"]
+        approval_decision_response = client.post(
+            f"/api/v1/workflows/approval-requests/{approval_request_id}/decisions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "decision": "APPROVED",
+                "notes": "Approved for workflow bounded context test",
+            },
+        )
+        workflow_document_after_approval_response = client.get(
+            f"/api/v1/workflows/documents/meal_plan/{meal_plan_id}",
+            headers={"X-Tenant-ID": tenant_id},
+        )
 
+    assert initial_definition_payload["initial_state"] == "DRAFT"
+    assert create_version_response.json()["code"] == "WORKFLOW_VERSION_CREATED"
+    assert create_version_response.json()["data"]["version_number"] == 2
+    assert create_state_response.status_code == 201, create_state_response.json()
+    assert create_state_response.json()["code"] == "WORKFLOW_STATE_CREATED"
+    assert create_action_response.status_code == 201, create_action_response.json()
+    assert create_action_response.json()["code"] == "WORKFLOW_ACTION_CREATED"
     assert create_transition_response.status_code == 201
     assert create_transition_response.json()["code"] == "WORKFLOW_TRANSITION_CREATED"
     assert list_definitions_response.status_code == 200
     assert any(item["id"] == definition_id for item in list_definitions_response.json()["data"])
     assert get_definition_response.status_code == 200
+    definition_payload = get_definition_response.json()["data"]
+    assert len(definition_payload["versions"]) >= 2
+    assert any(item["id"] == version_id for item in definition_payload["versions"])
+    assert any(item["state_code"] == "REVIEW" for item in definition_payload["states"])
+    assert any(item["action_code"] == "REQUEST_APPROVAL" for item in definition_payload["actions"])
     assert len(get_definition_response.json()["data"]["transitions"]) == 1
     assert submit_response.status_code == 200
     assert approve_response.status_code == 200
     assert workflow_document_response.status_code == 200, workflow_document_response.json()
     workflow_payload = workflow_document_response.json()["data"]
-    assert workflow_payload["instance"]["current_state"] == "APPROVED"
-    assert [item["action_name"] for item in workflow_payload["history"]] == ["CREATE", "SUBMIT", "APPROVE"]
+    assert workflow_payload["instance"]["current_state"] == "SUBMITTED"
+    assert workflow_payload["version"] is not None
+    assert workflow_payload["instance"]["workflow_version_id"] == workflow_payload["version"]["id"]
+    assert workflow_payload["approval_requests"][0]["status"] == "PENDING"
+    assert [item["action_name"] for item in workflow_payload["history"]] == ["CREATE", "SUBMIT", "APPROVE_REQUESTED"]
+    assert approval_decision_response.status_code == 200, approval_decision_response.json()
+    assert approval_decision_response.json()["code"] == "APPROVAL_DECISION_RECORDED"
+    assert workflow_document_after_approval_response.status_code == 200, workflow_document_after_approval_response.json()
+    workflow_after_approval_payload = workflow_document_after_approval_response.json()["data"]
+    assert len(workflow_after_approval_payload["approval_requests"]) == 1
+    assert workflow_after_approval_payload["approval_requests"][0]["status"] == "APPROVED"
+    assert len(workflow_after_approval_payload["approval_decisions"]) == 1
+    assert workflow_after_approval_payload["approval_decisions"][0]["decision"] == "APPROVED"
+    assert workflow_after_approval_payload["instance"]["current_state"] == "APPROVED"
+    assert workflow_after_approval_payload["history"][-1]["approval_request_id"] == approval_request_id
+    assert workflow_after_approval_payload["history"][-1]["action_name"] == "APPROVE"
 
 
 def test_audit_event_endpoints_work() -> None:
@@ -1317,6 +1394,26 @@ def test_reporting_endpoints_work() -> None:
             "/api/v1/reporting/budget-summary",
             headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
         )
+        cash_flow_response = client.get(
+            "/api/v1/reporting/finance/cash-flow?period_start=2026-07-01&period_end=2026-07-31",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        aging_response = client.get(
+            "/api/v1/reporting/finance/government-receivable-aging?as_of_date=2026-07-19",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        funding_position_response = client.get(
+            "/api/v1/reporting/finance/investor-funding-position?as_of_date=2026-07-19",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        roi_response = client.get(
+            "/api/v1/reporting/finance/roi-by-sppg?period_start=2026-07-01&period_end=2026-07-31",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        finance_dashboard_response = client.get(
+            "/api/v1/reporting/dashboard/finance?as_of_date=2026-07-19",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
 
     assert tenant_dashboard_response.status_code == 200, tenant_dashboard_response.json()
     tenant_payload = tenant_dashboard_response.json()["data"]
@@ -1341,6 +1438,154 @@ def test_reporting_endpoints_work() -> None:
 
     assert budget_summary_response.status_code == 200, budget_summary_response.json()
     assert "status_breakdown" in budget_summary_response.json()["data"]
+
+    assert cash_flow_response.status_code == 200, cash_flow_response.json()
+    assert "totals" in cash_flow_response.json()["data"]
+    assert "breakdown" in cash_flow_response.json()["data"]
+
+    assert aging_response.status_code == 200, aging_response.json()
+    assert "buckets" in aging_response.json()["data"]
+    assert "items" in aging_response.json()["data"]
+
+    assert funding_position_response.status_code == 200, funding_position_response.json()
+    assert "totals" in funding_position_response.json()["data"]
+    assert "items" in funding_position_response.json()["data"]
+
+    assert roi_response.status_code == 200, roi_response.json()
+    assert "totals" in roi_response.json()["data"]
+    assert "items" in roi_response.json()["data"]
+
+    assert finance_dashboard_response.status_code == 200, finance_dashboard_response.json()
+    finance_payload = finance_dashboard_response.json()["data"]
+    assert "cash_flow" in finance_payload
+    assert "government_receivables" in finance_payload
+    assert "investor_funding" in finance_payload
+    assert "profitability" in finance_payload
+    assert "accounting" in finance_payload
+
+
+def test_platform_background_jobs_read_models_and_outbox_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        outbox_response = client.post(
+            "/api/v1/platform/outbox-events",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "event_name": "reporting.summary.refresh.requested",
+                "aggregate_type": "reporting_summary",
+                "aggregate_id": None,
+                "payload_json": {"summary_date": "2026-07-19"},
+                "available_at": "2026-07-19T08:00:00Z",
+            },
+        )
+        assert outbox_response.status_code == 201, outbox_response.json()
+        outbox_event_id = outbox_response.json()["data"]["id"]
+
+        list_outbox_response = client.get(
+            "/api/v1/platform/outbox-events?status=PENDING",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        assert list_outbox_response.status_code == 200, list_outbox_response.json()
+        assert any(item["id"] == outbox_event_id for item in list_outbox_response.json()["data"])
+
+        dispatch_outbox_response = client.post(
+            "/api/v1/platform/outbox-events/dispatch?limit=20",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        assert dispatch_outbox_response.status_code == 200, dispatch_outbox_response.json()
+
+        create_daily_job_response = client.post(
+            "/api/v1/platform/background-jobs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "job_name": f"daily-summary-{code_suffix}",
+                "job_type": "REFRESH_DAILY_KITCHEN_OPERATION_SUMMARY",
+                "payload_json": {"summary_date": "2026-07-19"},
+                "notes": "Refresh summary harian",
+            },
+        )
+        assert create_daily_job_response.status_code == 201, create_daily_job_response.json()
+        daily_job_id = create_daily_job_response.json()["data"]["id"]
+
+        run_daily_job_response = client.post(
+            f"/api/v1/platform/background-jobs/{daily_job_id}/run",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        assert run_daily_job_response.status_code == 200, run_daily_job_response.json()
+        assert run_daily_job_response.json()["data"]["status"] == "SUCCESS"
+
+        create_monthly_job_response = client.post(
+            "/api/v1/platform/background-jobs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "job_name": f"monthly-summary-{code_suffix}",
+                "job_type": "REFRESH_MONTHLY_BUDGET_REALIZATION_SUMMARY",
+                "payload_json": {"period_month": "2026-07-01"},
+                "notes": "Refresh summary budget bulanan",
+            },
+        )
+        assert create_monthly_job_response.status_code == 201, create_monthly_job_response.json()
+        monthly_job_id = create_monthly_job_response.json()["data"]["id"]
+        run_monthly_job_response = client.post(
+            f"/api/v1/platform/background-jobs/{monthly_job_id}/run",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        assert run_monthly_job_response.status_code == 200, run_monthly_job_response.json()
+
+        create_mv_job_response = client.post(
+            "/api/v1/platform/background-jobs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "job_name": f"mv-delivery-{code_suffix}",
+                "job_type": "REFRESH_MV_DELIVERY_PERFORMANCE_SUMMARY",
+                "payload_json": {},
+                "notes": "Refresh MV delivery performance",
+            },
+        )
+        assert create_mv_job_response.status_code == 201, create_mv_job_response.json()
+        mv_job_id = create_mv_job_response.json()["data"]["id"]
+        run_mv_job_response = client.post(
+            f"/api/v1/platform/background-jobs/{mv_job_id}/run",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        assert run_mv_job_response.status_code == 200, run_mv_job_response.json()
+
+        list_jobs_response = client.get(
+            "/api/v1/platform/background-jobs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        daily_summary_response = client.get(
+            "/api/v1/platform/read-models/daily-kitchen-operations?summary_date=2026-07-19",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        monthly_summary_response = client.get(
+            "/api/v1/platform/read-models/monthly-budget-realizations?period_month=2026-07-01",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        mv_response = client.get(
+            "/api/v1/platform/materialized-views/delivery-performance",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+
+    assert list_jobs_response.status_code == 200, list_jobs_response.json()
+    assert any(item["id"] == daily_job_id for item in list_jobs_response.json()["data"])
+    assert daily_summary_response.status_code == 200, daily_summary_response.json()
+    assert isinstance(daily_summary_response.json()["data"], list)
+    assert monthly_summary_response.status_code == 200, monthly_summary_response.json()
+    assert isinstance(monthly_summary_response.json()["data"], list)
+    assert mv_response.status_code == 200, mv_response.json()
+    assert isinstance(mv_response.json()["data"], list)
 
 
 def test_integration_management_flow_works() -> None:
@@ -1398,6 +1643,87 @@ def test_integration_management_flow_works() -> None:
                 "notes": "Sinkronisasi awal",
             },
         )
+        create_subscription_response = client.post(
+            "/api/v1/integration/webhook-subscriptions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "external_system_id": external_system_id,
+                "subscription_name": "school-status-webhook",
+                "event_type": "school.status.updated",
+                "endpoint_path": "/webhooks/school/status",
+                "signing_secret_masked": "****sign",
+                "headers_json": {"X-Signature": "sha256=demo"},
+                "is_active": True,
+                "notes": "Webhook status sekolah",
+            },
+        )
+        assert create_subscription_response.status_code == 201, create_subscription_response.json()
+        subscription_id = create_subscription_response.json()["data"]["id"]
+
+        create_mapping_response = client.post(
+            "/api/v1/integration/data-mappings",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "external_system_id": external_system_id,
+                "mapping_name": "meal-plan-export",
+                "source_entity": "meal_plan",
+                "target_entity": "partner_menu_plan",
+                "direction": "OUTBOUND",
+                "mapping_config_json": {"fields": {"plan_date": "date", "planned_portions": "qty"}},
+                "is_active": True,
+                "notes": "Mapping export meal plan",
+            },
+        )
+        assert create_mapping_response.status_code == 201, create_mapping_response.json()
+
+        create_sync_job_response = client.post(
+            "/api/v1/integration/sync-jobs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "external_system_id": external_system_id,
+                "job_name": "meal-plan-daily-export",
+                "direction": "OUTBOUND",
+                "trigger_mode": "MANUAL",
+                "entity_type": "meal_plan",
+                "schedule_expression": "0 6 * * *",
+                "filter_json": {"status": "APPROVED"},
+                "notes": "Export harian meal plan",
+            },
+        )
+        assert create_sync_job_response.status_code == 201, create_sync_job_response.json()
+        sync_job_id = create_sync_job_response.json()["data"]["id"]
+
+        receive_webhook_response = client.post(
+            f"/api/v1/integration/webhook-subscriptions/{subscription_id}/receive",
+            json={
+                "message_type": "school.status.updated",
+                "external_reference": f"WH-{code_suffix}",
+                "idempotency_key": f"wh-{code_suffix.lower()}",
+                "headers_json": {"X-Signature": "sha256=demo"},
+                "payload_json": {"school_code": "SCH-01", "status": "ACTIVE"},
+                "received_at": "2026-07-19T10:00:00Z",
+                "notes": "Webhook dari partner",
+            },
+        )
+        assert receive_webhook_response.status_code == 201, receive_webhook_response.json()
+        inbound_message_id = receive_webhook_response.json()["data"]["inbound_message"]["id"]
+
+        run_sync_job_response = client.post(
+            f"/api/v1/integration/sync-jobs/{sync_job_id}/run",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "message_type": "meal_plan.export",
+                "external_reference": f"JOB-{code_suffix}",
+                "idempotency_key": f"job-{code_suffix.lower()}",
+                "destination_url": "https://partner.example.com/api/meal-plans",
+                "payload_json": {"plan_date": "2026-07-19", "planned_portions": 100},
+                "response_json": {"queued": True},
+                "notes": "Run sync job manual",
+            },
+        )
+        assert run_sync_job_response.status_code == 201, run_sync_job_response.json()
+        outbound_message_id = run_sync_job_response.json()["data"]["outbound_message"]["id"]
+
         list_systems_response = client.get(
             "/api/v1/integration/external-systems",
             headers={"X-Tenant-ID": tenant_id},
@@ -1415,6 +1741,38 @@ def test_integration_management_flow_works() -> None:
             f"/api/v1/integration/sync-logs/{sync_log_id}",
             headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
         )
+        list_subscriptions_response = client.get(
+            "/api/v1/integration/webhook-subscriptions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        list_mappings_response = client.get(
+            "/api/v1/integration/data-mappings",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        list_sync_jobs_response = client.get(
+            "/api/v1/integration/sync-jobs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        detail_sync_job_response = client.get(
+            f"/api/v1/integration/sync-jobs/{sync_job_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        list_inbound_messages_response = client.get(
+            "/api/v1/integration/inbound-messages",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        detail_inbound_message_response = client.get(
+            f"/api/v1/integration/inbound-messages/{inbound_message_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        list_outbound_messages_response = client.get(
+            "/api/v1/integration/outbound-messages",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        detail_outbound_message_response = client.get(
+            f"/api/v1/integration/outbound-messages/{outbound_message_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
 
     assert create_credential_response.status_code == 201, create_credential_response.json()
     assert create_credential_response.json()["code"] == "INTEGRATION_CREDENTIAL_CREATED"
@@ -1424,10 +1782,29 @@ def test_integration_management_flow_works() -> None:
     assert any(item["id"] == external_system_id for item in list_systems_response.json()["data"])
     assert detail_system_response.status_code == 200
     assert len(detail_system_response.json()["data"]["credentials"]) == 1
+    assert len(detail_system_response.json()["data"]["webhook_subscriptions"]) == 1
+    assert len(detail_system_response.json()["data"]["data_mappings"]) == 1
+    assert len(detail_system_response.json()["data"]["sync_jobs"]) == 1
     assert list_sync_logs_response.status_code == 200
     assert any(item["id"] == sync_log_id for item in list_sync_logs_response.json()["data"])
     assert detail_sync_log_response.status_code == 200
     assert detail_sync_log_response.json()["data"]["idempotency_key"] == f"idem-{code_suffix.lower()}"
+    assert list_subscriptions_response.status_code == 200
+    assert any(item["id"] == subscription_id for item in list_subscriptions_response.json()["data"])
+    assert list_mappings_response.status_code == 200
+    assert list_mappings_response.json()["data"][0]["mapping_name"] == "meal-plan-export"
+    assert list_sync_jobs_response.status_code == 200
+    assert any(item["id"] == sync_job_id for item in list_sync_jobs_response.json()["data"])
+    assert detail_sync_job_response.status_code == 200
+    assert detail_sync_job_response.json()["data"]["status"] == "SUCCESS"
+    assert list_inbound_messages_response.status_code == 200
+    assert any(item["id"] == inbound_message_id for item in list_inbound_messages_response.json()["data"])
+    assert detail_inbound_message_response.status_code == 200
+    assert detail_inbound_message_response.json()["data"]["message_type"] == "school.status.updated"
+    assert list_outbound_messages_response.status_code == 200
+    assert any(item["id"] == outbound_message_id for item in list_outbound_messages_response.json()["data"])
+    assert detail_outbound_message_response.status_code == 200
+    assert detail_outbound_message_response.json()["data"]["message_type"] == "meal_plan.export"
 
 
 def test_costing_policy_and_production_cost_summary_work() -> None:
@@ -3351,6 +3728,213 @@ def test_create_supplier_payment_posts_cash_journal_and_marks_invoice_paid() -> 
     assert invoice_detail_resp.json()["data"]["supplier_invoice"]["status"] == "PAID"
 
 
+def test_procurement_supplier_purchase_order_and_inventory_batch_fefo_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        auth_headers = {"Authorization": f"Bearer {access_token}"}
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        warehouse_id = client.get("/api/v1/inventory/warehouses/").json()["data"][0]["id"]
+        uom_id = client.get("/api/v1/uoms/").json()["data"][0]["id"]
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers=auth_headers,
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-19",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100000,
+                "budget_cost_per_portion": 15000,
+                "notes": "Procurement supplier PO test",
+            },
+        )
+        assert meal_plan_response.status_code == 201, meal_plan_response.json()
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/submit", headers=auth_headers)
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/approve", headers=auth_headers)
+        client.post(f"/api/v1/meal-plans/{meal_plan_id}/reserve-materials", headers=auth_headers)
+
+        purchase_request_response = client.post(
+            f"/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}",
+            headers=auth_headers,
+        )
+        assert purchase_request_response.status_code == 201, purchase_request_response.json()
+        purchase_request_id = purchase_request_response.json()["data"]["purchase_request"]["id"]
+        purchase_request_line = purchase_request_response.json()["data"]["lines"][0]
+
+        supplier_response = client.post(
+            "/api/v1/procurement/purchase-requests/suppliers",
+            headers=auth_headers,
+            json={
+                "tenant_id": tenant_id,
+                "code": f"SUP-{str(uuid4())[:6]}",
+                "name": "Supplier Pangan Nusantara",
+                "supplier_type": "VENDOR",
+                "contact_person": "Budi",
+                "phone": "08123456789",
+                "email": "supplier@example.com",
+                "address": "Jl. Supplier 1",
+                "city": "Jakarta",
+                "is_active": True,
+                "is_verified": True,
+            },
+        )
+        assert supplier_response.status_code == 201, supplier_response.json()
+        supplier_id = supplier_response.json()["data"]["id"]
+
+        supplier_product_response = client.post(
+            "/api/v1/procurement/purchase-requests/supplier-products",
+            headers=auth_headers,
+            json={
+                "tenant_id": tenant_id,
+                "supplier_id": supplier_id,
+                "product_id": purchase_request_line["product_id"],
+                "purchase_uom_id": purchase_request_line["uom_id"],
+                "supplier_product_code": "SP-001",
+                "minimum_order_qty": 1,
+                "lead_time_days": 3,
+                "is_preferred": True,
+                "is_active": True,
+            },
+        )
+        assert supplier_product_response.status_code == 201, supplier_product_response.json()
+        supplier_product_id = supplier_product_response.json()["data"]["id"]
+
+        price_history_response = client.post(
+            "/api/v1/procurement/purchase-requests/supplier-price-histories",
+            headers=auth_headers,
+            json={
+                "tenant_id": tenant_id,
+                "supplier_product_id": supplier_product_id,
+                "price": 12345,
+                "effective_from": "2026-07-19",
+                "effective_to": None,
+            },
+        )
+        assert price_history_response.status_code == 201, price_history_response.json()
+
+        purchase_order_response = client.post(
+            f"/api/v1/procurement/purchase-requests/purchase-orders/from-purchase-request/{purchase_request_id}",
+            headers=auth_headers,
+            json={
+                "supplier_id": supplier_id,
+                "order_date": "2026-07-19",
+                "expected_date": "2026-07-26",
+                "order_type": "PO",
+                "notes": "PO supplier test",
+            },
+        )
+        assert purchase_order_response.status_code == 201, purchase_order_response.json()
+        purchase_order_id = purchase_order_response.json()["data"]["purchase_order"]["id"]
+
+        location_response = client.post(
+            "/api/v1/inventory/locations/",
+            headers=auth_headers,
+            json={
+                "tenant_id": tenant_id,
+                "warehouse_id": warehouse_id,
+                "sppg_id": sppg_id,
+                "code": f"DRY-{str(uuid4())[:5]}",
+                "name": "Dry Storage A",
+                "location_type": "DRY_STORAGE",
+                "is_active": True,
+            },
+        )
+        assert location_response.status_code == 201, location_response.json()
+        location_id = location_response.json()["data"]["id"]
+
+        goods_receipt_po_response = client.post(
+            f"/api/v1/procurement/purchase-requests/goods-receipts/from-purchase-order/{purchase_order_id}",
+            headers=auth_headers,
+            json={
+                "warehouse_id": warehouse_id,
+                "location_id": location_id,
+                "receipt_date": "2026-07-19",
+                "notes": "GR from PO test",
+                "batch_details": [],
+            },
+        )
+        assert goods_receipt_po_response.status_code == 201, goods_receipt_po_response.json()
+
+        tracked_product_response = client.post(
+            "/api/v1/products/",
+            headers=auth_headers,
+            json={
+                "tenant_id": tenant_id,
+                "code": f"PROD-{str(uuid4())[:6]}",
+                "name": "Beras Batch FEFO",
+                "product_type": "RAW_MATERIAL",
+                "stock_uom_id": uom_id,
+                "standard_cost": 12000,
+                "track_batch": True,
+                "track_expiry": True,
+                "minimum_stock": 5,
+                "maximum_stock": 100,
+                "reorder_point": 10,
+                "valuation_method": "FIFO",
+                "is_active": True,
+            },
+        )
+        assert tracked_product_response.status_code == 201, tracked_product_response.json()
+        tracked_product_id = tracked_product_response.json()["data"]["id"]
+
+        batch_response = client.post(
+            "/api/v1/inventory/batches/",
+            headers=auth_headers,
+            json={
+                "tenant_id": tenant_id,
+                "product_id": tracked_product_id,
+                "supplier_id": supplier_id,
+                "warehouse_id": warehouse_id,
+                "location_id": location_id,
+                "batch_number": f"BATCH-{str(uuid4())[:6]}",
+                "production_date": "2026-07-18",
+                "received_date": "2026-07-19",
+                "expiry_date": "2026-07-26",
+                "quality_status": "PASSED",
+                "is_blocked": False,
+                "quantity_on_hand": 25,
+            },
+        )
+        assert batch_response.status_code == 201, batch_response.json()
+        batch_id = batch_response.json()["data"]["id"]
+
+        expiry_alert_response = client.get(
+            "/api/v1/inventory/expiry-alerts",
+            params={"days_ahead": 10},
+            headers={"X-Tenant-ID": tenant_id},
+        )
+        fefo_preview_response = client.post(
+            "/api/v1/inventory/issues/fefo-preview",
+            json={
+                "tenant_id": tenant_id,
+                "product_id": tracked_product_id,
+                "warehouse_id": warehouse_id,
+                "required_quantity": 10,
+            },
+        )
+
+    assert purchase_order_response.json()["data"]["purchase_order"]["id"] == purchase_order_id
+    assert len(purchase_order_response.json()["data"]["lines"]) >= 1
+    assert goods_receipt_po_response.json()["code"] == "GOODS_RECEIPT_CREATED_FROM_PO"
+    assert batch_response.json()["data"]["id"] == batch_id
+    assert expiry_alert_response.status_code == 200, expiry_alert_response.json()
+    assert any(item["id"] == batch_id for item in expiry_alert_response.json()["data"])
+    assert fefo_preview_response.status_code == 200, fefo_preview_response.json()
+    assert fefo_preview_response.json()["data"]["fulfilled_quantity"] == 10
+    assert fefo_preview_response.json()["data"]["shortage_quantity"] == 0
+    assert fefo_preview_response.json()["data"]["candidates"][0]["batch_id"] == batch_id
+
+
 def test_production_complete_creates_posted_production_journal() -> None:
     with TestClient(app) as client:
         login_response = client.post(
@@ -4149,6 +4733,51 @@ def test_create_delivery_order_and_record_proof_flow_works() -> None:
         assert create_delivery_response.status_code == 201
         delivery_order_id = create_delivery_response.json()["data"]["delivery_order"]["id"]
 
+        create_route_response = client.post(
+            "/api/v1/delivery-orders/routes",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "route_name": "Route Sekolah Pagi",
+                "planned_departure": "2026-07-25T07:00:00Z",
+                "planned_arrival": "2026-07-25T08:00:00Z",
+                "notes": "Route planning untuk sekolah utama",
+                "stops": [
+                    {
+                        "delivery_order_id": delivery_order_id,
+                        "planned_arrival": "2026-07-25T08:00:00Z",
+                        "recipient_name": "Petugas Sekolah",
+                        "notes": "Stop pertama",
+                    }
+                ],
+            },
+        )
+        assert create_route_response.status_code == 201, create_route_response.json()
+        route_payload = create_route_response.json()["data"]
+        route_id = route_payload["route"]["id"]
+        route_stop_id = route_payload["stops"][0]["id"]
+
+        route_detail_response = client.get(f"/api/v1/delivery-orders/routes/{route_id}")
+        assert route_detail_response.status_code == 200, route_detail_response.json()
+
+        incident_response = client.post(
+            f"/api/v1/delivery-orders/{delivery_order_id}/incidents",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "incident_time": "2026-07-25T07:45:00Z",
+                "category": "TEMPERATURE",
+                "severity": "MEDIUM",
+                "title": "Suhu turun saat transit",
+                "description": "Perlu pengecekan box termal",
+                "route_stop_id": route_stop_id,
+                "incident_gps": "-6.1702,106.8283",
+                "temperature_celsius": 58.4,
+                "media_urls": ["https://example.com/incidents/temp-drop.jpg"],
+                "status": "OPEN",
+            },
+        )
+        assert incident_response.status_code == 201, incident_response.json()
+        incident_id = incident_response.json()["data"]["incident"]["id"]
+
         proof_response = client.post(
             f"/api/v1/delivery-orders/{delivery_order_id}/proof",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -4156,10 +4785,21 @@ def test_create_delivery_order_and_record_proof_flow_works() -> None:
                 "received_at": "2026-07-25T08:05:00Z",
                 "receiver_name": "Petugas Sekolah",
                 "receiver_gps": "-6.1702,106.8283",
+                "route_stop_id": route_stop_id,
                 "received_portions": 5,
                 "rejected_portions": 0,
                 "temperature_celsius": 62.5,
-                "condition_notes": "Diterima baik"
+                "condition_status": "GOOD",
+                "condition_notes": "Diterima baik",
+                "photo_urls": [
+                    "https://example.com/proofs/arrival-1.jpg",
+                    "https://example.com/proofs/arrival-2.jpg",
+                ],
+                "signature_name": "Petugas Sekolah",
+                "signature_url": "https://example.com/signatures/receiver-signature.png",
+                "signature_signed_at": "2026-07-25T08:05:30Z",
+                "incident_notes": "Ada penurunan suhu saat perjalanan namun masih diterima",
+                "linked_incident_ids": [incident_id],
             },
         )
 
@@ -4167,6 +4807,14 @@ def test_create_delivery_order_and_record_proof_flow_works() -> None:
     payload = proof_response.json()
     assert payload["code"] == "DELIVERY_PROOF_RECORDED"
     assert payload["data"]["delivery_order"]["status"] == "RECEIVED"
+    assert payload["data"]["route"]["id"] == route_id
+    assert len(payload["data"]["route_stops"]) == 1
+    assert payload["data"]["proofs"][0]["route_stop_id"] == route_stop_id
+    assert payload["data"]["proofs"][0]["condition_status"] == "GOOD"
+    assert len(payload["data"]["proofs"][0]["photo_urls"]) == 2
+    assert payload["data"]["proofs"][0]["linked_incident_ids"] == [incident_id]
+    assert len(payload["data"]["incidents"]) == 1
+    assert payload["data"]["incidents"][0]["category"] == "TEMPERATURE"
 
 
 def test_warehouse_endpoint_returns_items() -> None:

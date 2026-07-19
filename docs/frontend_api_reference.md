@@ -174,26 +174,63 @@ http://127.0.0.1:8000
 106. `GET /api/v1/workflows/definitions/{definition_id}`
 107. `POST /api/v1/workflows/definitions`
 108. `POST /api/v1/workflows/definitions/{definition_id}/transitions`
-109. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
-110. `GET /api/v1/audit/events/`
-111. `GET /api/v1/audit/events/{event_id}`
-112. `GET /api/v1/documents`
-113. `GET /api/v1/documents/{document_id}`
-114. `POST /api/v1/documents`
-115. `POST /api/v1/documents/{document_id}/versions`
-116. `POST /api/v1/documents/{document_id}/links`
-117. `GET /api/v1/reporting/dashboard/tenant`
-118. `GET /api/v1/reporting/dashboard/sppg`
-119. `GET /api/v1/reporting/stock-summary`
-120. `GET /api/v1/reporting/delivery-performance`
-121. `GET /api/v1/reporting/budget-summary`
-122. `GET /api/v1/integration/external-systems`
-123. `GET /api/v1/integration/external-systems/{external_system_id}`
-124. `POST /api/v1/integration/external-systems`
-125. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
-126. `GET /api/v1/integration/sync-logs`
-127. `GET /api/v1/integration/sync-logs/{sync_log_id}`
-128. `POST /api/v1/integration/sync-logs`
+109. `POST /api/v1/workflows/definitions/{definition_id}/versions`
+110. `POST /api/v1/workflows/versions/{version_id}/states`
+111. `POST /api/v1/workflows/versions/{version_id}/actions`
+112. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
+113. `POST /api/v1/workflows/instances/{workflow_instance_id}/approval-requests`
+114. `POST /api/v1/workflows/approval-requests/{approval_request_id}/decisions`
+115. `GET /api/v1/audit/events/`
+116. `GET /api/v1/audit/events/{event_id}`
+117. `GET /api/v1/documents`
+118. `GET /api/v1/documents/{document_id}`
+119. `POST /api/v1/documents`
+120. `POST /api/v1/documents/{document_id}/versions`
+121. `POST /api/v1/documents/{document_id}/links`
+122. `GET /api/v1/reporting/dashboard/tenant`
+123. `GET /api/v1/reporting/dashboard/sppg`
+124. `GET /api/v1/reporting/dashboard/finance`
+125. `GET /api/v1/reporting/stock-summary`
+126. `GET /api/v1/reporting/delivery-performance`
+127. `GET /api/v1/reporting/budget-summary`
+128. `GET /api/v1/reporting/finance/cash-flow`
+129. `GET /api/v1/reporting/finance/government-receivable-aging`
+130. `GET /api/v1/reporting/finance/investor-funding-position`
+131. `GET /api/v1/reporting/finance/roi-by-sppg`
+132. `GET /api/v1/integration/external-systems`
+133. `GET /api/v1/integration/external-systems/{external_system_id}`
+134. `POST /api/v1/integration/external-systems`
+135. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
+136. `GET /api/v1/integration/webhook-subscriptions`
+137. `POST /api/v1/integration/webhook-subscriptions`
+138. `POST /api/v1/integration/webhook-subscriptions/{subscription_id}/receive`
+139. `GET /api/v1/integration/data-mappings`
+140. `POST /api/v1/integration/data-mappings`
+141. `GET /api/v1/integration/sync-jobs`
+142. `GET /api/v1/integration/sync-jobs/{sync_job_id}`
+143. `POST /api/v1/integration/sync-jobs`
+144. `POST /api/v1/integration/sync-jobs/{sync_job_id}/run`
+145. `GET /api/v1/integration/inbound-messages`
+146. `GET /api/v1/integration/inbound-messages/{inbound_message_id}`
+147. `POST /api/v1/integration/inbound-messages`
+148. `GET /api/v1/integration/outbound-messages`
+149. `GET /api/v1/integration/outbound-messages/{outbound_message_id}`
+150. `POST /api/v1/integration/outbound-messages`
+151. `GET /api/v1/integration/sync-logs`
+152. `GET /api/v1/integration/sync-logs/{sync_log_id}`
+153. `POST /api/v1/integration/sync-logs`
+154. `GET /api/v1/platform/background-jobs`
+155. `POST /api/v1/platform/background-jobs`
+156. `POST /api/v1/platform/background-jobs/{job_id}/run`
+157. `GET /api/v1/platform/outbox-events`
+158. `POST /api/v1/platform/outbox-events`
+159. `POST /api/v1/platform/outbox-events/dispatch`
+160. `GET /api/v1/platform/read-models/daily-kitchen-operations`
+161. `POST /api/v1/platform/read-models/daily-kitchen-operations/refresh`
+162. `GET /api/v1/platform/read-models/monthly-budget-realizations`
+163. `POST /api/v1/platform/read-models/monthly-budget-realizations/refresh`
+164. `GET /api/v1/platform/materialized-views/delivery-performance`
+165. `POST /api/v1/platform/materialized-views/delivery-performance/refresh`
 
 ### Meal Plan
 
@@ -211,24 +248,41 @@ http://127.0.0.1:8000
 1. `GET /api/v1/inventory/warehouses/`
 2. `GET /api/v1/inventory/warehouses/{warehouse_id}`
 3. `POST /api/v1/inventory/warehouses/`
-4. `GET /api/v1/inventory/transactions/`
-5. `POST /api/v1/inventory/transactions/`
-6. `GET /api/v1/inventory/balances/`
+4. `GET /api/v1/inventory/locations/`
+5. `POST /api/v1/inventory/locations/`
+6. `GET /api/v1/inventory/batches/`
+7. `POST /api/v1/inventory/batches/`
+8. `GET /api/v1/inventory/transactions/`
+9. `POST /api/v1/inventory/transactions/`
+10. `GET /api/v1/inventory/balances/`
+11. `GET /api/v1/inventory/expiry-alerts`
+12. `POST /api/v1/inventory/issues/fefo-preview`
 
 ### Procurement
 
+1. `GET /api/v1/procurement/purchase-requests/suppliers`
+2. `GET /api/v1/procurement/purchase-requests/suppliers/{supplier_id}`
+3. `POST /api/v1/procurement/purchase-requests/suppliers`
+4. `GET /api/v1/procurement/purchase-requests/supplier-products`
+5. `POST /api/v1/procurement/purchase-requests/supplier-products`
+6. `GET /api/v1/procurement/purchase-requests/supplier-price-histories`
+7. `POST /api/v1/procurement/purchase-requests/supplier-price-histories`
 1. `GET /api/v1/procurement/purchase-requests/`
 2. `GET /api/v1/procurement/purchase-requests/{purchase_request_id}`
 3. `POST /api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}`
-4. `GET /api/v1/procurement/purchase-requests/goods-receipts/`
-5. `GET /api/v1/procurement/purchase-requests/goods-receipts/{goods_receipt_id}`
-6. `POST /api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}`
-7. `GET /api/v1/procurement/purchase-requests/supplier-invoices/`
-8. `GET /api/v1/procurement/purchase-requests/supplier-invoices/{supplier_invoice_id}`
-9. `POST /api/v1/procurement/purchase-requests/supplier-invoices/from-goods-receipt/{goods_receipt_id}`
-10. `GET /api/v1/procurement/purchase-requests/supplier-payments/`
-11. `GET /api/v1/procurement/purchase-requests/supplier-payments/{supplier_payment_id}`
-12. `POST /api/v1/procurement/purchase-requests/supplier-payments/from-supplier-invoice/{supplier_invoice_id}`
+4. `GET /api/v1/procurement/purchase-requests/purchase-orders/`
+5. `GET /api/v1/procurement/purchase-requests/purchase-orders/{purchase_order_id}`
+6. `POST /api/v1/procurement/purchase-requests/purchase-orders/from-purchase-request/{purchase_request_id}`
+7. `GET /api/v1/procurement/purchase-requests/goods-receipts/`
+8. `GET /api/v1/procurement/purchase-requests/goods-receipts/{goods_receipt_id}`
+9. `POST /api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}`
+10. `POST /api/v1/procurement/purchase-requests/goods-receipts/from-purchase-order/{purchase_order_id}`
+11. `GET /api/v1/procurement/purchase-requests/supplier-invoices/`
+12. `GET /api/v1/procurement/purchase-requests/supplier-invoices/{supplier_invoice_id}`
+13. `POST /api/v1/procurement/purchase-requests/supplier-invoices/from-goods-receipt/{goods_receipt_id}`
+14. `GET /api/v1/procurement/purchase-requests/supplier-payments/`
+15. `GET /api/v1/procurement/purchase-requests/supplier-payments/{supplier_payment_id}`
+16. `POST /api/v1/procurement/purchase-requests/supplier-payments/from-supplier-invoice/{supplier_invoice_id}`
 
 ### Production
 
@@ -242,8 +296,12 @@ http://127.0.0.1:8000
 
 1. `GET /api/v1/delivery-orders/`
 2. `GET /api/v1/delivery-orders/{delivery_order_id}`
-3. `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`
-4. `POST /api/v1/delivery-orders/{delivery_order_id}/proof`
+3. `GET /api/v1/delivery-orders/routes`
+4. `GET /api/v1/delivery-orders/routes/{route_id}`
+5. `POST /api/v1/delivery-orders/routes`
+6. `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`
+7. `POST /api/v1/delivery-orders/{delivery_order_id}/incidents`
+8. `POST /api/v1/delivery-orders/{delivery_order_id}/proof`
 
 ### Accounting
 
@@ -2435,6 +2493,9 @@ Mengembalikan daftar workflow definition untuk tenant aktif. Frontend sebaiknya 
 Mengembalikan:
 
 - `definition`
+- `versions`
+- `states`
+- `actions`
 - `transitions`
 
 `POST /api/v1/workflows/definitions`
@@ -2453,6 +2514,60 @@ Payload:
   "name": "Workflow Dokumen Demo",
   "document_type": "custom_document_demo",
   "initial_state": "DRAFT",
+  "is_active": true
+}
+```
+
+Response berhasil akan mengembalikan workflow definition, dan backend otomatis membuat `workflow_version` awal dengan `version_number = 1` dan status `ACTIVE`.
+
+`POST /api/v1/workflows/definitions/{definition_id}/versions`
+
+Dipakai saat frontend ingin menyimpan revisi workflow baru tanpa menimpa histori workflow yang sudah berjalan.
+
+Payload:
+
+```json
+{
+  "status": "ACTIVE",
+  "is_active": true,
+  "notes": "Revisi workflow untuk semester baru"
+}
+```
+
+Response `data`:
+
+- `id`
+- `workflow_definition_id`
+- `version_number`
+- `status`
+- `is_active`
+- `notes`
+
+`POST /api/v1/workflows/versions/{version_id}/states`
+
+Payload:
+
+```json
+{
+  "state_code": "REVIEW",
+  "state_name": "Review",
+  "sequence_number": 10,
+  "is_initial": false,
+  "is_terminal": false,
+  "sla_hours": 24
+}
+```
+
+`POST /api/v1/workflows/versions/{version_id}/actions`
+
+Payload:
+
+```json
+{
+  "action_code": "REQUEST_APPROVAL",
+  "action_name": "Request Approval",
+  "allowed_role": "tenant_admin",
+  "requires_approval": true,
   "is_active": true
 }
 ```
@@ -2483,8 +2598,81 @@ Response mengembalikan:
 
 - `definition`
 - `instance`
+- `version`
+- `states`
+- `actions`
 - `transitions`
 - `history`
+- `approval_requests`
+- `approval_decisions`
+
+`history[]` sekarang juga memiliki `approval_request_id` agar frontend mudah menandai history mana yang berasal dari approval flow.
+
+`POST /api/v1/workflows/instances/{workflow_instance_id}/approval-requests`
+
+Dipakai bila frontend perlu memicu approval manual di luar transisi otomatis.
+
+Payload:
+
+```json
+{
+  "notes": "Mohon review supervisor",
+  "due_at": "2026-07-19T23:59:59Z"
+}
+```
+
+Response `data`:
+
+- `id`
+- `workflow_instance_id`
+- `requested_state`
+- `requested_action`
+- `requested_by_user_id`
+- `requested_by_name`
+- `status`
+- `due_at`
+- `notes`
+
+`POST /api/v1/workflows/approval-requests/{approval_request_id}/decisions`
+
+Payload:
+
+```json
+{
+  "decision": "APPROVED",
+  "notes": "Disetujui untuk lanjut"
+}
+```
+
+`decision` saat ini menerima:
+
+- `APPROVED`
+- `REJECTED`
+
+Response `data` mengembalikan:
+
+- `approval_request`
+- `approval_decision`
+
+`GET /api/v1/integration/sync-logs/{sync_log_id}`
+
+Mengembalikan satu `sync_log` untuk kebutuhan audit sinkronisasi.
+
+Field yang penting untuk frontend:
+
+- `id`
+- `external_system_id`
+- `direction`
+- `message_type`
+- `entity_type`
+- `entity_id`
+- `external_reference`
+- `idempotency_key`
+- `status`
+- `payload_json`
+- `response_json`
+- `processed_at`
+- `notes`
 
 Implementasi saat ini sudah otomatis dipakai oleh:
 
@@ -2719,6 +2907,20 @@ Contoh struktur response `data`:
 
 Frontend sebaiknya mengirim `X-Tenant-ID` dan `X-SPPG-ID`.
 
+`GET /api/v1/reporting/dashboard/finance`
+
+Mengembalikan dashboard finance gabungan untuk kebutuhan CFO/finance manager:
+
+- cash flow agregat
+- outstanding government receivable
+- posisi pendanaan investor
+- profitabilitas dan ROI rata-rata SPPG
+- jumlah jurnal posted
+
+Query opsional:
+
+- `as_of_date=2026-07-19`
+
 `GET /api/v1/reporting/stock-summary`
 
 Mengembalikan:
@@ -2744,10 +2946,88 @@ Mengembalikan:
 - reserved/committed/actual amount
 - breakdown status budget
 
+`GET /api/v1/reporting/finance/cash-flow`
+
+Mengembalikan ringkasan arus kas dari jurnal posted pada account kas/bank. Laporan ini mengelompokkan arus masuk dan keluar berdasarkan `source_module` dan `source_document_type`.
+
+Query opsional:
+
+- `period_start=2026-07-01`
+- `period_end=2026-07-31`
+
+Contoh struktur `data`:
+
+```json
+{
+  "period": {
+    "start_date": "2026-07-01",
+    "end_date": "2026-07-31"
+  },
+  "totals": {
+    "cash_in": 5000000,
+    "cash_out": 1650000,
+    "net_cash_flow": 3350000
+  },
+  "breakdown": [
+    {
+      "source_module": "funding",
+      "source_document_type": "funding_disbursement",
+      "cash_in": 4000000,
+      "cash_out": 0,
+      "net_cash_flow": 4000000
+    }
+  ]
+}
+```
+
+`GET /api/v1/reporting/finance/government-receivable-aging`
+
+Mengembalikan aging piutang government claim yang masih outstanding.
+
+Query opsional:
+
+- `as_of_date=2026-07-19`
+
+Setiap item memuat `days_outstanding`, `aging_bucket`, dan `outstanding_amount`.
+
+`GET /api/v1/reporting/finance/investor-funding-position`
+
+Mengembalikan posisi per agreement pendanaan investor:
+
+- principal committed
+- principal disbursed
+- principal repaid
+- outstanding principal
+- realized margin
+
+Query opsional:
+
+- `as_of_date=2026-07-19`
+
+`GET /api/v1/reporting/finance/roi-by-sppg`
+
+Mengembalikan ROI per SPPG. Implementasi saat ini memakai inferensi operasional berikut:
+
+- revenue memakai `approved_amount` claim, fallback ke `claimed_amount`
+- cost memakai `production_order.actual_total_cost`
+- financing cost dialokasikan dari margin/penalty repayment berdasarkan proporsi disbursement per SPPG
+
+Rumus ROI saat ini:
+
+```text
+(recognized_revenue - total_cost) / total_cost * 100
+```
+
+Query opsional:
+
+- `period_start=2026-07-01`
+- `period_end=2026-07-31`
+
 Catatan:
 
 - read model ini masih dihitung langsung dari tabel transaksi
 - belum menggunakan materialized view atau cached summary table
+- formula ROI per SPPG di atas adalah inferensi implementasi saat ini, dan bisa disesuaikan jika kebijakan finance final berubah
 - cocok untuk dashboard internal tahap awal, lalu bisa dioptimasi pada fase reporting berikutnya
 
 ### Integration
@@ -2762,6 +3042,9 @@ Mengembalikan bundle:
 
 - `external_system`
 - `credentials`
+- `webhook_subscriptions`
+- `data_mappings`
+- `sync_jobs`
 
 `POST /api/v1/integration/external-systems`
 
@@ -2799,6 +3082,141 @@ Payload:
   "is_active": true
 }
 ```
+
+`GET /api/v1/integration/webhook-subscriptions`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+`POST /api/v1/integration/webhook-subscriptions`
+
+Payload:
+
+```json
+{
+  "external_system_id": "uuid",
+  "subscription_name": "school-status-webhook",
+  "event_type": "school.status.updated",
+  "endpoint_path": "/webhooks/school/status",
+  "signing_secret_masked": "****sign",
+  "headers_json": {
+    "X-Signature": "sha256=demo"
+  },
+  "is_active": true,
+  "notes": "Webhook status sekolah"
+}
+```
+
+`POST /api/v1/integration/webhook-subscriptions/{subscription_id}/receive`
+
+Endpoint ini dipakai untuk mencatat inbound webhook ke `InboundMessage` sekaligus membuat `SyncLog` arah `INBOUND`.
+
+Payload:
+
+```json
+{
+  "message_type": "school.status.updated",
+  "external_reference": "WH-ERP-001",
+  "idempotency_key": "wh-erp-001",
+  "headers_json": {
+    "X-Signature": "sha256=demo"
+  },
+  "payload_json": {
+    "school_code": "SCH-01",
+    "status": "ACTIVE"
+  },
+  "received_at": "2026-07-19T10:00:00Z",
+  "notes": "Webhook dari partner"
+}
+```
+
+`GET /api/v1/integration/data-mappings`
+
+`POST /api/v1/integration/data-mappings`
+
+Payload:
+
+```json
+{
+  "external_system_id": "uuid",
+  "mapping_name": "meal-plan-export",
+  "source_entity": "meal_plan",
+  "target_entity": "partner_menu_plan",
+  "direction": "OUTBOUND",
+  "mapping_config_json": {
+    "fields": {
+      "plan_date": "date",
+      "planned_portions": "qty"
+    }
+  },
+  "is_active": true,
+  "notes": "Mapping export meal plan"
+}
+```
+
+`GET /api/v1/integration/sync-jobs`
+
+`GET /api/v1/integration/sync-jobs/{sync_job_id}`
+
+`POST /api/v1/integration/sync-jobs`
+
+Payload:
+
+```json
+{
+  "external_system_id": "uuid",
+  "job_name": "meal-plan-daily-export",
+  "direction": "OUTBOUND",
+  "trigger_mode": "MANUAL",
+  "entity_type": "meal_plan",
+  "schedule_expression": "0 6 * * *",
+  "filter_json": {
+    "status": "APPROVED"
+  },
+  "notes": "Export harian meal plan"
+}
+```
+
+`POST /api/v1/integration/sync-jobs/{sync_job_id}/run`
+
+Endpoint ini membuat `OutboundMessage`, memperbarui status `SyncJob`, dan membuat `SyncLog` arah `OUTBOUND`.
+
+Payload:
+
+```json
+{
+  "message_type": "meal_plan.export",
+  "external_reference": "JOB-ERP-001",
+  "idempotency_key": "job-erp-001",
+  "destination_url": "https://partner.example.com/api/meal-plans",
+  "payload_json": {
+    "plan_date": "2026-07-19",
+    "planned_portions": 100
+  },
+  "response_json": {
+    "queued": true
+  },
+  "notes": "Run sync job manual"
+}
+```
+
+`GET /api/v1/integration/inbound-messages`
+
+`GET /api/v1/integration/inbound-messages/{inbound_message_id}`
+
+`POST /api/v1/integration/inbound-messages`
+
+Endpoint ini tersedia bila frontend/admin ingin memasukkan inbound message secara manual tanpa jalur webhook receive.
+
+`GET /api/v1/integration/outbound-messages`
+
+`GET /api/v1/integration/outbound-messages/{outbound_message_id}`
+
+`POST /api/v1/integration/outbound-messages`
+
+Endpoint ini membuat outbound message manual dan `SyncLog` yang terkait.
 
 `GET /api/v1/integration/sync-logs`
 
@@ -2839,9 +3257,111 @@ Aturan penting:
 
 - setiap sync log wajib memiliki `idempotency_key`
 - kombinasi tenant + external system + idempotency key harus unik
-- fondasi ini belum mengirim request HTTP sungguhan; yang dibangun sekarang adalah metadata integrasi, credential metadata, dan jejak sinkronisasi yang aman
+- inbound webhook sekarang menghasilkan `InboundMessage` dan `SyncLog`
+- run sync job sekarang menghasilkan `OutboundMessage` dan `SyncLog`
+- implementasi saat ini belum mengirim request HTTP sungguhan ke partner; fokusnya masih pada orchestration, idempotency, queue record, dan jejak sinkronisasi yang aman
+
+### Platform Ops
+
+Endpoint internal ini mengekspose fondasi arsitektur yang sebelumnya hanya tertulis di dokumen:
+
+- `background jobs`
+- `transactional outbox`
+- `summary table`
+- `materialized view`
+
+`GET /api/v1/platform/background-jobs`
+
+`POST /api/v1/platform/background-jobs`
+
+Contoh payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "job_name": "daily-summary-20260719",
+  "job_type": "REFRESH_DAILY_KITCHEN_OPERATION_SUMMARY",
+  "payload_json": {
+    "summary_date": "2026-07-19"
+  },
+  "notes": "Refresh summary harian"
+}
+```
+
+Job type yang didukung saat ini:
+
+- `REFRESH_DAILY_KITCHEN_OPERATION_SUMMARY`
+- `REFRESH_MONTHLY_BUDGET_REALIZATION_SUMMARY`
+- `REFRESH_MV_DELIVERY_PERFORMANCE_SUMMARY`
+- `DISPATCH_OUTBOX`
+
+`POST /api/v1/platform/background-jobs/{job_id}/run`
+
+Menjalankan job secara manual dan memperbarui `status`, `started_at`, `finished_at`, dan `result_json`.
+
+`GET /api/v1/platform/outbox-events`
+
+`POST /api/v1/platform/outbox-events`
+
+Contoh payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "event_name": "reporting.summary.refresh.requested",
+  "aggregate_type": "reporting_summary",
+  "aggregate_id": null,
+  "payload_json": {
+    "summary_date": "2026-07-19"
+  },
+  "available_at": "2026-07-19T08:00:00Z"
+}
+```
+
+`POST /api/v1/platform/outbox-events/dispatch`
+
+Menandai event `PENDING` menjadi `DISPATCHED`. Ini adalah dispatcher internal ringan untuk fondasi outbox.
+
+`GET /api/v1/platform/read-models/daily-kitchen-operations`
+
+`POST /api/v1/platform/read-models/daily-kitchen-operations/refresh`
+
+Summary table ini mematerialkan ringkasan operasional dapur harian per tenant dan SPPG.
+
+`GET /api/v1/platform/read-models/monthly-budget-realizations`
+
+`POST /api/v1/platform/read-models/monthly-budget-realizations/refresh`
+
+Summary table ini menyimpan agregasi budget bulanan per tenant.
+
+`GET /api/v1/platform/materialized-views/delivery-performance`
+
+`POST /api/v1/platform/materialized-views/delivery-performance/refresh`
+
+Materialized view ini membaca ringkasan performa delivery per tenant, SPPG, dan status.
 
 ### Meal Plan Workflow
+
+`GET /api/v1/meal-plans/`
+
+Mengembalikan daftar meal plan sesuai scope tenant dan SPPG aktif.
+
+Setiap item umumnya memuat field:
+
+- `id`
+- `tenant_id`
+- `sppg_id`
+- `recipe_id`
+- `plan_date`
+- `meal_type`
+- `status`
+- `planned_portions`
+- `budget_cost_per_portion`
+- `notes`
+
+`GET /api/v1/meal-plans/{meal_plan_id}`
+
+Mengembalikan satu object `meal_plan` dengan field yang sama seperti list item.
 
 `POST /api/v1/meal-plans/`
 
@@ -2910,6 +3430,23 @@ Preview biaya berdasarkan `gross_quantity * product.standard_cost`.
 
 ### Inventory
 
+`GET /api/v1/inventory/warehouses/`
+
+Mengembalikan daftar warehouse dalam scope tenant/SPPG.
+
+`GET /api/v1/inventory/warehouses/{warehouse_id}`
+
+Mengembalikan detail warehouse dengan field utama:
+
+- `id`
+- `tenant_id`
+- `sppg_id`
+- `code`
+- `name`
+- `warehouse_type`
+- `location`
+- `is_active`
+
 `POST /api/v1/inventory/warehouses/`
 
 ```json
@@ -2923,6 +3460,32 @@ Preview biaya berdasarkan `gross_quantity * product.standard_cost`.
   "is_active": true
 }
 ```
+
+`GET /api/v1/inventory/transactions/`
+
+Mengembalikan daftar ledger inventory.
+
+Field item utama:
+
+- `id`
+- `tenant_id`
+- `sppg_id`
+- `transaction_type`
+- `reference_type`
+- `reference_id`
+- `product_id`
+- `batch_id`
+- `source_warehouse_id`
+- `destination_warehouse_id`
+- `source_location_id`
+- `destination_location_id`
+- `quantity`
+- `uom_id`
+- `unit_cost`
+- `total_cost`
+- `transaction_at`
+- `posted_by`
+- `notes`
 
 `POST /api/v1/inventory/transactions/`
 
@@ -2947,7 +3510,127 @@ Preview biaya berdasarkan `gross_quantity * product.standard_cost`.
 
 Mengembalikan `quantity_on_hand`, `quantity_reserved`, `quantity_available`, dan `average_cost`.
 
+`GET /api/v1/inventory/locations/`
+
+Mengembalikan daftar stock location.
+
+Field item utama:
+
+- `id`
+- `tenant_id`
+- `warehouse_id`
+- `sppg_id`
+- `parent_id`
+- `code`
+- `name`
+- `location_type`
+- `is_active`
+
+`POST /api/v1/inventory/locations/`
+
+```json
+{
+  "tenant_id": "uuid",
+  "warehouse_id": "uuid",
+  "sppg_id": "uuid",
+  "parent_id": null,
+  "code": "DRY-STORAGE-A",
+  "name": "Dry Storage A",
+  "location_type": "DRY_STORAGE",
+  "is_active": true
+}
+```
+
+`GET /api/v1/inventory/batches/`
+
+Mengembalikan daftar batch/lot inventory untuk kebutuhan FEFO, traceability, dan expiry monitoring.
+
+Field item utama:
+
+- `id`
+- `tenant_id`
+- `product_id`
+- `supplier_id`
+- `warehouse_id`
+- `location_id`
+- `batch_number`
+- `production_date`
+- `received_date`
+- `expiry_date`
+- `quality_status`
+- `is_blocked`
+- `quantity_on_hand`
+- `quantity_reserved`
+- `quantity_available`
+
+`POST /api/v1/inventory/batches/`
+
+```json
+{
+  "tenant_id": "uuid",
+  "product_id": "uuid",
+  "supplier_id": "uuid",
+  "warehouse_id": "uuid",
+  "location_id": "uuid",
+  "batch_number": "BATCH-20260719-001",
+  "production_date": "2026-07-18",
+  "received_date": "2026-07-19",
+  "expiry_date": "2026-07-26",
+  "quality_status": "PASSED",
+  "is_blocked": false,
+  "quantity_on_hand": 25
+}
+```
+
+`GET /api/v1/inventory/expiry-alerts`
+
+Query opsional:
+
+- `days_ahead`, default `14`
+
+Response mengembalikan daftar `InventoryBatchRead` yang `expiry_date`-nya masuk dalam horizon tersebut.
+
+`POST /api/v1/inventory/issues/fefo-preview`
+
+Preview pemilihan batch dengan urutan FEFO tanpa melakukan posting transaksi.
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "product_id": "uuid",
+  "warehouse_id": "uuid",
+  "required_quantity": 10
+}
+```
+
+Response `data`:
+
+- `product_id`
+- `warehouse_id`
+- `required_quantity`
+- `fulfilled_quantity`
+- `shortage_quantity`
+- `candidates[]`
+
+Setiap `candidates[]` berisi:
+
+- `batch_id`
+- `batch_number`
+- `expiry_date`
+- `available_quantity`
+- `issue_quantity`
+
 ### Procurement
+
+`GET /api/v1/procurement/purchase-requests/suppliers`
+
+Mengembalikan daftar supplier.
+
+`GET /api/v1/procurement/purchase-requests/suppliers/{supplier_id}`
+
+Mengembalikan detail supplier.
 
 `POST /api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}`
 
@@ -2998,6 +3681,110 @@ Efek budget:
 - mencoba reserve estimasi biaya shortage ke account `510000` Biaya Bahan
 - `reserved_amount` bertambah pada `budget availability`
 
+`POST /api/v1/procurement/purchase-requests/suppliers`
+
+```json
+{
+  "tenant_id": "uuid",
+  "code": "SUP-001",
+  "name": "Supplier Pangan Nusantara",
+  "supplier_type": "VENDOR",
+  "contact_person": "Budi",
+  "phone": "08123456789",
+  "email": "supplier@example.com",
+  "address": "Jl. Supplier 1",
+  "city": "Jakarta",
+  "is_active": true,
+  "is_verified": true
+}
+```
+
+`GET /api/v1/procurement/purchase-requests/supplier-products`
+
+Mengembalikan daftar mapping supplier ke product pembelian.
+
+`POST /api/v1/procurement/purchase-requests/supplier-products`
+
+```json
+{
+  "tenant_id": "uuid",
+  "supplier_id": "uuid",
+  "product_id": "uuid",
+  "purchase_uom_id": "uuid",
+  "supplier_product_code": "SP-001",
+  "minimum_order_qty": 1,
+  "lead_time_days": 3,
+  "is_preferred": true,
+  "is_active": true
+}
+```
+
+`GET /api/v1/procurement/purchase-requests/supplier-price-histories`
+
+Mengembalikan histori harga supplier per supplier-product.
+
+`POST /api/v1/procurement/purchase-requests/supplier-price-histories`
+
+```json
+{
+  "tenant_id": "uuid",
+  "supplier_product_id": "uuid",
+  "price": 12345,
+  "effective_from": "2026-07-19",
+  "effective_to": null
+}
+```
+
+`GET /api/v1/procurement/purchase-requests/`
+
+Mengembalikan daftar purchase request.
+
+`GET /api/v1/procurement/purchase-requests/{purchase_request_id}`
+
+Mengembalikan bundle:
+
+- `purchase_request`
+- `lines`
+
+`GET /api/v1/procurement/purchase-requests/purchase-orders/`
+
+Mengembalikan daftar purchase order atau RFQ.
+
+`GET /api/v1/procurement/purchase-requests/purchase-orders/{purchase_order_id}`
+
+Mengembalikan bundle:
+
+- `purchase_order`
+- `lines`
+
+`POST /api/v1/procurement/purchase-requests/purchase-orders/from-purchase-request/{purchase_request_id}`
+
+```json
+{
+  "supplier_id": "uuid",
+  "order_date": "2026-07-19",
+  "expected_date": "2026-07-26",
+  "order_type": "PO",
+  "notes": "PO supplier test"
+}
+```
+
+Response `data` mengembalikan:
+
+- `purchase_order`
+- `lines`
+
+`GET /api/v1/procurement/purchase-requests/goods-receipts/`
+
+Mengembalikan daftar goods receipt.
+
+`GET /api/v1/procurement/purchase-requests/goods-receipts/{goods_receipt_id}`
+
+Mengembalikan bundle:
+
+- `goods_receipt`
+- `lines`
+
 `POST /api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}`
 
 ```json
@@ -3018,6 +3805,37 @@ Efek budget:
 
 - jika sebelumnya ada `reserved_amount` dari purchase request, endpoint ini memindahkan nilainya ke `committed_amount`
 - dengan demikian nilai reserved berkurang dan committed bertambah
+
+`POST /api/v1/procurement/purchase-requests/goods-receipts/from-purchase-order/{purchase_order_id}`
+
+Dipakai saat penerimaan barang berasal dari PO/RFQ yang sudah dipilih suppliernya.
+
+Payload:
+
+```json
+{
+  "warehouse_id": "uuid",
+  "location_id": "uuid",
+  "receipt_date": "2026-07-19",
+  "notes": "GR from PO test",
+  "batch_details": [
+    {
+      "purchase_order_line_id": "uuid",
+      "batch_number": "BATCH-20260719-001",
+      "production_date": "2026-07-18",
+      "expiry_date": "2026-07-26",
+      "quality_status": "PASSED"
+    }
+  ]
+}
+```
+
+Response `data` mengembalikan:
+
+- `goods_receipt`
+- `lines`
+- `inventory_transactions`
+- `inventory_batches`
 
 `GET /api/v1/procurement/purchase-requests/supplier-invoices/`
 
@@ -3171,6 +3989,18 @@ Contoh response sukses:
 ```
 
 ### Production
+
+`GET /api/v1/production-orders/`
+
+Mengembalikan daftar production order.
+
+`GET /api/v1/production-orders/{production_order_id}`
+
+Mengembalikan bundle detail production:
+
+- `production_order`
+- `meal_plan`
+- `materials`
 
 `POST /api/v1/production-orders/from-meal-plan/{meal_plan_id}`
 
@@ -3402,6 +4232,121 @@ Contoh response:
 
 ### Delivery
 
+`GET /api/v1/delivery-orders/`
+
+Mengembalikan daftar delivery order.
+
+Field item utama biasanya mencakup:
+
+- `id`
+- `tenant_id`
+- `sppg_id`
+- `production_order_id`
+- `school_id`
+- `delivery_number`
+- `status`
+- `planned_departure`
+- `planned_arrival`
+- `actual_departure`
+- `actual_arrival`
+- `receiver_name`
+
+`GET /api/v1/delivery-orders/{delivery_order_id}`
+
+Mengembalikan bundle detail delivery:
+
+- `delivery_order`
+- `route`
+- `route_stops`
+- `proofs`
+- `incidents`
+
+`GET /api/v1/delivery-orders/routes`
+
+Mengembalikan daftar route planning distribution. Setiap route mewakili kumpulan delivery order dalam tenant dan SPPG yang sama.
+
+Contoh item response:
+
+```json
+{
+  "id": "uuid",
+  "tenant_id": "uuid",
+  "sppg_id": "uuid",
+  "route_code": "RT-20260719-0001",
+  "route_name": "Route Sekolah Pagi",
+  "route_status": "PLANNED",
+  "planned_departure": "2026-07-25T07:00:00Z",
+  "planned_arrival": "2026-07-25T08:00:00Z",
+  "actual_departure": null,
+  "actual_arrival": null,
+  "origin_gps": "-6.200000,106.816666",
+  "destination_gps": "-6.170200,106.828300",
+  "total_distance_km": 4.125,
+  "notes": "Route planning untuk sekolah utama"
+}
+```
+
+`GET /api/v1/delivery-orders/routes/{route_id}`
+
+Mengembalikan detail route beserta stop dan incident yang terkait.
+
+`POST /api/v1/delivery-orders/routes`
+
+Membuat route planning baru dan menghubungkan satu atau lebih delivery order ke stop sequence.
+
+Request body:
+
+```json
+{
+  "route_name": "Route Sekolah Pagi",
+  "planned_departure": "2026-07-25T07:00:00Z",
+  "planned_arrival": "2026-07-25T08:00:00Z",
+  "notes": "Route planning untuk sekolah utama",
+  "stops": [
+    {
+      "delivery_order_id": "uuid",
+      "planned_arrival": "2026-07-25T08:00:00Z",
+      "recipient_name": "Petugas Sekolah",
+      "stop_gps": "-6.1702,106.8283",
+      "notes": "Stop pertama"
+    }
+  ]
+}
+```
+
+Contoh response:
+
+```json
+{
+  "success": true,
+  "code": "DELIVERY_ROUTE_CREATED",
+  "message": "Route delivery berhasil dibuat.",
+  "data": {
+    "route": {
+      "id": "uuid",
+      "route_code": "RT-20260719-0001",
+      "route_name": "Route Sekolah Pagi",
+      "route_status": "PLANNED"
+    },
+    "stops": [
+      {
+        "id": "uuid",
+        "delivery_order_id": "uuid",
+        "stop_sequence": 1,
+        "status": "PLANNED",
+        "stop_gps": "-6.1702,106.8283"
+      }
+    ],
+    "incidents": []
+  },
+  "meta": {
+    "timestamp": "2026-07-19T16:35:00+00:00",
+    "request_id": "uuid",
+    "total": 1
+  }
+}
+```
+
 `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`
 
 ```json
@@ -3413,6 +4358,8 @@ Contoh response:
 }
 ```
 
+Response `data` mengembalikan bundle delivery order, termasuk route/proof/incident bila sudah ada.
+
 `POST /api/v1/delivery-orders/{delivery_order_id}/proof`
 
 ```json
@@ -3420,18 +4367,54 @@ Contoh response:
   "received_at": "2026-07-25T08:05:00Z",
   "receiver_name": "Petugas Sekolah",
   "receiver_gps": "-6.1702,106.8283",
+  "route_stop_id": "uuid",
   "received_portions": 100,
   "rejected_portions": 0,
   "temperature_celsius": 62.5,
-  "condition_notes": "Diterima baik"
+  "condition_status": "GOOD",
+  "condition_notes": "Diterima baik",
+  "photo_urls": [
+    "https://example.com/proofs/arrival-1.jpg"
+  ],
+  "signature_name": "Petugas Sekolah",
+  "signature_url": "https://example.com/signatures/receiver-signature.png",
+  "signature_signed_at": "2026-07-25T08:05:30Z",
+  "incident_notes": "Ada penurunan suhu saat perjalanan namun masih diterima",
+  "linked_incident_ids": ["uuid"]
+}
+```
+
+`POST /api/v1/delivery-orders/{delivery_order_id}/incidents`
+
+Mencatat incident pada proses distribusi untuk kebutuhan monitoring route, food safety, dan audit lapangan.
+
+```json
+{
+  "incident_time": "2026-07-25T07:45:00Z",
+  "category": "TEMPERATURE",
+  "severity": "MEDIUM",
+  "title": "Suhu turun saat transit",
+  "description": "Perlu pengecekan box termal",
+  "route_stop_id": "uuid",
+  "incident_gps": "-6.1702,106.8283",
+  "temperature_celsius": 58.4,
+  "media_urls": [
+    "https://example.com/incidents/temp-drop.jpg"
+  ],
+  "status": "OPEN"
 }
 ```
 
 Status akhir delivery:
 
+- `PLANNED`
+- `LOADING`
+- `IN_TRANSIT`
+- `ARRIVED`
 - `RECEIVED`
 - `PARTIALLY_RECEIVED`
 - `REJECTED`
+- `CANCELLED`
 
 ## Catatan Frontend
 

@@ -22,6 +22,12 @@ class GoodsReceipt(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base)
         nullable=True,
         index=True,
     )
+    purchase_order_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("purchase_orders.id"),
+        nullable=True,
+        index=True,
+    )
     warehouse_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id"), nullable=False)
     receipt_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     receipt_date: Mapped[date] = mapped_column(Date, nullable=False)

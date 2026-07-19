@@ -10,12 +10,22 @@ from app.modules.audit.services.audit_service import AuditService
 from app.modules.identity.models.user import User
 from app.modules.workflow.repositories.workflow_repository import WorkflowRepository
 from app.modules.workflow.schemas.workflow_schema import (
+    ApprovalDecisionCreate,
+    ApprovalDecisionRead,
+    ApprovalRequestCreate,
+    ApprovalRequestRead,
+    WorkflowActionCreate,
+    WorkflowActionRead,
     WorkflowBundleRead,
     WorkflowDefinitionCreate,
     WorkflowDefinitionRead,
     WorkflowInstanceBundleRead,
+    WorkflowStateCreate,
+    WorkflowStateRead,
     WorkflowTransitionCreate,
     WorkflowTransitionRead,
+    WorkflowVersionCreate,
+    WorkflowVersionRead,
 )
 from app.modules.workflow.services.workflow_service import WorkflowService
 from app.support.exceptions.base import BadRequestException
@@ -121,6 +131,63 @@ async def create_workflow_transition(
     )
 
 
+@router.post("/definitions/{definition_id}/versions", status_code=status.HTTP_201_CREATED)
+async def create_workflow_version(
+    definition_id: UUID,
+    payload: WorkflowVersionCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_roles("super_admin", "tenant_admin")),
+) -> dict:
+    service = get_workflow_service(session)
+    version = await service.create_version(definition_id, payload)
+    await session.commit()
+    return success_response(
+        code="WORKFLOW_VERSION_CREATED",
+        message="Workflow version berhasil dibuat.",
+        data=WorkflowVersionRead.model_validate(version),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.post("/versions/{version_id}/states", status_code=status.HTTP_201_CREATED)
+async def create_workflow_state(
+    version_id: UUID,
+    payload: WorkflowStateCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_roles("super_admin", "tenant_admin")),
+) -> dict:
+    service = get_workflow_service(session)
+    state = await service.add_state(version_id, payload)
+    await session.commit()
+    return success_response(
+        code="WORKFLOW_STATE_CREATED",
+        message="Workflow state berhasil dibuat.",
+        data=WorkflowStateRead.model_validate(state),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.post("/versions/{version_id}/actions", status_code=status.HTTP_201_CREATED)
+async def create_workflow_action(
+    version_id: UUID,
+    payload: WorkflowActionCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_roles("super_admin", "tenant_admin")),
+) -> dict:
+    service = get_workflow_service(session)
+    action = await service.add_action(version_id, payload)
+    await session.commit()
+    return success_response(
+        code="WORKFLOW_ACTION_CREATED",
+        message="Workflow action berhasil dibuat.",
+        data=WorkflowActionRead.model_validate(action),
+        meta={"request_id": request.state.request_id},
+    )
+
+
 @router.get("/documents/{document_type}/{document_id}")
 async def get_document_workflow(
     document_type: str,
@@ -140,4 +207,45 @@ async def get_document_workflow(
         message="Workflow dokumen berhasil diambil.",
         data=WorkflowInstanceBundleRead.model_validate(bundle),
         meta={"request_id": request.state.request_id, "total": len(bundle["history"])},
+    )
+
+
+@router.post("/instances/{workflow_instance_id}/approval-requests", status_code=status.HTTP_201_CREATED)
+async def create_approval_request(
+    workflow_instance_id: UUID,
+    payload: ApprovalRequestCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    actor: User = Depends(require_roles("super_admin", "tenant_admin")),
+) -> dict:
+    service = get_workflow_service(session)
+    approval_request = await service.create_approval_request(workflow_instance_id, payload, actor)
+    await session.commit()
+    return success_response(
+        code="APPROVAL_REQUEST_CREATED",
+        message="Approval request berhasil dibuat.",
+        data=ApprovalRequestRead.model_validate(approval_request),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.post("/approval-requests/{approval_request_id}/decisions")
+async def decide_approval_request(
+    approval_request_id: UUID,
+    payload: ApprovalDecisionCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    actor: User = Depends(require_roles("super_admin", "tenant_admin")),
+) -> dict:
+    service = get_workflow_service(session)
+    result = await service.decide_approval_request(approval_request_id, payload, actor)
+    await session.commit()
+    return success_response(
+        code="APPROVAL_DECISION_RECORDED",
+        message="Approval decision berhasil dicatat.",
+        data={
+            "approval_request": ApprovalRequestRead.model_validate(result["approval_request"]),
+            "approval_decision": ApprovalDecisionRead.model_validate(result["approval_decision"]),
+        },
+        meta={"request_id": request.state.request_id},
     )

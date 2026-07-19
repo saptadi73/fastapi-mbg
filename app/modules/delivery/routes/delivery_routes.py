@@ -5,19 +5,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.session import get_db_session
 from app.core.security.permissions import require_roles
+from app.modules.delivery.repositories.delivery_incident_repository import DeliveryIncidentRepository
 from app.modules.delivery.repositories.delivery_order_repository import DeliveryOrderRepository
 from app.modules.delivery.repositories.delivery_proof_repository import DeliveryProofRepository
+from app.modules.delivery.repositories.delivery_route_repository import DeliveryRouteRepository
+from app.modules.delivery.repositories.delivery_route_stop_repository import DeliveryRouteStopRepository
 from app.modules.delivery.schemas.delivery_schema import (
     DeliveryCreateFromProduction,
+    DeliveryIncidentCreate,
+    DeliveryIncidentRead,
     DeliveryOrderBundleRead,
     DeliveryOrderRead,
     DeliveryProofCreate,
+    DeliveryRouteBundleRead,
+    DeliveryRouteCreate,
+    DeliveryRouteRead,
 )
 from app.modules.delivery.services.delivery_service import DeliveryService
 from app.modules.geography.repositories.school_repository import SchoolRepository
 from app.modules.identity.models.user import User
 from app.modules.inventory.repositories.inventory_balance_repository import InventoryBalanceRepository
+from app.modules.inventory.repositories.inventory_batch_repository import InventoryBatchRepository
 from app.modules.inventory.repositories.inventory_transaction_repository import InventoryTransactionRepository
+from app.modules.inventory.repositories.stock_location_repository import StockLocationRepository
 from app.modules.inventory.repositories.warehouse_repository import WarehouseRepository
 from app.modules.inventory.services.stock_service import StockService
 from app.modules.meal_plan.repositories.meal_plan_repository import MealPlanRepository
@@ -59,6 +69,8 @@ def get_delivery_service(session: AsyncSession = Depends(get_db_session)) -> Del
         ProductRepository(session),
         UomRepository(session),
         WarehouseRepository(session),
+        StockLocationRepository(session),
+        InventoryBatchRepository(session),
     )
     production_service = ProductionService(
         ProductionOrderRepository(session),
@@ -71,6 +83,9 @@ def get_delivery_service(session: AsyncSession = Depends(get_db_session)) -> Del
     return DeliveryService(
         DeliveryOrderRepository(session),
         DeliveryProofRepository(session),
+        DeliveryRouteRepository(session),
+        DeliveryRouteStopRepository(session),
+        DeliveryIncidentRepository(session),
         TenantRepository(session),
         SppgRepository(session),
         SchoolRepository(session),
@@ -95,6 +110,32 @@ async def list_delivery_orders(request: Request, service: DeliveryService = Depe
     )
 
 
+@router.get("/routes")
+async def list_delivery_routes(request: Request, service: DeliveryService = Depends(get_delivery_service)) -> dict:
+    items = [DeliveryRouteRead.model_validate(item) for item in await service.list_routes()]
+    return success_response(
+        code="DELIVERY_ROUTE_LIST_FOUND",
+        message="Daftar route delivery berhasil diambil.",
+        data=items,
+        meta={"request_id": request.state.request_id, "total": len(items)},
+    )
+
+
+@router.get("/routes/{route_id}")
+async def get_delivery_route(
+    route_id: UUID,
+    request: Request,
+    service: DeliveryService = Depends(get_delivery_service),
+) -> dict:
+    payload = await service.get_route(route_id)
+    return success_response(
+        code="DELIVERY_ROUTE_FOUND",
+        message="Detail route delivery berhasil diambil.",
+        data=DeliveryRouteBundleRead.model_validate(payload),
+        meta={"request_id": request.state.request_id},
+    )
+
+
 @router.get("/{delivery_order_id}")
 async def get_delivery_order(
     delivery_order_id: UUID,
@@ -107,6 +148,24 @@ async def get_delivery_order(
         message="Detail delivery order berhasil diambil.",
         data=DeliveryOrderBundleRead.model_validate(payload),
         meta={"request_id": request.state.request_id},
+    )
+
+
+@router.post("/routes", status_code=status.HTTP_201_CREATED)
+async def create_delivery_route(
+    payload: DeliveryRouteCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_roles("super_admin", "tenant_admin", "operations_manager", "delivery_officer")),
+) -> dict:
+    service = get_delivery_service(session)
+    result = await service.create_route(payload)
+    await session.commit()
+    return success_response(
+        code="DELIVERY_ROUTE_CREATED",
+        message="Route delivery berhasil dibuat.",
+        data=DeliveryRouteBundleRead.model_validate(result),
+        meta={"request_id": request.state.request_id, "total": len(result["stops"])},
     )
 
 
@@ -125,6 +184,28 @@ async def create_delivery_order_from_production_order(
         code="DELIVERY_ORDER_CREATED",
         message="Delivery order berhasil dibuat dari production order.",
         data=DeliveryOrderBundleRead.model_validate(result),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.post("/{delivery_order_id}/incidents", status_code=status.HTTP_201_CREATED)
+async def record_delivery_incident(
+    delivery_order_id: UUID,
+    payload: DeliveryIncidentCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_roles("super_admin", "tenant_admin", "operations_manager", "delivery_officer")),
+) -> dict:
+    service = get_delivery_service(session)
+    result = await service.record_incident(delivery_order_id, payload)
+    await session.commit()
+    return success_response(
+        code="DELIVERY_INCIDENT_RECORDED",
+        message="Incident delivery berhasil dicatat.",
+        data={
+            "incident": DeliveryIncidentRead.model_validate(result["incident"]),
+            "delivery": DeliveryOrderBundleRead.model_validate(result["delivery"]),
+        },
         meta={"request_id": request.state.request_id},
     )
 

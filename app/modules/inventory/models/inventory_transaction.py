@@ -17,12 +17,15 @@ class InventoryTransaction(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixi
     reference_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     reference_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     product_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False, index=True)
+    batch_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("inventory_batches.id"), nullable=True, index=True)
     source_warehouse_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id"), nullable=True)
+    source_location_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("stock_locations.id"), nullable=True)
     destination_warehouse_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("warehouses.id"),
         nullable=True,
     )
+    destination_location_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("stock_locations.id"), nullable=True)
     quantity: Mapped[float] = mapped_column(Float, nullable=False)
     uom_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("uoms.id"), nullable=False)
     unit_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0)

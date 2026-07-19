@@ -22,6 +22,12 @@ class DeliveryOrder(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base
         nullable=False,
         index=True,
     )
+    route_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("delivery_routes.id"),
+        nullable=True,
+        index=True,
+    )
     school_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("schools.id"), nullable=False, index=True)
     delivery_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     planned_departure: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

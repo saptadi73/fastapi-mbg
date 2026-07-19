@@ -12,7 +12,9 @@ from app.core.security.dependencies import get_current_user
 from app.core.security.permissions import require_roles
 from app.modules.identity.models.user import User
 from app.modules.inventory.repositories.inventory_balance_repository import InventoryBalanceRepository
+from app.modules.inventory.repositories.inventory_batch_repository import InventoryBatchRepository
 from app.modules.inventory.repositories.inventory_transaction_repository import InventoryTransactionRepository
+from app.modules.inventory.repositories.stock_location_repository import StockLocationRepository
 from app.modules.inventory.repositories.warehouse_repository import WarehouseRepository
 from app.modules.inventory.services.stock_service import StockService
 from app.modules.meal_plan.repositories.meal_plan_repository import MealPlanRepository
@@ -65,6 +67,8 @@ def get_production_service(session: AsyncSession = Depends(get_db_session)) -> P
         ProductRepository(session),
         UomRepository(session),
         WarehouseRepository(session),
+        StockLocationRepository(session),
+        InventoryBatchRepository(session),
     )
     return ProductionService(
         ProductionOrderRepository(session),

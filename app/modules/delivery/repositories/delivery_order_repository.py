@@ -26,6 +26,12 @@ class DeliveryOrderRepository:
     async def get_by_id(self, delivery_order_id: UUID) -> DeliveryOrder | None:
         return await self.session.get(DeliveryOrder, delivery_order_id)
 
+    async def list_by_ids(self, delivery_order_ids: list[UUID]) -> list[DeliveryOrder]:
+        if not delivery_order_ids:
+            return []
+        result = await self.session.execute(select(DeliveryOrder).where(DeliveryOrder.id.in_(delivery_order_ids)))
+        return list(result.scalars().all())
+
     async def get_by_id_and_scope(
         self,
         delivery_order_id: UUID,

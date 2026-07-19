@@ -49,6 +49,12 @@ class ProductService:
             product_type=payload.product_type,
             stock_uom_id=stock_uom_id,
             standard_cost=payload.standard_cost,
+            track_batch=payload.track_batch,
+            track_expiry=payload.track_expiry,
+            minimum_stock=payload.minimum_stock,
+            maximum_stock=payload.maximum_stock,
+            reorder_point=payload.reorder_point,
+            valuation_method=payload.valuation_method,
             is_active=payload.is_active,
         )
         return await self.repository.add(product)

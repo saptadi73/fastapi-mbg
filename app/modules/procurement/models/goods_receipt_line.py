@@ -21,6 +21,11 @@ class GoodsReceiptLine(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, B
         ForeignKey("purchase_request_lines.id"),
         nullable=True,
     )
+    purchase_order_line_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("purchase_order_lines.id"),
+        nullable=True,
+    )
     product_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False, index=True)
     uom_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("uoms.id"), nullable=False)
     received_quantity: Mapped[float] = mapped_column(Float, nullable=False)

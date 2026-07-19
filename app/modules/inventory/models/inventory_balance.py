@@ -15,6 +15,7 @@ class InventoryBalance(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, B
     tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True)
     sppg_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sppg.id"), nullable=False, index=True)
     warehouse_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id"), nullable=False, index=True)
+    location_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("stock_locations.id"), nullable=True, index=True)
     product_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False, index=True)
     quantity_on_hand: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     quantity_reserved: Mapped[float] = mapped_column(Float, nullable=False, default=0)

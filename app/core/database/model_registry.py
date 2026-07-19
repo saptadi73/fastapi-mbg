@@ -1,4 +1,5 @@
 def import_all_models() -> None:
+    import app.core.outbox.models.outbox_event  # noqa: F401
     import app.modules.ai.models.ai_daily_summary  # noqa: F401
     import app.modules.ai.models.ai_forecast  # noqa: F401
     import app.modules.ai.models.ai_recommendation  # noqa: F401
@@ -14,8 +15,11 @@ def import_all_models() -> None:
     import app.modules.budget.models.budget  # noqa: F401
     import app.modules.budget.models.budget_line  # noqa: F401
     import app.modules.costing.models.cost_policy  # noqa: F401
+    import app.modules.delivery.models.delivery_incident  # noqa: F401
     import app.modules.delivery.models.delivery_order  # noqa: F401
     import app.modules.delivery.models.delivery_proof  # noqa: F401
+    import app.modules.delivery.models.delivery_route  # noqa: F401
+    import app.modules.delivery.models.delivery_route_stop  # noqa: F401
     import app.modules.document.models.document  # noqa: F401
     import app.modules.document.models.document_link  # noqa: F401
     import app.modules.document.models.document_version  # noqa: F401
@@ -42,11 +46,18 @@ def import_all_models() -> None:
     import app.modules.government_claim.models.government_claim_line  # noqa: F401
     import app.modules.identity.models.user  # noqa: F401
     import app.modules.identity.models.user_sppg_access  # noqa: F401
+    import app.modules.integration.models.data_mapping  # noqa: F401
     import app.modules.integration.models.external_system  # noqa: F401
+    import app.modules.integration.models.inbound_message  # noqa: F401
     import app.modules.integration.models.integration_credential  # noqa: F401
+    import app.modules.integration.models.outbound_message  # noqa: F401
+    import app.modules.integration.models.sync_job  # noqa: F401
     import app.modules.integration.models.sync_log  # noqa: F401
+    import app.modules.integration.models.webhook_subscription  # noqa: F401
     import app.modules.inventory.models.inventory_balance  # noqa: F401
+    import app.modules.inventory.models.inventory_batch  # noqa: F401
     import app.modules.inventory.models.inventory_transaction  # noqa: F401
+    import app.modules.inventory.models.stock_location  # noqa: F401
     import app.modules.inventory.models.warehouse  # noqa: F401
     import app.modules.meal_plan.models.meal_plan  # noqa: F401
     import app.modules.notification.models.notification  # noqa: F401
@@ -54,6 +65,9 @@ def import_all_models() -> None:
     import app.modules.notification.models.notification_preference  # noqa: F401
     import app.modules.notification.models.notification_recipient  # noqa: F401
     import app.modules.notification.models.notification_template  # noqa: F401
+    import app.modules.platform_ops.models.background_job  # noqa: F401
+    import app.modules.platform_ops.models.daily_kitchen_operation_summary  # noqa: F401
+    import app.modules.platform_ops.models.monthly_budget_realization_summary  # noqa: F401
     import app.modules.program.models.program  # noqa: F401
     import app.modules.program.models.program_period  # noqa: F401
     import app.modules.program.models.program_sppg  # noqa: F401
@@ -61,13 +75,18 @@ def import_all_models() -> None:
     import app.modules.product.models.product  # noqa: F401
     import app.modules.production.models.production_material_consumption  # noqa: F401
     import app.modules.production.models.production_order  # noqa: F401
+    import app.modules.procurement.models.purchase_order  # noqa: F401
+    import app.modules.procurement.models.purchase_order_line  # noqa: F401
     import app.modules.procurement.models.purchase_request  # noqa: F401
     import app.modules.procurement.models.purchase_request_line  # noqa: F401
+    import app.modules.procurement.models.supplier  # noqa: F401
     import app.modules.procurement.models.goods_receipt  # noqa: F401
     import app.modules.procurement.models.goods_receipt_line  # noqa: F401
     import app.modules.procurement.models.supplier_invoice  # noqa: F401
     import app.modules.procurement.models.supplier_invoice_line  # noqa: F401
     import app.modules.procurement.models.supplier_payment  # noqa: F401
+    import app.modules.procurement.models.supplier_price_history  # noqa: F401
+    import app.modules.procurement.models.supplier_product  # noqa: F401
     import app.modules.quality.models.qc_inspection  # noqa: F401
     import app.modules.quality.models.qc_inspection_line  # noqa: F401
     import app.modules.recipe.models.recipe  # noqa: F401
@@ -78,6 +97,11 @@ def import_all_models() -> None:
     import app.modules.workflow.models.workflow_definition  # noqa: F401
     import app.modules.workflow.models.workflow_history  # noqa: F401
     import app.modules.workflow.models.workflow_instance  # noqa: F401
+    import app.modules.workflow.models.workflow_version  # noqa: F401
+    import app.modules.workflow.models.workflow_state  # noqa: F401
+    import app.modules.workflow.models.workflow_action  # noqa: F401
+    import app.modules.workflow.models.approval_request  # noqa: F401
+    import app.modules.workflow.models.approval_decision  # noqa: F401
     import app.modules.workflow.models.workflow_transition  # noqa: F401
     import app.modules.workforce.models.attendance  # noqa: F401
     import app.modules.workforce.models.employee  # noqa: F401

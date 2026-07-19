@@ -15,6 +15,12 @@ class WorkflowHistory(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Ba
         nullable=False,
         index=True,
     )
+    approval_request_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("approval_requests.id"),
+        nullable=True,
+        index=True,
+    )
     from_state: Mapped[str | None] = mapped_column(String(50), nullable=True)
     action_name: Mapped[str] = mapped_column(String(50), nullable=False)
     to_state: Mapped[str] = mapped_column(String(50), nullable=False)

@@ -1,10 +1,17 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.session import get_db_session
 from app.modules.reporting.schemas.reporting_schema import (
     BudgetSummaryRead,
+    CashFlowRead,
     DeliveryPerformanceRead,
+    FinanceDashboardRead,
+    GovernmentReceivableAgingRead,
+    InvestorFundingPositionRead,
+    RoiBySppgRead,
     SppgDashboardRead,
     StockSummaryRead,
     TenantDashboardRead,
@@ -70,5 +77,82 @@ async def get_budget_summary(request: Request, service: ReportingService = Depen
         code="REPORTING_BUDGET_SUMMARY_FOUND",
         message="Ringkasan budget berhasil diambil.",
         data=BudgetSummaryRead.model_validate(payload),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.get("/finance/cash-flow")
+async def get_cash_flow(
+    request: Request,
+    period_start: date | None = None,
+    period_end: date | None = None,
+    service: ReportingService = Depends(get_reporting_service),
+) -> dict:
+    payload = await service.cash_flow(period_start=period_start, period_end=period_end)
+    return success_response(
+        code="REPORTING_CASH_FLOW_FOUND",
+        message="Laporan cash flow berhasil diambil.",
+        data=CashFlowRead.model_validate(payload),
+        meta={"request_id": request.state.request_id, "total": len(payload["breakdown"])},
+    )
+
+
+@router.get("/finance/government-receivable-aging")
+async def get_government_receivable_aging(
+    request: Request,
+    as_of_date: date | None = None,
+    service: ReportingService = Depends(get_reporting_service),
+) -> dict:
+    payload = await service.government_receivable_aging(as_of_date=as_of_date)
+    return success_response(
+        code="REPORTING_GOVERNMENT_RECEIVABLE_AGING_FOUND",
+        message="Laporan aging piutang pemerintah berhasil diambil.",
+        data=GovernmentReceivableAgingRead.model_validate(payload),
+        meta={"request_id": request.state.request_id, "total": len(payload["items"])},
+    )
+
+
+@router.get("/finance/investor-funding-position")
+async def get_investor_funding_position(
+    request: Request,
+    as_of_date: date | None = None,
+    service: ReportingService = Depends(get_reporting_service),
+) -> dict:
+    payload = await service.investor_funding_position(as_of_date=as_of_date)
+    return success_response(
+        code="REPORTING_INVESTOR_FUNDING_POSITION_FOUND",
+        message="Laporan posisi pendanaan investor berhasil diambil.",
+        data=InvestorFundingPositionRead.model_validate(payload),
+        meta={"request_id": request.state.request_id, "total": len(payload["items"])},
+    )
+
+
+@router.get("/finance/roi-by-sppg")
+async def get_roi_by_sppg(
+    request: Request,
+    period_start: date | None = None,
+    period_end: date | None = None,
+    service: ReportingService = Depends(get_reporting_service),
+) -> dict:
+    payload = await service.roi_by_sppg(period_start=period_start, period_end=period_end)
+    return success_response(
+        code="REPORTING_ROI_BY_SPPG_FOUND",
+        message="Laporan ROI per SPPG berhasil diambil.",
+        data=RoiBySppgRead.model_validate(payload),
+        meta={"request_id": request.state.request_id, "total": len(payload["items"])},
+    )
+
+
+@router.get("/dashboard/finance")
+async def get_finance_dashboard(
+    request: Request,
+    as_of_date: date | None = None,
+    service: ReportingService = Depends(get_reporting_service),
+) -> dict:
+    payload = await service.finance_dashboard(as_of_date=as_of_date)
+    return success_response(
+        code="REPORTING_FINANCE_DASHBOARD_FOUND",
+        message="Dashboard finance berhasil diambil.",
+        data=FinanceDashboardRead.model_validate(payload),
         meta={"request_id": request.state.request_id},
     )

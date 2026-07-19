@@ -28,6 +28,7 @@ from app.modules.inventory.manifest import manifest as inventory_manifest
 from app.modules.manifest import ModuleManifest
 from app.modules.meal_plan.manifest import manifest as meal_plan_manifest
 from app.modules.notification.manifest import manifest as notification_manifest
+from app.modules.platform_ops.manifest import manifest as platform_ops_manifest
 from app.modules.program.manifest import manifest as program_manifest
 from app.modules.product.manifest import manifest as product_manifest
 from app.modules.production.manifest import manifest as production_manifest
@@ -70,6 +71,7 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         government_claim_manifest,
         integration_manifest,
         inventory_manifest,
+        platform_ops_manifest,
         program_manifest,
         notification_manifest,
         quality_manifest,
