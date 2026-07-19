@@ -1,6 +1,6 @@
 # ERP Pengelolaan Dapur MBG
 
-## Enterprise Domain Model v2.0
+## Enterprise Domain Model v3.0
 
 **Arsitektur:** Domain-Driven Design
 **Pola implementasi:** Modular Monolith
@@ -8,7 +8,7 @@
 **Database:** PostgreSQL 18 + PostGIS
 **Primary Key:** UUID
 **Frontend:** Vue.js
-**Versi dokumen:** 2.0
+**Versi dokumen:** 3.0
 
 ---
 
@@ -53,7 +53,7 @@ Setiap data hanya memiliki satu domain sebagai **source of truth**.
 
 Contoh:
 
-* `kitchen` dimiliki domain Organization/Kitchen;
+* `sppg` / `kitchen` dimiliki domain Organization;
 * `stock_balance` dimiliki domain Inventory;
 * `production_batch` dimiliki domain Production;
 * `journal_entry` dimiliki domain Accounting;

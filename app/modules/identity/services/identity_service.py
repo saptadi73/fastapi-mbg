@@ -22,11 +22,12 @@ class IdentityService:
             subject=str(user.id),
             claims={
                 "tenant_id": str(user.tenant_id),
+                "active_sppg_id": str(user.active_sppg_id) if user.active_sppg_id else None,
                 "roles": user.role_names,
                 "email": user.email,
             },
         )
-        return TokenRead(access_token=token)
+        return TokenRead(access_token=token, active_sppg_id=user.active_sppg_id)
 
     async def get_current_user(self, user: User) -> User:
         return user

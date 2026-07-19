@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.core.tenancy.write_scope import enforce_tenant_write_scope
 from app.modules.geography.models.school import School
 from app.modules.geography.repositories.school_repository import SchoolRepository
 from app.modules.geography.schemas.school_schema import SchoolCreate
@@ -27,6 +28,7 @@ class SchoolService:
 
     async def create_school(self, payload: SchoolCreate) -> School:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         tenant = await self.tenant_repository.get_by_id(tenant_id)
         if tenant is None:
             raise NotFoundException(

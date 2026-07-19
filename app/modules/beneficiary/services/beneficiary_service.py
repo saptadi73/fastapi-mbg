@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.core.tenancy.write_scope import enforce_tenant_write_scope
 from app.modules.beneficiary.models.beneficiary import Beneficiary
 from app.modules.beneficiary.repositories.beneficiary_repository import BeneficiaryRepository
 from app.modules.beneficiary.schemas.beneficiary_schema import BeneficiaryCreate
@@ -33,6 +34,7 @@ class BeneficiaryService:
 
     async def create_beneficiary(self, payload: BeneficiaryCreate) -> Beneficiary:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         school_id = UUID(payload.school_id)
 
         tenant = await self.tenant_repository.get_by_id(tenant_id)

@@ -10,12 +10,35 @@ class ProductionOrderRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def list_all(self) -> list[ProductionOrder]:
-        result = await self.session.execute(select(ProductionOrder).order_by(ProductionOrder.created_at.desc()))
+    async def list_all(
+        self,
+        tenant_id: UUID | None = None,
+        sppg_id: UUID | None = None,
+    ) -> list[ProductionOrder]:
+        query = select(ProductionOrder).order_by(ProductionOrder.created_at.desc())
+        if tenant_id is not None:
+            query = query.where(ProductionOrder.tenant_id == tenant_id)
+        if sppg_id is not None:
+            query = query.where(ProductionOrder.sppg_id == sppg_id)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_by_id(self, production_order_id: UUID) -> ProductionOrder | None:
         return await self.session.get(ProductionOrder, production_order_id)
+
+    async def get_by_id_and_scope(
+        self,
+        production_order_id: UUID,
+        tenant_id: UUID | None = None,
+        sppg_id: UUID | None = None,
+    ) -> ProductionOrder | None:
+        query = select(ProductionOrder).where(ProductionOrder.id == production_order_id)
+        if tenant_id is not None:
+            query = query.where(ProductionOrder.tenant_id == tenant_id)
+        if sppg_id is not None:
+            query = query.where(ProductionOrder.sppg_id == sppg_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
 
     async def count_by_tenant(self, tenant_id: UUID) -> int:
         result = await self.session.execute(select(func.count(ProductionOrder.id)).where(ProductionOrder.tenant_id == tenant_id))

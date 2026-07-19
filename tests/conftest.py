@@ -56,6 +56,7 @@ async def _seed_test_data() -> None:
                 await user_repository.add(
                     User(
                         tenant_id=tenant.id,
+                        active_sppg_id=None,
                         full_name="Demo Operator MBG",
                         email="operator@example.com",
                         password_hash=hash_password("mbg12345"),
@@ -69,6 +70,7 @@ async def _seed_test_data() -> None:
                 await user_repository.add(
                     User(
                         tenant_id=tenant.id,
+                        active_sppg_id=None,
                         full_name="Demo Viewer MBG",
                         email="viewer@example.com",
                         password_hash=hash_password("viewer123"),
@@ -200,12 +202,26 @@ async def _seed_test_data() -> None:
                         tenant_id=str(tenant.id),
                         code="SPPG-JKT-01",
                         name="SPPG Jakarta Pusat 01",
+                        address="Jl. Cikini Raya No. 10, Jakarta Pusat",
+                        province="DKI Jakarta",
                         city="Jakarta Pusat",
+                        district="Menteng",
+                        village="Cikini",
                         latitude=-6.1754,
                         longitude=106.8272,
+                        service_radius_meter=5000,
+                        timezone="Asia/Jakarta",
                     )
                 )
                 await session.commit()
+
+            operator_user = await user_repository.get_by_email("operator@example.com")
+            viewer_user = await user_repository.get_by_email("viewer@example.com")
+            if operator_user is not None and operator_user.active_sppg_id != sppg.id:
+                operator_user.active_sppg_id = sppg.id
+            if viewer_user is not None and viewer_user.active_sppg_id != sppg.id:
+                viewer_user.active_sppg_id = sppg.id
+            await session.commit()
 
             beneficiary_service = BeneficiaryService(
                 BeneficiaryRepository(session),

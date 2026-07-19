@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
+from app.core.tenancy.context import get_current_tenant
+from app.core.tenancy.write_scope import enforce_tenant_write_scope
 from app.modules.accounting.models.account import Account
 from app.modules.accounting.models.journal_entry import JournalEntry
 from app.modules.accounting.models.journal_line import JournalLine
@@ -26,14 +28,28 @@ class AccountingService:
         self.journal_line_repository = journal_line_repository
         self.tenant_repository = tenant_repository
 
+    def _get_tenant_scope(self) -> UUID | None:
+        current_tenant = get_current_tenant()
+        if current_tenant is None:
+            return None
+        try:
+            return UUID(current_tenant)
+        except ValueError as exc:
+            raise BadRequestException(
+                code="INVALID_TENANT_CONTEXT",
+                message="Header X-Tenant-ID tidak valid.",
+            ) from exc
+
     async def list_accounts(self) -> list[Account]:
-        return await self.account_repository.list_all()
+        tenant_id = self._get_tenant_scope()
+        return await self.account_repository.list_all(tenant_id=tenant_id)
 
     async def get_account_by_code(self, tenant_id: UUID, code: str) -> Account | None:
         return await self.account_repository.get_by_tenant_and_code(tenant_id, code)
 
     async def create_account(self, payload: AccountCreate) -> Account:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         if await self.tenant_repository.get_by_id(tenant_id) is None:
             raise NotFoundException(code="TENANT_NOT_FOUND", message="Tenant untuk account tidak ditemukan.")
         existing = await self.account_repository.get_by_tenant_and_code(tenant_id, payload.code)
@@ -53,10 +69,15 @@ class AccountingService:
         return await self.account_repository.add(account)
 
     async def list_journal_entries(self) -> list[JournalEntry]:
-        return await self.journal_entry_repository.list_all()
+        tenant_id = self._get_tenant_scope()
+        return await self.journal_entry_repository.list_all(tenant_id=tenant_id)
 
     async def get_journal_entry_bundle(self, journal_entry_id: UUID) -> dict:
-        journal_entry = await self.journal_entry_repository.get_by_id(journal_entry_id)
+        tenant_id = self._get_tenant_scope()
+        if tenant_id is None:
+            journal_entry = await self.journal_entry_repository.get_by_id(journal_entry_id)
+        else:
+            journal_entry = await self.journal_entry_repository.get_by_id_and_tenant(journal_entry_id, tenant_id)
         if journal_entry is None:
             raise NotFoundException(code="JOURNAL_ENTRY_NOT_FOUND", message="Journal entry tidak ditemukan.")
         lines = await self.journal_line_repository.list_by_journal_entry(journal_entry_id)
@@ -64,6 +85,7 @@ class AccountingService:
 
     async def create_journal_entry(self, payload: JournalEntryCreate) -> dict:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         if await self.tenant_repository.get_by_id(tenant_id) is None:
             raise NotFoundException(code="TENANT_NOT_FOUND", message="Tenant untuk journal entry tidak ditemukan.")
         debit_total = round(sum(line.amount for line in payload.lines if line.line_type == "DEBIT"), 6)

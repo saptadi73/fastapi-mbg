@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.core.tenancy.write_scope import enforce_tenant_write_scope
 from app.modules.tenant.repositories.tenant_repository import TenantRepository
 from app.modules.uom.models.uom import Uom
 from app.modules.uom.repositories.uom_repository import UomRepository
@@ -23,6 +24,7 @@ class UomService:
 
     async def create_uom(self, payload: UomCreate) -> Uom:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         tenant = await self.tenant_repository.get_by_id(tenant_id)
         if tenant is None:
             raise NotFoundException(code="TENANT_NOT_FOUND", message="Tenant untuk UoM tidak ditemukan.")

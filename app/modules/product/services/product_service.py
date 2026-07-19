@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.core.tenancy.write_scope import enforce_tenant_write_scope
 from app.modules.product.models.product import Product
 from app.modules.product.repositories.product_repository import ProductRepository
 from app.modules.product.schemas.product_schema import ProductCreate
@@ -30,6 +31,7 @@ class ProductService:
 
     async def create_product(self, payload: ProductCreate) -> Product:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         stock_uom_id = UUID(payload.stock_uom_id)
         tenant = await self.tenant_repository.get_by_id(tenant_id)
         if tenant is None:

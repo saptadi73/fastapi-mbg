@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.core.tenancy.write_scope import enforce_tenant_write_scope
 from app.modules.product.repositories.product_repository import ProductRepository
 from app.modules.recipe.models.recipe import Recipe
 from app.modules.recipe.models.recipe_line import RecipeLine
@@ -37,6 +38,7 @@ class RecipeService:
 
     async def create_recipe(self, payload: RecipeCreate) -> Recipe:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         product_id = UUID(payload.product_id)
         output_uom_id = UUID(payload.output_uom_id)
         if await self.tenant_repository.get_by_id(tenant_id) is None:
@@ -72,6 +74,7 @@ class RecipeService:
 
     async def create_recipe_line(self, recipe_id: UUID, payload: RecipeLineCreate) -> RecipeLine:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         component_product_id = UUID(payload.component_product_id)
         uom_id = UUID(payload.uom_id)
         recipe = await self.repository.get_by_id(recipe_id)

@@ -1,6 +1,8 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
 
+from app.core.tenancy.context import get_current_tenant
+from app.core.tenancy.write_scope import enforce_tenant_write_scope
 from app.modules.accounting.repositories.account_repository import AccountRepository
 from app.modules.budget.models.budget import Budget
 from app.modules.budget.models.budget_line import BudgetLine
@@ -25,11 +27,28 @@ class BudgetService:
         self.tenant_repository = tenant_repository
         self.account_repository = account_repository
 
+    def _get_tenant_scope(self) -> UUID | None:
+        current_tenant = get_current_tenant()
+        if current_tenant is None:
+            return None
+        try:
+            return UUID(current_tenant)
+        except ValueError as exc:
+            raise BadRequestException(
+                code="INVALID_TENANT_CONTEXT",
+                message="Header X-Tenant-ID tidak valid.",
+            ) from exc
+
     async def list_budgets(self) -> list[Budget]:
-        return await self.budget_repository.list_all()
+        tenant_id = self._get_tenant_scope()
+        return await self.budget_repository.list_all(tenant_id=tenant_id)
 
     async def get_budget_bundle(self, budget_id: UUID) -> dict:
-        budget = await self.budget_repository.get_by_id(budget_id)
+        tenant_id = self._get_tenant_scope()
+        if tenant_id is None:
+            budget = await self.budget_repository.get_by_id(budget_id)
+        else:
+            budget = await self.budget_repository.get_by_id_and_tenant(budget_id, tenant_id)
         if budget is None:
             raise NotFoundException(code="BUDGET_NOT_FOUND", message="Budget tidak ditemukan.")
         lines = await self.budget_line_repository.list_by_budget(budget_id)
@@ -37,6 +56,7 @@ class BudgetService:
 
     async def create_budget(self, payload: BudgetCreate) -> dict:
         tenant_id = UUID(payload.tenant_id)
+        enforce_tenant_write_scope(tenant_id)
         if await self.tenant_repository.get_by_id(tenant_id) is None:
             raise NotFoundException(code="TENANT_NOT_FOUND", message="Tenant untuk budget tidak ditemukan.")
         if payload.date_end < payload.date_start:

@@ -10,12 +10,35 @@ class SupplierInvoiceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def list_all(self) -> list[SupplierInvoice]:
-        result = await self.session.execute(select(SupplierInvoice).order_by(SupplierInvoice.created_at.desc()))
+    async def list_all(
+        self,
+        tenant_id: UUID | None = None,
+        sppg_id: UUID | None = None,
+    ) -> list[SupplierInvoice]:
+        query = select(SupplierInvoice).order_by(SupplierInvoice.created_at.desc())
+        if tenant_id is not None:
+            query = query.where(SupplierInvoice.tenant_id == tenant_id)
+        if sppg_id is not None:
+            query = query.where(SupplierInvoice.sppg_id == sppg_id)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_by_id(self, supplier_invoice_id: UUID) -> SupplierInvoice | None:
         return await self.session.get(SupplierInvoice, supplier_invoice_id)
+
+    async def get_by_id_and_scope(
+        self,
+        supplier_invoice_id: UUID,
+        tenant_id: UUID | None = None,
+        sppg_id: UUID | None = None,
+    ) -> SupplierInvoice | None:
+        query = select(SupplierInvoice).where(SupplierInvoice.id == supplier_invoice_id)
+        if tenant_id is not None:
+            query = query.where(SupplierInvoice.tenant_id == tenant_id)
+        if sppg_id is not None:
+            query = query.where(SupplierInvoice.sppg_id == sppg_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
 
     async def get_by_goods_receipt_id(self, goods_receipt_id: UUID) -> SupplierInvoice | None:
         result = await self.session.execute(

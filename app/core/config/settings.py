@@ -43,6 +43,7 @@ class Settings(BaseSettings):
         "Content-Type",
         "X-Request-ID",
         "X-Tenant-ID",
+        "X-SPPG-ID",
     ]
 
     default_timezone: str = "Asia/Jakarta"

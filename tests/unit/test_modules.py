@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -19,6 +21,7 @@ def test_identity_endpoint_returns_envelope() -> None:
     payload = response.json()
     assert payload["success"] is True
     assert payload["data"]["email"] == "operator@example.com"
+    assert payload["data"]["active_sppg_id"] is not None
 
 
 def test_identity_login_returns_token() -> None:
@@ -32,6 +35,246 @@ def test_identity_login_returns_token() -> None:
     payload = response.json()
     assert payload["success"] is True
     assert payload["data"]["token_type"] == "bearer"
+    assert payload["data"]["active_sppg_id"] is not None
+
+
+def test_sppg_endpoint_supports_tenant_context_filter() -> None:
+    with TestClient(app) as client:
+        first_tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        first_sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+
+        response = client.get(
+            "/api/v1/sppg/",
+            headers={"X-Tenant-ID": first_tenant_id, "X-SPPG-ID": first_sppg_id},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["X-Tenant-ID"] == first_tenant_id
+    assert response.headers["X-SPPG-ID"] == first_sppg_id
+    payload = response.json()
+    assert payload["success"] is True
+    assert len(payload["data"]) >= 1
+    assert all(item["tenant_id"] == first_tenant_id for item in payload["data"])
+
+
+def test_procurement_purchase_request_list_supports_scope_headers() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+
+        probe_meal_plan = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-28",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 100,
+                "budget_cost_per_portion": 15000,
+                "notes": "Procurement scope test",
+            },
+        )
+        assert probe_meal_plan.status_code == 201
+        probe_meal_plan_id = probe_meal_plan.json()["data"]["id"]
+        requirement_resp = client.post(
+            f"/api/v1/meal-plans/{probe_meal_plan_id}/calculate-requirements",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert requirement_resp.status_code == 200
+        requirement_line = requirement_resp.json()["data"][0]
+        component_product_id = requirement_line["component_product_id"]
+        gross_quantity_for_100 = float(requirement_line["gross_quantity"])
+        balances = client.get("/api/v1/inventory/balances/").json()["data"]
+        available_stock = sum(
+            balance["quantity_available"]
+            for balance in balances
+            if balance["product_id"] == component_product_id and balance["sppg_id"] == sppg_id
+        )
+        planned_portions = int(((available_stock + gross_quantity_for_100) / gross_quantity_for_100) * 100) + 100
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-29",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": planned_portions,
+                "budget_cost_per_portion": 15000,
+                "notes": "Procurement scope shortage test",
+            },
+        )
+        assert meal_plan_response.status_code == 201
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+
+        create_pr_response = client.post(
+            f"/api/v1/procurement/purchase-requests/from-meal-plan/{meal_plan_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert create_pr_response.status_code == 201
+
+        response = client.get(
+            "/api/v1/procurement/purchase-requests/",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["X-Tenant-ID"] == tenant_id
+    assert response.headers["X-SPPG-ID"] == sppg_id
+    payload = response.json()
+    assert payload["success"] is True
+    assert len(payload["data"]) >= 1
+    assert all(item["tenant_id"] == tenant_id for item in payload["data"])
+    assert all(item["sppg_id"] == sppg_id for item in payload["data"])
+
+
+def test_production_order_list_supports_scope_headers() -> None:
+    with TestClient(app) as client:
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+
+        response = client.get(
+            "/api/v1/production-orders/",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["X-Tenant-ID"] == tenant_id
+    assert response.headers["X-SPPG-ID"] == sppg_id
+    payload = response.json()
+    assert payload["success"] is True
+    assert all(item["tenant_id"] == tenant_id for item in payload["data"])
+    assert all(item["sppg_id"] == sppg_id for item in payload["data"])
+
+
+def test_delivery_order_list_supports_scope_headers() -> None:
+    with TestClient(app) as client:
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+
+        response = client.get(
+            "/api/v1/delivery-orders/",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["X-Tenant-ID"] == tenant_id
+    assert response.headers["X-SPPG-ID"] == sppg_id
+    payload = response.json()
+    assert payload["success"] is True
+    assert all(item["tenant_id"] == tenant_id for item in payload["data"])
+    assert all(item["sppg_id"] == sppg_id for item in payload["data"])
+
+
+def test_account_list_supports_tenant_scope_header() -> None:
+    with TestClient(app) as client:
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        response = client.get("/api/v1/accounts", headers={"X-Tenant-ID": tenant_id})
+
+    assert response.status_code == 200
+    assert response.headers["X-Tenant-ID"] == tenant_id
+    payload = response.json()
+    assert payload["success"] is True
+    assert all(item["tenant_id"] == tenant_id for item in payload["data"])
+
+
+def test_journal_entry_list_supports_tenant_scope_header() -> None:
+    with TestClient(app) as client:
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        response = client.get("/api/v1/journal-entries", headers={"X-Tenant-ID": tenant_id})
+
+    assert response.status_code == 200
+    assert response.headers["X-Tenant-ID"] == tenant_id
+    payload = response.json()
+    assert payload["success"] is True
+    assert all(item["tenant_id"] == tenant_id for item in payload["data"])
+
+
+def test_budget_list_supports_tenant_scope_header() -> None:
+    with TestClient(app) as client:
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        response = client.get("/api/v1/budgets", headers={"X-Tenant-ID": tenant_id})
+
+    assert response.status_code == 200
+    assert response.headers["X-Tenant-ID"] == tenant_id
+    payload = response.json()
+    assert payload["success"] is True
+    assert all(item["tenant_id"] == tenant_id for item in payload["data"])
+
+
+def test_uom_create_rejects_tenant_write_scope_violation() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        response = client.post(
+            "/api/v1/uoms/",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": str(uuid4()),
+            },
+            json={
+                "tenant_id": client.get("/api/v1/tenants/").json()["data"][0]["id"],
+                "code": "CTX-UOM-01",
+                "name": "Context UOM",
+                "symbol": "ctx",
+                "dimension": "UNIT",
+                "factor_to_base": 1.0,
+                "is_active": True,
+            },
+        )
+
+    assert response.status_code == 403
+    payload = response.json()
+    assert payload["code"] == "TENANT_WRITE_SCOPE_VIOLATION"
+
+
+def test_meal_plan_create_rejects_sppg_write_scope_violation() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+        response = client.post(
+            "/api/v1/meal-plans/",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-SPPG-ID": str(uuid4()),
+            },
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-07-30",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 10,
+                "budget_cost_per_portion": 15000,
+                "notes": "Scope violation test",
+            },
+        )
+
+    assert response.status_code == 403
+    payload = response.json()
+    assert payload["code"] == "SPPG_WRITE_SCOPE_VIOLATION"
 
 
 def test_create_tenant_requires_authorized_role() -> None:

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.session import get_db_session
 from app.core.security.jwt import decode_token
+from app.core.tenancy.context import get_current_sppg, get_current_tenant, set_current_sppg, set_current_tenant
 from app.modules.identity.models.user import User
 from app.modules.identity.repositories.user_repository import UserRepository
 from app.support.exceptions.base import UnauthorizedException
@@ -29,6 +30,10 @@ async def get_current_user(
         subject = payload.get("sub")
         if not subject:
             raise ValueError("JWT subject is missing.")
+        if get_current_tenant() is None and payload.get("tenant_id"):
+            set_current_tenant(str(payload["tenant_id"]))
+        if get_current_sppg() is None and payload.get("active_sppg_id"):
+            set_current_sppg(str(payload["active_sppg_id"]))
         user_id = UUID(subject)
     except (ValueError, JWTError) as exc:
         raise UnauthorizedException(

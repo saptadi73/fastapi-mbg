@@ -10,10 +10,13 @@ class InventoryBalanceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def list_all(self) -> list[InventoryBalance]:
-        result = await self.session.execute(
-            select(InventoryBalance).order_by(InventoryBalance.warehouse_id, InventoryBalance.product_id)
-        )
+    async def list_all(self, tenant_id: UUID | None = None, sppg_id: UUID | None = None) -> list[InventoryBalance]:
+        query = select(InventoryBalance).order_by(InventoryBalance.warehouse_id, InventoryBalance.product_id)
+        if tenant_id is not None:
+            query = query.where(InventoryBalance.tenant_id == tenant_id)
+        if sppg_id is not None:
+            query = query.where(InventoryBalance.sppg_id == sppg_id)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_by_warehouse_and_product(self, warehouse_id: UUID, product_id: UUID) -> InventoryBalance | None:

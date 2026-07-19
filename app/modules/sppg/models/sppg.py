@@ -1,4 +1,4 @@
-from sqlalchemy import Float, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +20,13 @@ class Sppg(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     )
     code: Mapped[str] = mapped_column(String(50), index=True)
     name: Mapped[str] = mapped_column(String(255))
+    address: Mapped[str] = mapped_column(String(500))
+    province: Mapped[str | None] = mapped_column(String(120), nullable=True)
     city: Mapped[str] = mapped_column(String(120))
+    district: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    village: Mapped[str | None] = mapped_column(String(120), nullable=True)
     latitude: Mapped[float] = mapped_column(Float)
     longitude: Mapped[float] = mapped_column(Float)
+    service_radius_meter: Mapped[float] = mapped_column(Float, default=3000, nullable=False)
+    timezone: Mapped[str] = mapped_column(String(60), default="Asia/Jakarta", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from app.core.tenancy.context import get_current_sppg, get_current_tenant
+from app.core.tenancy.write_scope import enforce_sppg_write_scope, enforce_tenant_write_scope
 from app.modules.identity.models.user import User
 from app.modules.inventory.models.inventory_balance import InventoryBalance
 from app.modules.inventory.models.inventory_transaction import InventoryTransaction
@@ -45,15 +47,42 @@ class StockService:
         self.uom_repository = uom_repository
         self.warehouse_repository = warehouse_repository
 
+    def _get_scope(self) -> tuple[UUID | None, UUID | None]:
+        tenant_id = None
+        sppg_id = None
+        current_tenant = get_current_tenant()
+        current_sppg = get_current_sppg()
+        if current_tenant is not None:
+            try:
+                tenant_id = UUID(current_tenant)
+            except ValueError as exc:
+                raise BadRequestException(
+                    code="INVALID_TENANT_CONTEXT",
+                    message="Header X-Tenant-ID tidak valid.",
+                ) from exc
+        if current_sppg is not None:
+            try:
+                sppg_id = UUID(current_sppg)
+            except ValueError as exc:
+                raise BadRequestException(
+                    code="INVALID_SPPG_CONTEXT",
+                    message="Header X-SPPG-ID tidak valid.",
+                ) from exc
+        return tenant_id, sppg_id
+
     async def list_transactions(self) -> list[InventoryTransaction]:
-        return await self.transaction_repository.list_all()
+        tenant_id, sppg_id = self._get_scope()
+        return await self.transaction_repository.list_all(tenant_id=tenant_id, sppg_id=sppg_id)
 
     async def list_balances(self) -> list[InventoryBalance]:
-        return await self.balance_repository.list_all()
+        tenant_id, sppg_id = self._get_scope()
+        return await self.balance_repository.list_all(tenant_id=tenant_id, sppg_id=sppg_id)
 
     async def create_transaction(self, payload: InventoryTransactionCreate, actor: User) -> InventoryTransaction:
         tenant_id = UUID(payload.tenant_id)
         sppg_id = UUID(payload.sppg_id)
+        enforce_tenant_write_scope(tenant_id)
+        enforce_sppg_write_scope(sppg_id)
         product_id = UUID(payload.product_id)
         uom_id = UUID(payload.uom_id)
         reference_id = UUID(payload.reference_id) if payload.reference_id else None
@@ -169,6 +198,8 @@ class StockService:
     async def record_reserved_issue_transaction(self, payload: InventoryTransactionCreate, actor: User) -> InventoryTransaction:
         tenant_id = UUID(payload.tenant_id)
         sppg_id = UUID(payload.sppg_id)
+        enforce_tenant_write_scope(tenant_id)
+        enforce_sppg_write_scope(sppg_id)
         product_id = UUID(payload.product_id)
         uom_id = UUID(payload.uom_id)
         reference_id = UUID(payload.reference_id) if payload.reference_id else None

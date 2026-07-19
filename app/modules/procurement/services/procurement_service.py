@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from app.core.tenancy.context import get_current_sppg, get_current_tenant
 from app.modules.accounting.services.accounting_service import AccountingService
 from app.modules.budget.services.budget_service import BudgetService
 from app.modules.identity.models.user import User
@@ -76,11 +77,43 @@ class ProcurementService:
         self.accounting_service = accounting_service
         self.budget_service = budget_service
 
+    def _get_scope(self) -> tuple[UUID | None, UUID | None]:
+        tenant_id = None
+        sppg_id = None
+        current_tenant = get_current_tenant()
+        current_sppg = get_current_sppg()
+        if current_tenant is not None:
+            try:
+                tenant_id = UUID(current_tenant)
+            except ValueError as exc:
+                raise BadRequestException(
+                    code="INVALID_TENANT_CONTEXT",
+                    message="Header X-Tenant-ID tidak valid.",
+                ) from exc
+        if current_sppg is not None:
+            try:
+                sppg_id = UUID(current_sppg)
+            except ValueError as exc:
+                raise BadRequestException(
+                    code="INVALID_SPPG_CONTEXT",
+                    message="Header X-SPPG-ID tidak valid.",
+                ) from exc
+        return tenant_id, sppg_id
+
     async def list_purchase_requests(self) -> list[PurchaseRequest]:
-        return await self.purchase_request_repository.list_all()
+        tenant_id, sppg_id = self._get_scope()
+        return await self.purchase_request_repository.list_all(tenant_id=tenant_id, sppg_id=sppg_id)
 
     async def get_purchase_request(self, purchase_request_id: UUID) -> dict:
-        purchase_request = await self.purchase_request_repository.get_by_id(purchase_request_id)
+        tenant_id, sppg_id = self._get_scope()
+        if tenant_id is None and sppg_id is None:
+            purchase_request = await self.purchase_request_repository.get_by_id(purchase_request_id)
+        else:
+            purchase_request = await self.purchase_request_repository.get_by_id_and_scope(
+                purchase_request_id,
+                tenant_id=tenant_id,
+                sppg_id=sppg_id,
+            )
         if purchase_request is None:
             raise NotFoundException(code="PURCHASE_REQUEST_NOT_FOUND", message="Purchase request tidak ditemukan.")
         lines = await self.purchase_request_line_repository.list_by_purchase_request(purchase_request_id)
@@ -90,10 +123,19 @@ class ProcurementService:
         }
 
     async def list_goods_receipts(self) -> list[GoodsReceipt]:
-        return await self.goods_receipt_repository.list_all()
+        tenant_id, sppg_id = self._get_scope()
+        return await self.goods_receipt_repository.list_all(tenant_id=tenant_id, sppg_id=sppg_id)
 
     async def get_goods_receipt(self, goods_receipt_id: UUID) -> dict:
-        goods_receipt = await self.goods_receipt_repository.get_by_id(goods_receipt_id)
+        tenant_id, sppg_id = self._get_scope()
+        if tenant_id is None and sppg_id is None:
+            goods_receipt = await self.goods_receipt_repository.get_by_id(goods_receipt_id)
+        else:
+            goods_receipt = await self.goods_receipt_repository.get_by_id_and_scope(
+                goods_receipt_id,
+                tenant_id=tenant_id,
+                sppg_id=sppg_id,
+            )
         if goods_receipt is None:
             raise NotFoundException(code="GOODS_RECEIPT_NOT_FOUND", message="Goods receipt tidak ditemukan.")
         lines = await self.goods_receipt_line_repository.list_by_goods_receipt(goods_receipt_id)
@@ -103,20 +145,38 @@ class ProcurementService:
         }
 
     async def list_supplier_invoices(self) -> list[SupplierInvoice]:
-        return await self.supplier_invoice_repository.list_all()
+        tenant_id, sppg_id = self._get_scope()
+        return await self.supplier_invoice_repository.list_all(tenant_id=tenant_id, sppg_id=sppg_id)
 
     async def get_supplier_invoice(self, supplier_invoice_id: UUID) -> dict:
-        supplier_invoice = await self.supplier_invoice_repository.get_by_id(supplier_invoice_id)
+        tenant_id, sppg_id = self._get_scope()
+        if tenant_id is None and sppg_id is None:
+            supplier_invoice = await self.supplier_invoice_repository.get_by_id(supplier_invoice_id)
+        else:
+            supplier_invoice = await self.supplier_invoice_repository.get_by_id_and_scope(
+                supplier_invoice_id,
+                tenant_id=tenant_id,
+                sppg_id=sppg_id,
+            )
         if supplier_invoice is None:
             raise NotFoundException(code="SUPPLIER_INVOICE_NOT_FOUND", message="Supplier invoice tidak ditemukan.")
         lines = await self.supplier_invoice_line_repository.list_by_supplier_invoice(supplier_invoice_id)
         return {"supplier_invoice": supplier_invoice, "lines": lines}
 
     async def list_supplier_payments(self) -> list[SupplierPayment]:
-        return await self.supplier_payment_repository.list_all()
+        tenant_id, sppg_id = self._get_scope()
+        return await self.supplier_payment_repository.list_all(tenant_id=tenant_id, sppg_id=sppg_id)
 
     async def get_supplier_payment(self, supplier_payment_id: UUID) -> SupplierPayment:
-        supplier_payment = await self.supplier_payment_repository.get_by_id(supplier_payment_id)
+        tenant_id, sppg_id = self._get_scope()
+        if tenant_id is None and sppg_id is None:
+            supplier_payment = await self.supplier_payment_repository.get_by_id(supplier_payment_id)
+        else:
+            supplier_payment = await self.supplier_payment_repository.get_by_id_and_scope(
+                supplier_payment_id,
+                tenant_id=tenant_id,
+                sppg_id=sppg_id,
+            )
         if supplier_payment is None:
             raise NotFoundException(code="SUPPLIER_PAYMENT_NOT_FOUND", message="Supplier payment tidak ditemukan.")
         return supplier_payment

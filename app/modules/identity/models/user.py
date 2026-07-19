@@ -15,6 +15,12 @@ class User(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    active_sppg_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sppg.id"),
+        nullable=True,
+        index=True,
+    )
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)

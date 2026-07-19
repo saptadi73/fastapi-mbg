@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
+from app.core.tenancy.context import get_current_sppg, get_current_tenant
 from app.modules.accounting.services.accounting_service import AccountingService
 from app.modules.identity.models.user import User
 from app.modules.inventory.repositories.inventory_balance_repository import InventoryBalanceRepository
@@ -40,11 +41,43 @@ class ProductionService:
         self.stock_service = stock_service
         self.accounting_service = accounting_service
 
+    def _get_scope(self) -> tuple[UUID | None, UUID | None]:
+        tenant_id = None
+        sppg_id = None
+        current_tenant = get_current_tenant()
+        current_sppg = get_current_sppg()
+        if current_tenant is not None:
+            try:
+                tenant_id = UUID(current_tenant)
+            except ValueError as exc:
+                raise BadRequestException(
+                    code="INVALID_TENANT_CONTEXT",
+                    message="Header X-Tenant-ID tidak valid.",
+                ) from exc
+        if current_sppg is not None:
+            try:
+                sppg_id = UUID(current_sppg)
+            except ValueError as exc:
+                raise BadRequestException(
+                    code="INVALID_SPPG_CONTEXT",
+                    message="Header X-SPPG-ID tidak valid.",
+                ) from exc
+        return tenant_id, sppg_id
+
     async def list_production_orders(self) -> list[ProductionOrder]:
-        return await self.production_order_repository.list_all()
+        tenant_id, sppg_id = self._get_scope()
+        return await self.production_order_repository.list_all(tenant_id=tenant_id, sppg_id=sppg_id)
 
     async def get_production_order(self, production_order_id: UUID) -> ProductionOrder:
-        production_order = await self.production_order_repository.get_by_id(production_order_id)
+        tenant_id, sppg_id = self._get_scope()
+        if tenant_id is None and sppg_id is None:
+            production_order = await self.production_order_repository.get_by_id(production_order_id)
+        else:
+            production_order = await self.production_order_repository.get_by_id_and_scope(
+                production_order_id,
+                tenant_id=tenant_id,
+                sppg_id=sppg_id,
+            )
         if production_order is None:
             raise NotFoundException(code="PRODUCTION_ORDER_NOT_FOUND", message="Production order tidak ditemukan.")
         return production_order

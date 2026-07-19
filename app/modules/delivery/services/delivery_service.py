@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
+from app.core.tenancy.context import get_current_sppg, get_current_tenant
 from app.modules.delivery.models.delivery_order import DeliveryOrder
 from app.modules.delivery.models.delivery_proof import DeliveryProof
 from app.modules.delivery.repositories.delivery_order_repository import DeliveryOrderRepository
@@ -36,11 +37,43 @@ class DeliveryService:
         self.school_repository = school_repository
         self.production_service = production_service
 
+    def _get_scope(self) -> tuple[UUID | None, UUID | None]:
+        tenant_id = None
+        sppg_id = None
+        current_tenant = get_current_tenant()
+        current_sppg = get_current_sppg()
+        if current_tenant is not None:
+            try:
+                tenant_id = UUID(current_tenant)
+            except ValueError as exc:
+                raise BadRequestException(
+                    code="INVALID_TENANT_CONTEXT",
+                    message="Header X-Tenant-ID tidak valid.",
+                ) from exc
+        if current_sppg is not None:
+            try:
+                sppg_id = UUID(current_sppg)
+            except ValueError as exc:
+                raise BadRequestException(
+                    code="INVALID_SPPG_CONTEXT",
+                    message="Header X-SPPG-ID tidak valid.",
+                ) from exc
+        return tenant_id, sppg_id
+
     async def list_delivery_orders(self) -> list[DeliveryOrder]:
-        return await self.delivery_order_repository.list_all()
+        tenant_id, sppg_id = self._get_scope()
+        return await self.delivery_order_repository.list_all(tenant_id=tenant_id, sppg_id=sppg_id)
 
     async def get_delivery_order(self, delivery_order_id: UUID) -> dict:
-        delivery_order = await self.delivery_order_repository.get_by_id(delivery_order_id)
+        tenant_id, sppg_id = self._get_scope()
+        if tenant_id is None and sppg_id is None:
+            delivery_order = await self.delivery_order_repository.get_by_id(delivery_order_id)
+        else:
+            delivery_order = await self.delivery_order_repository.get_by_id_and_scope(
+                delivery_order_id,
+                tenant_id=tenant_id,
+                sppg_id=sppg_id,
+            )
         if delivery_order is None:
             raise NotFoundException(code="DELIVERY_ORDER_NOT_FOUND", message="Delivery order tidak ditemukan.")
         proofs = await self.delivery_proof_repository.list_by_delivery_order(delivery_order_id)
