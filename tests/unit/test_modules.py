@@ -795,6 +795,236 @@ def test_audit_event_endpoints_work() -> None:
     assert detail_payload["action_name"] in {"CREATE", "SUBMIT", "APPROVE", "RESERVE_MATERIALS"}
 
 
+def test_document_management_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
+
+        meal_plan_response = client.post(
+            "/api/v1/meal-plans/",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recipe_id": recipe_id,
+                "plan_date": "2026-08-04",
+                "meal_type": "LUNCH",
+                "status": "DRAFT",
+                "planned_portions": 15,
+                "budget_cost_per_portion": 15000,
+                "notes": "Document attachment test",
+            },
+        )
+        assert meal_plan_response.status_code == 201, meal_plan_response.json()
+        meal_plan_id = meal_plan_response.json()["data"]["id"]
+
+        create_document_response = client.post(
+            "/api/v1/documents",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "document_type": "QC_ATTACHMENT",
+                "title": "Checklist QC Batch 1",
+                "description": "Lampiran checklist quality control",
+                "owner_entity_type": "meal_plan",
+                "owner_entity_id": meal_plan_id,
+                "tags": ["qc", "checklist"],
+            },
+        )
+        assert create_document_response.status_code == 201, create_document_response.json()
+        document_id = create_document_response.json()["data"]["id"]
+
+        create_version_response = client.post(
+            f"/api/v1/documents/{document_id}/versions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "file_name": "qc-checklist-20260719.pdf",
+                "file_mime_type": "application/pdf",
+                "file_size_bytes": 204800,
+                "checksum_sha256": "abc123checksum",
+                "storage_backend": "LOCAL",
+                "object_key": "documents/qc/qc-checklist-20260719.pdf",
+                "version_notes": "Versi awal",
+                "metadata_json": {"source": "manual-upload"},
+                "uploaded_at": "2026-07-19T10:30:00Z",
+            },
+        )
+        create_link_response = client.post(
+            f"/api/v1/documents/{document_id}/links",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "linked_entity_type": "meal_plan",
+                "linked_entity_id": meal_plan_id,
+                "relation_type": "ATTACHMENT",
+            },
+        )
+        detail_response = client.get(
+            f"/api/v1/documents/{document_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        list_response = client.get(
+            "/api/v1/documents",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert create_version_response.status_code == 201, create_version_response.json()
+    assert create_version_response.json()["code"] == "DOCUMENT_VERSION_CREATED"
+    assert create_link_response.status_code == 201, create_link_response.json()
+    assert create_link_response.json()["code"] == "DOCUMENT_LINK_CREATED"
+    assert detail_response.status_code == 200, detail_response.json()
+    detail_payload = detail_response.json()["data"]
+    assert detail_payload["document"]["id"] == document_id
+    assert len(detail_payload["versions"]) == 1
+    assert len(detail_payload["links"]) == 1
+    assert list_response.status_code == 200
+    assert any(item["id"] == document_id for item in list_response.json()["data"])
+
+
+def test_reporting_endpoints_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+
+        tenant_dashboard_response = client.get(
+            "/api/v1/reporting/dashboard/tenant",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        sppg_dashboard_response = client.get(
+            "/api/v1/reporting/dashboard/sppg",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        stock_summary_response = client.get(
+            "/api/v1/reporting/stock-summary",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        delivery_performance_response = client.get(
+            "/api/v1/reporting/delivery-performance",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        budget_summary_response = client.get(
+            "/api/v1/reporting/budget-summary",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+
+    assert tenant_dashboard_response.status_code == 200, tenant_dashboard_response.json()
+    tenant_payload = tenant_dashboard_response.json()["data"]
+    assert "totals" in tenant_payload
+    assert "finance" in tenant_payload
+    assert "governance" in tenant_payload
+
+    assert sppg_dashboard_response.status_code == 200, sppg_dashboard_response.json()
+    sppg_payload = sppg_dashboard_response.json()["data"]
+    assert "production" in sppg_payload
+    assert "delivery" in sppg_payload
+    assert "stock" in sppg_payload
+
+    assert stock_summary_response.status_code == 200, stock_summary_response.json()
+    assert "totals" in stock_summary_response.json()["data"]
+
+    assert delivery_performance_response.status_code == 200, delivery_performance_response.json()
+    assert "status_breakdown" in delivery_performance_response.json()["data"]
+
+    assert budget_summary_response.status_code == 200, budget_summary_response.json()
+    assert "status_breakdown" in budget_summary_response.json()["data"]
+
+
+def test_integration_management_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        create_system_response = client.post(
+            "/api/v1/integration/external-systems",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"EXT-{code_suffix}",
+                "name": "Partner ERP Demo",
+                "system_type": "ERP",
+                "base_url": "https://partner.example.com/api",
+                "is_active": True,
+                "notes": "Sistem partner demo",
+            },
+        )
+        assert create_system_response.status_code == 201, create_system_response.json()
+        external_system_id = create_system_response.json()["data"]["id"]
+
+        create_credential_response = client.post(
+            f"/api/v1/integration/external-systems/{external_system_id}/credentials",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "credential_name": "primary-api-key",
+                "credential_type": "API_KEY",
+                "secret_masked": "****demo",
+                "config_json": {"header_name": "X-API-Key"},
+                "is_active": True,
+            },
+        )
+        create_sync_log_response = client.post(
+            "/api/v1/integration/sync-logs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "external_system_id": external_system_id,
+                "direction": "OUTBOUND",
+                "message_type": "meal_plan.export",
+                "entity_type": "meal_plan",
+                "entity_id": None,
+                "external_reference": f"REF-{code_suffix}",
+                "idempotency_key": f"idem-{code_suffix.lower()}",
+                "status": "PENDING",
+                "payload_json": {"sample": True},
+                "response_json": {},
+                "processed_at": None,
+                "notes": "Sinkronisasi awal",
+            },
+        )
+        list_systems_response = client.get(
+            "/api/v1/integration/external-systems",
+            headers={"X-Tenant-ID": tenant_id},
+        )
+        detail_system_response = client.get(
+            f"/api/v1/integration/external-systems/{external_system_id}",
+            headers={"X-Tenant-ID": tenant_id},
+        )
+        list_sync_logs_response = client.get(
+            "/api/v1/integration/sync-logs?direction=OUTBOUND",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        sync_log_id = create_sync_log_response.json()["data"]["id"]
+        detail_sync_log_response = client.get(
+            f"/api/v1/integration/sync-logs/{sync_log_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+
+    assert create_credential_response.status_code == 201, create_credential_response.json()
+    assert create_credential_response.json()["code"] == "INTEGRATION_CREDENTIAL_CREATED"
+    assert create_sync_log_response.status_code == 201, create_sync_log_response.json()
+    assert create_sync_log_response.json()["code"] == "SYNC_LOG_CREATED"
+    assert list_systems_response.status_code == 200
+    assert any(item["id"] == external_system_id for item in list_systems_response.json()["data"])
+    assert detail_system_response.status_code == 200
+    assert len(detail_system_response.json()["data"]["credentials"]) == 1
+    assert list_sync_logs_response.status_code == 200
+    assert any(item["id"] == sync_log_id for item in list_sync_logs_response.json()["data"])
+    assert detail_sync_log_response.status_code == 200
+    assert detail_sync_log_response.json()["data"]["idempotency_key"] == f"idem-{code_suffix.lower()}"
 def test_uom_create_rejects_tenant_write_scope_violation() -> None:
     with TestClient(app) as client:
         login_response = client.post(

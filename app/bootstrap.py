@@ -11,9 +11,11 @@ from app.modules.audit.manifest import manifest as audit_manifest
 from app.modules.beneficiary.manifest import manifest as beneficiary_manifest
 from app.modules.budget.manifest import manifest as budget_manifest
 from app.modules.delivery.manifest import manifest as delivery_manifest
+from app.modules.document.manifest import manifest as document_manifest
 from app.modules.geography.manifest import manifest as geography_manifest
 from app.modules.health.manifest import manifest as health_manifest
 from app.modules.identity.manifest import manifest as identity_manifest
+from app.modules.integration.manifest import manifest as integration_manifest
 from app.modules.inventory.manifest import manifest as inventory_manifest
 from app.modules.manifest import ModuleManifest
 from app.modules.meal_plan.manifest import manifest as meal_plan_manifest
@@ -23,6 +25,7 @@ from app.modules.production.manifest import manifest as production_manifest
 from app.modules.procurement.manifest import manifest as procurement_manifest
 from app.modules.quality.manifest import manifest as quality_manifest
 from app.modules.recipe.manifest import manifest as recipe_manifest
+from app.modules.reporting.manifest import manifest as reporting_manifest
 from app.modules.sppg.manifest import manifest as sppg_manifest
 from app.modules.tenant.manifest import manifest as tenant_manifest
 from app.modules.uom.manifest import manifest as uom_manifest
@@ -46,9 +49,12 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         geography_manifest,
         beneficiary_manifest,
         delivery_manifest,
+        document_manifest,
+        integration_manifest,
         inventory_manifest,
         program_manifest,
         quality_manifest,
+        reporting_manifest,
         uom_manifest,
         workflow_manifest,
         product_manifest,

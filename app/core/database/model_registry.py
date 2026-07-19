@@ -8,9 +8,15 @@ def import_all_models() -> None:
     import app.modules.budget.models.budget_line  # noqa: F401
     import app.modules.delivery.models.delivery_order  # noqa: F401
     import app.modules.delivery.models.delivery_proof  # noqa: F401
+    import app.modules.document.models.document  # noqa: F401
+    import app.modules.document.models.document_link  # noqa: F401
+    import app.modules.document.models.document_version  # noqa: F401
     import app.modules.geography.models.school  # noqa: F401
     import app.modules.identity.models.user  # noqa: F401
     import app.modules.identity.models.user_sppg_access  # noqa: F401
+    import app.modules.integration.models.external_system  # noqa: F401
+    import app.modules.integration.models.integration_credential  # noqa: F401
+    import app.modules.integration.models.sync_log  # noqa: F401
     import app.modules.inventory.models.inventory_balance  # noqa: F401
     import app.modules.inventory.models.inventory_transaction  # noqa: F401
     import app.modules.inventory.models.warehouse  # noqa: F401

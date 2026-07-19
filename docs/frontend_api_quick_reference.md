@@ -61,6 +61,23 @@ Authorization: Bearer <access_token>
 | `GET` | `/api/v1/workflows/documents/{document_type}/{document_id}` | No | - | Lihat instance workflow dan history dokumen |
 | `GET` | `/api/v1/audit/events/` | Yes | `super_admin`, `tenant_admin` | List audit event |
 | `GET` | `/api/v1/audit/events/{event_id}` | Yes | `super_admin`, `tenant_admin` | Detail audit event |
+| `GET` | `/api/v1/documents` | No | - | List dokumen berdasarkan scope tenant/SPPG |
+| `GET` | `/api/v1/documents/{document_id}` | No | - | Detail dokumen, versi, dan link |
+| `POST` | `/api/v1/documents` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer`, `finance_manager` | Buat metadata dokumen |
+| `POST` | `/api/v1/documents/{document_id}/versions` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer`, `finance_manager` | Tambah versi dokumen |
+| `POST` | `/api/v1/documents/{document_id}/links` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer`, `finance_manager` | Link dokumen ke entity bisnis |
+| `GET` | `/api/v1/reporting/dashboard/tenant` | No | - | Dashboard tenant |
+| `GET` | `/api/v1/reporting/dashboard/sppg` | No | - | Dashboard SPPG |
+| `GET` | `/api/v1/reporting/stock-summary` | No | - | Ringkasan stok |
+| `GET` | `/api/v1/reporting/delivery-performance` | No | - | Ringkasan performa delivery |
+| `GET` | `/api/v1/reporting/budget-summary` | No | - | Ringkasan budget |
+| `GET` | `/api/v1/integration/external-systems` | No | - | List external system |
+| `GET` | `/api/v1/integration/external-systems/{external_system_id}` | No | - | Detail external system dan credential |
+| `POST` | `/api/v1/integration/external-systems` | Yes | `super_admin`, `tenant_admin` | Buat external system |
+| `POST` | `/api/v1/integration/external-systems/{external_system_id}/credentials` | Yes | `super_admin`, `tenant_admin` | Buat credential metadata |
+| `GET` | `/api/v1/integration/sync-logs` | Yes | `super_admin`, `tenant_admin` | List sync log |
+| `GET` | `/api/v1/integration/sync-logs/{sync_log_id}` | Yes | `super_admin`, `tenant_admin` | Detail sync log |
+| `POST` | `/api/v1/integration/sync-logs` | Yes | `super_admin`, `tenant_admin` | Buat sync log outbound/inbound |
 | `GET` | `/api/v1/geography/schools/` | No | - | List sekolah |
 | `GET` | `/api/v1/beneficiaries/` | No | - | List beneficiary |
 | `GET` | `/api/v1/uoms/` | No | - | List UoM |
@@ -136,6 +153,13 @@ Authorization: Bearer <access_token>
 | `WORKFLOW_TRANSITION_NOT_ALLOWED` | Nonaktifkan tombol aksi bila transisi tidak tersedia |
 | `WORKFLOW_INSTANCE_STATE_MISMATCH` | Refresh detail dokumen jika state workflow sudah berubah |
 | `AUDIT_EVENT_NOT_FOUND` | Refresh daftar audit bila detail event sudah tidak sesuai scope |
+| `DOCUMENT_NOT_FOUND` | Refresh detail dokumen atau cek scope tenant/SPPG |
+| `DOCUMENT_OBJECT_KEY_REQUIRED` | Validasi object key sebelum submit metadata versi |
+| `DOCUMENT_LINK_ALREADY_EXISTS` | Nonaktifkan aksi link ulang pada entity yang sama |
+| `EXTERNAL_SYSTEM_CODE_ALREADY_EXISTS` | Validasi kode external system agar tidak duplikat |
+| `INTEGRATION_CREDENTIAL_ALREADY_EXISTS` | Hindari nama credential yang sama pada system yang sama |
+| `INTEGRATION_IDEMPOTENCY_KEY_REQUIRED` | idempotency key wajib saat buat sync log |
+| `SYNC_LOG_IDEMPOTENCY_CONFLICT` | Jangan kirim ulang sync log dengan key yang sama |
 | `SUPPLIER_INVOICE_ALREADY_EXISTS_FOR_RECEIPT` | Disable tombol create invoice jika GR sudah punya invoice |
 | `SUPPLIER_PAYMENT_ALREADY_EXISTS_FOR_INVOICE` | Disable tombol bayar jika invoice sudah punya payment |
 
@@ -272,6 +296,41 @@ Authorization: Bearer <access_token>
 
 ```text
 GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
+```
+
+### Create Document Metadata
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "document_type": "QC_ATTACHMENT",
+  "title": "Checklist QC Batch 1",
+  "description": "Lampiran checklist quality control",
+  "owner_entity_type": "meal_plan",
+  "owner_entity_id": "{{meal_plan_id}}",
+  "tags": ["qc", "checklist"]
+}
+```
+
+### Reporting Notes
+
+- `/api/v1/reporting/dashboard/tenant` sebaiknya dipanggil dengan `X-Tenant-ID`
+- `/api/v1/reporting/dashboard/sppg` sebaiknya dipanggil dengan `X-Tenant-ID` dan `X-SPPG-ID`
+- read model ini belum menjadi source of truth, hanya agregasi dari modul transaksi yang sudah ada
+
+### Create External System
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "code": "EXT-PARTNER-ERP",
+  "name": "Partner ERP Demo",
+  "system_type": "ERP",
+  "base_url": "https://partner.example.com/api",
+  "is_active": true,
+  "notes": "Sistem partner demo"
+}
 ```
 
 ### Switch Active SPPG

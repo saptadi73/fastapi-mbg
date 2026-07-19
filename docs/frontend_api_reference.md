@@ -54,23 +54,40 @@ http://127.0.0.1:8000
 22. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
 23. `GET /api/v1/audit/events/`
 24. `GET /api/v1/audit/events/{event_id}`
-25. `GET /api/v1/geography/schools/`
-26. `GET /api/v1/geography/schools/{school_id}`
-27. `POST /api/v1/geography/schools/`
-28. `GET /api/v1/beneficiaries/`
-29. `GET /api/v1/beneficiaries/{beneficiary_id}`
-30. `POST /api/v1/beneficiaries/`
-31. `GET /api/v1/uoms/`
-32. `GET /api/v1/uoms/{uom_id}`
-33. `POST /api/v1/uoms/`
-34. `GET /api/v1/products/`
-35. `GET /api/v1/products/{product_id}`
-36. `POST /api/v1/products/`
-37. `GET /api/v1/recipes/`
-38. `GET /api/v1/recipes/{recipe_id}`
-39. `POST /api/v1/recipes/`
-40. `GET /api/v1/recipes/{recipe_id}/lines`
-41. `POST /api/v1/recipes/{recipe_id}/lines`
+25. `GET /api/v1/documents`
+26. `GET /api/v1/documents/{document_id}`
+27. `POST /api/v1/documents`
+28. `POST /api/v1/documents/{document_id}/versions`
+29. `POST /api/v1/documents/{document_id}/links`
+30. `GET /api/v1/reporting/dashboard/tenant`
+31. `GET /api/v1/reporting/dashboard/sppg`
+32. `GET /api/v1/reporting/stock-summary`
+33. `GET /api/v1/reporting/delivery-performance`
+34. `GET /api/v1/reporting/budget-summary`
+35. `GET /api/v1/integration/external-systems`
+36. `GET /api/v1/integration/external-systems/{external_system_id}`
+37. `POST /api/v1/integration/external-systems`
+38. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
+39. `GET /api/v1/integration/sync-logs`
+40. `GET /api/v1/integration/sync-logs/{sync_log_id}`
+41. `POST /api/v1/integration/sync-logs`
+42. `GET /api/v1/geography/schools/`
+43. `GET /api/v1/geography/schools/{school_id}`
+44. `POST /api/v1/geography/schools/`
+45. `GET /api/v1/beneficiaries/`
+46. `GET /api/v1/beneficiaries/{beneficiary_id}`
+47. `POST /api/v1/beneficiaries/`
+48. `GET /api/v1/uoms/`
+49. `GET /api/v1/uoms/{uom_id}`
+50. `POST /api/v1/uoms/`
+51. `GET /api/v1/products/`
+52. `GET /api/v1/products/{product_id}`
+53. `POST /api/v1/products/`
+54. `GET /api/v1/recipes/`
+55. `GET /api/v1/recipes/{recipe_id}`
+56. `POST /api/v1/recipes/`
+57. `GET /api/v1/recipes/{recipe_id}/lines`
+58. `POST /api/v1/recipes/{recipe_id}/lines`
 
 ### Meal Plan
 
@@ -218,6 +235,9 @@ Endpoint write saat ini butuh token:
 | `404` | `WORKFLOW_DEFINITION_NOT_FOUND` | Workflow definition tidak ditemukan |
 | `404` | `WORKFLOW_INSTANCE_NOT_FOUND` | Workflow instance tidak ditemukan |
 | `404` | `AUDIT_EVENT_NOT_FOUND` | Audit event tidak ditemukan |
+| `404` | `DOCUMENT_NOT_FOUND` | Dokumen tidak ditemukan |
+| `404` | `EXTERNAL_SYSTEM_NOT_FOUND` | External system tidak ditemukan |
+| `404` | `SYNC_LOG_NOT_FOUND` | Sync log tidak ditemukan |
 | `409` | `TENANT_CODE_ALREADY_EXISTS` | Kode tenant sudah dipakai |
 | `409` | `SPPG_CODE_ALREADY_EXISTS` | Kode SPPG sudah dipakai |
 | `409` | `PROGRAM_CODE_ALREADY_EXISTS` | Kode program sudah dipakai |
@@ -232,6 +252,10 @@ Endpoint write saat ini butuh token:
 | `409` | `ACCOUNT_CODE_ALREADY_EXISTS` | Kode account sudah dipakai |
 | `409` | `WORKFLOW_DEFINITION_ALREADY_EXISTS` | Workflow definition untuk document type tenant ini sudah ada |
 | `409` | `WORKFLOW_TRANSITION_ALREADY_EXISTS` | Workflow transition yang sama sudah ada |
+| `409` | `DOCUMENT_LINK_ALREADY_EXISTS` | Link dokumen ke entity ini sudah ada |
+| `409` | `EXTERNAL_SYSTEM_CODE_ALREADY_EXISTS` | Kode external system tenant ini sudah ada |
+| `409` | `INTEGRATION_CREDENTIAL_ALREADY_EXISTS` | Nama credential untuk external system ini sudah ada |
+| `409` | `SYNC_LOG_IDEMPOTENCY_CONFLICT` | idempotency key sync log sudah pernah dipakai |
 | `400` | `QC_INSPECTION_LINES_REQUIRED` | QC belum punya line saat finalize |
 | `400` | `QC_INSPECTION_ALREADY_FINALIZED` | QC sudah final |
 | `400` | `QC_RESULT_STATUS_INVALID` | Status result QC bukan PASS/FAIL |
@@ -239,6 +263,8 @@ Endpoint write saat ini butuh token:
 | `400` | `WORKFLOW_TENANT_CONTEXT_REQUIRED` | Header `X-Tenant-ID` wajib untuk baca workflow dokumen |
 | `400` | `WORKFLOW_TRANSITION_NOT_ALLOWED` | Action tidak terdaftar di workflow definition |
 | `400` | `WORKFLOW_INSTANCE_STATE_MISMATCH` | State workflow instance tidak cocok |
+| `400` | `DOCUMENT_OBJECT_KEY_REQUIRED` | `object_key` versi dokumen wajib diisi |
+| `400` | `INTEGRATION_IDEMPOTENCY_KEY_REQUIRED` | `idempotency_key` sync log wajib diisi |
 | `422` | `REQUEST_VALIDATION_ERROR` | Payload tidak valid |
 
 ## Demo Credentials
@@ -845,6 +871,229 @@ Implementasi audit saat ini sudah mencatat aksi penting pada:
 - `budget`
 - `quality`
 - `workflow`
+
+### Document Management
+
+`GET /api/v1/documents`
+
+Mengembalikan daftar dokumen berdasarkan scope `X-Tenant-ID` dan opsional `X-SPPG-ID`.
+
+`GET /api/v1/documents/{document_id}`
+
+Mengembalikan bundle:
+
+- `document`
+- `versions`
+- `links`
+
+`POST /api/v1/documents`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+- `operations_manager`
+- `quality_officer`
+- `finance_manager`
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "sppg_id": "uuid",
+  "document_type": "QC_ATTACHMENT",
+  "title": "Checklist QC Batch 1",
+  "description": "Lampiran checklist quality control",
+  "owner_entity_type": "meal_plan",
+  "owner_entity_id": "uuid",
+  "tags": ["qc", "checklist"]
+}
+```
+
+`POST /api/v1/documents/{document_id}/versions`
+
+Payload:
+
+```json
+{
+  "file_name": "qc-checklist-20260719.pdf",
+  "file_mime_type": "application/pdf",
+  "file_size_bytes": 204800,
+  "checksum_sha256": "abc123checksum",
+  "storage_backend": "LOCAL",
+  "object_key": "documents/qc/qc-checklist-20260719.pdf",
+  "version_notes": "Versi awal",
+  "metadata_json": {
+    "source": "manual-upload"
+  },
+  "uploaded_at": "2026-07-19T10:30:00Z"
+}
+```
+
+`POST /api/v1/documents/{document_id}/links`
+
+Payload:
+
+```json
+{
+  "linked_entity_type": "meal_plan",
+  "linked_entity_id": "uuid",
+  "relation_type": "ATTACHMENT"
+}
+```
+
+Implementasi saat ini menyimpan metadata database dan `object_key` saja. Jadi backend sudah siap dipakai baik untuk local storage, MinIO, maupun S3-compatible storage tanpa mengubah kontrak API metadata.
+
+### Reporting
+
+`GET /api/v1/reporting/dashboard/tenant`
+
+Mengembalikan ringkasan tenant:
+
+- total meal plan
+- total budget
+- total production order
+- total delivery order
+- total document
+- status operasional utama
+- ringkasan finance
+- ringkasan governance seperti workflow dan audit
+
+Frontend sebaiknya mengirim `X-Tenant-ID`.
+
+`GET /api/v1/reporting/dashboard/sppg`
+
+Mengembalikan ringkasan level SPPG:
+
+- produksi
+- delivery
+- quality
+- stok
+
+Frontend sebaiknya mengirim `X-Tenant-ID` dan `X-SPPG-ID`.
+
+`GET /api/v1/reporting/stock-summary`
+
+Mengembalikan:
+
+- total stok on hand
+- total reserved
+- total available
+- `top_items` berdasarkan kuantitas on hand
+
+`GET /api/v1/reporting/delivery-performance`
+
+Mengembalikan:
+
+- total delivery order
+- total shipped/received/rejected portions
+- breakdown status delivery
+
+`GET /api/v1/reporting/budget-summary`
+
+Mengembalikan:
+
+- total effective budget
+- reserved/committed/actual amount
+- breakdown status budget
+
+Catatan:
+
+- read model ini masih dihitung langsung dari tabel transaksi
+- belum menggunakan materialized view atau cached summary table
+- cocok untuk dashboard internal tahap awal, lalu bisa dioptimasi pada fase reporting berikutnya
+
+### Integration
+
+`GET /api/v1/integration/external-systems`
+
+Mengembalikan daftar external system untuk tenant aktif.
+
+`GET /api/v1/integration/external-systems/{external_system_id}`
+
+Mengembalikan bundle:
+
+- `external_system`
+- `credentials`
+
+`POST /api/v1/integration/external-systems`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "code": "EXT-PARTNER-ERP",
+  "name": "Partner ERP Demo",
+  "system_type": "ERP",
+  "base_url": "https://partner.example.com/api",
+  "is_active": true,
+  "notes": "Sistem partner demo"
+}
+```
+
+`POST /api/v1/integration/external-systems/{external_system_id}/credentials`
+
+Payload:
+
+```json
+{
+  "credential_name": "primary-api-key",
+  "credential_type": "API_KEY",
+  "secret_masked": "****demo",
+  "config_json": {
+    "header_name": "X-API-Key"
+  },
+  "is_active": true
+}
+```
+
+`GET /api/v1/integration/sync-logs`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Query opsional:
+
+- `external_system_id`
+- `direction`
+
+`POST /api/v1/integration/sync-logs`
+
+Payload:
+
+```json
+{
+  "external_system_id": "uuid",
+  "direction": "OUTBOUND",
+  "message_type": "meal_plan.export",
+  "entity_type": "meal_plan",
+  "entity_id": null,
+  "external_reference": "REF-ERP-001",
+  "idempotency_key": "idem-mealplan-001",
+  "status": "PENDING",
+  "payload_json": {
+    "sample": true
+  },
+  "response_json": {},
+  "processed_at": null,
+  "notes": "Sinkronisasi awal"
+}
+```
+
+Aturan penting:
+
+- setiap sync log wajib memiliki `idempotency_key`
+- kombinasi tenant + external system + idempotency key harus unik
+- fondasi ini belum mengirim request HTTP sungguhan; yang dibangun sekarang adalah metadata integrasi, credential metadata, dan jejak sinkronisasi yang aman
 
 ### Meal Plan Workflow
 
