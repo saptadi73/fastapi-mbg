@@ -49,6 +49,25 @@ class Settings(BaseSettings):
     default_timezone: str = "Asia/Jakarta"
     default_currency: str = "IDR"
 
+    openai_enabled: bool = False
+    openai_api_key: str | None = None
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_nl2sql_model: str | None = None
+    openai_timeout_seconds: int = 60
+    openai_nl2sql_allow_execution: bool = False
+    openai_nl2sql_max_rows: int = 200
+    openai_nl2sql_system_prompt: str = (
+        "You translate analytical business questions into safe PostgreSQL SELECT queries for ERP MBG. "
+        "Return JSON only with keys: sql, explanation, assumptions, safety_notes."
+    )
+
+    google_ai_enabled: bool = False
+    google_ai_api_key: str | None = None
+    google_ai_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    google_ai_media_model: str | None = None
+    google_ai_timeout_seconds: int = 120
+    google_ai_media_max_download_mb: int = 20
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -3,15 +3,22 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config.settings import get_settings
 from app.core.database.session import get_db_session
 from app.core.security.permissions import require_roles
+from app.integrations.ai import GoogleAIMultimodalClient, OpenAINL2SQLClient
 from app.modules.ai.repositories.ai_repository import AIRepository
 from app.modules.ai.schemas.ai_schema import (
+    AIMediaAnalysisRead,
+    AIMediaAnalysisRequest,
+    AINL2SQLRead,
+    AINL2SQLRequest,
     AIDailySummaryCreate,
     AIDailySummaryRead,
     AIForecastCreate,
     AIForecastRead,
     AIOverviewRead,
+    AIProviderStatusRead,
     AIRecommendationCreate,
     AIRecommendationRead,
 )
@@ -27,15 +34,31 @@ router = APIRouter()
 
 
 def get_ai_service(session: AsyncSession = Depends(get_db_session)) -> AIService:
+    settings = get_settings()
     return AIService(
+        session,
         AIRepository(session),
         TenantRepository(session),
         SppgRepository(session),
+        settings,
+        OpenAINL2SQLClient(settings),
+        GoogleAIMultimodalClient(settings),
     )
 
 
 def get_audit_service(session: AsyncSession) -> AuditService:
     return AuditService(AuditRepository(session))
+
+
+@router.get("/providers/status")
+async def get_provider_status(request: Request, service: AIService = Depends(get_ai_service)) -> dict:
+    payload = service.provider_status()
+    return success_response(
+        code="AI_PROVIDER_STATUS_FOUND",
+        message="Status provider AI berhasil diambil.",
+        data=AIProviderStatusRead.model_validate(payload),
+        meta={"request_id": request.state.request_id},
+    )
 
 
 @router.get("/forecasts")
@@ -211,5 +234,53 @@ async def get_overview(request: Request, service: AIService = Depends(get_ai_ser
         code="AI_OVERVIEW_FOUND",
         message="Ringkasan AI berhasil diambil.",
         data=AIOverviewRead.model_validate(payload),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.post("/nl2sql/query")
+async def generate_nl2sql(
+    payload: AINL2SQLRequest,
+    request: Request,
+    service: AIService = Depends(get_ai_service),
+    _: User = Depends(require_roles("super_admin", "tenant_admin", "finance_manager", "operations_manager")),
+) -> dict:
+    result = await service.generate_nl2sql(payload)
+    return success_response(
+        code="AI_NL2SQL_GENERATED",
+        message="NL2SQL berhasil diproses.",
+        data=AINL2SQLRead.model_validate(result),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.post("/media/analyze-image")
+async def analyze_image(
+    payload: AIMediaAnalysisRequest,
+    request: Request,
+    service: AIService = Depends(get_ai_service),
+    _: User = Depends(require_roles("super_admin", "tenant_admin", "quality_officer", "operations_manager")),
+) -> dict:
+    result = await service.analyze_image(payload)
+    return success_response(
+        code="AI_IMAGE_ANALYSIS_COMPLETED",
+        message="Analisa image oleh Google AI berhasil diproses.",
+        data=AIMediaAnalysisRead.model_validate(result),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.post("/media/analyze-video")
+async def analyze_video(
+    payload: AIMediaAnalysisRequest,
+    request: Request,
+    service: AIService = Depends(get_ai_service),
+    _: User = Depends(require_roles("super_admin", "tenant_admin", "quality_officer", "operations_manager")),
+) -> dict:
+    result = await service.analyze_video(payload)
+    return success_response(
+        code="AI_VIDEO_ANALYSIS_COMPLETED",
+        message="Analisa video oleh Google AI berhasil diproses.",
+        data=AIMediaAnalysisRead.model_validate(result),
         meta={"request_id": request.state.request_id},
     )

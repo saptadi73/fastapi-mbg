@@ -1,4 +1,7 @@
 def import_all_models() -> None:
+    import app.modules.ai.models.ai_daily_summary  # noqa: F401
+    import app.modules.ai.models.ai_forecast  # noqa: F401
+    import app.modules.ai.models.ai_recommendation  # noqa: F401
     import app.modules.accounting.models.account  # noqa: F401
     import app.modules.accounting.models.journal_entry  # noqa: F401
     import app.modules.accounting.models.journal_line  # noqa: F401

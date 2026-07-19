@@ -102,3 +102,42 @@ class AIDailySummaryRead(BaseModel):
 class AIOverviewRead(BaseModel):
     totals: dict
     breakdown: dict
+
+
+class AIProviderStatusRead(BaseModel):
+    providers: dict
+
+
+class AINL2SQLRequest(BaseModel):
+    question: str
+    dialect: str = "postgresql"
+    schema_context: str | None = None
+    auto_schema_context: bool = True
+    execute_sql: bool = False
+    max_rows: int | None = None
+
+
+class AINL2SQLRead(BaseModel):
+    provider: str
+    model: str | None
+    sql: str
+    explanation: str | None = None
+    assumptions: list[str] | None = None
+    safety_notes: list[str] | None = None
+    executed: bool
+    rows: list[dict] = Field(default_factory=list)
+    row_count: int = 0
+
+
+class AIMediaAnalysisRequest(BaseModel):
+    prompt: str
+    mime_type: str
+    source_url: str | None = None
+    base64_data: str | None = None
+
+
+class AIMediaAnalysisRead(BaseModel):
+    provider: str
+    model: str | None
+    analysis_text: str
+    raw_response: dict

@@ -28,6 +28,23 @@ http://127.0.0.1:8000
 8. `GET /api/v1/identity/users/{user_id}/sppg-access`
 9. `PUT /api/v1/identity/users/{user_id}/sppg-access`
 
+### AI
+
+1. `GET /api/v1/ai/forecasts`
+2. `POST /api/v1/ai/forecasts`
+3. `GET /api/v1/ai/forecasts/{forecast_id}`
+4. `GET /api/v1/ai/recommendations`
+5. `POST /api/v1/ai/recommendations`
+6. `GET /api/v1/ai/recommendations/{recommendation_id}`
+7. `GET /api/v1/ai/daily-summaries`
+8. `POST /api/v1/ai/daily-summaries`
+9. `GET /api/v1/ai/daily-summaries/{summary_id}`
+10. `GET /api/v1/ai/overview`
+11. `GET /api/v1/ai/providers/status`
+12. `POST /api/v1/ai/nl2sql/query`
+13. `POST /api/v1/ai/media/analyze-image`
+14. `POST /api/v1/ai/media/analyze-video`
+
 ### Master Data
 
 1. `GET /api/v1/tenants/`
@@ -243,6 +260,255 @@ Endpoint write saat ini butuh token:
 
 - seluruh `POST` selain `/api/v1/identity/login`
 - `GET /api/v1/identity/me`
+
+### AI
+
+`GET /api/v1/ai/forecasts`
+
+Mengambil daftar AI forecast sesuai scope tenant dan opsional SPPG.
+
+`POST /api/v1/ai/forecasts`
+
+Menyimpan hasil forecast yang dihasilkan sistem atau worker AI tanpa membuat modul operasional bergantung langsung pada provider eksternal.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "forecast_type": "DEMAND_PORTIONS",
+  "forecast_date": "2026-07-19",
+  "target_date": "2026-07-20",
+  "model_name": "baseline_moving_average_v1",
+  "input_snapshot": {
+    "historical_days": 14,
+    "recent_average_portions": 1280
+  },
+  "forecast_payload": {
+    "forecast_portions": 1325,
+    "lower_bound": 1275,
+    "upper_bound": 1375
+  },
+  "confidence_score": 0.86,
+  "status": "GENERATED",
+  "notes": "Forecast permintaan porsi harian"
+}
+```
+
+`GET /api/v1/ai/forecasts/{forecast_id}`
+
+Mengambil detail satu forecast.
+
+`GET /api/v1/ai/recommendations`
+
+Mengambil daftar AI recommendation sesuai scope.
+
+`POST /api/v1/ai/recommendations`
+
+Menyimpan rekomendasi AI seperti menu recommendation, procurement recommendation, atau anomaly explanation.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "recommendation_date": "2026-07-19",
+  "recommendation_type": "MENU_RECOMMENDATION",
+  "reference_type": "meal_plan",
+  "reference_id": "reference-uuid",
+  "title": "Optimalkan menu besok",
+  "summary_text": "Naikkan porsi protein dan kurangi lauk dengan waste tinggi.",
+  "recommendation_payload": {
+    "suggested_recipe_codes": ["REC-AYAM-01", "REC-SAYUR-02"],
+    "reason_codes": ["HIGH_WASTE", "LOW_ACCEPTANCE"]
+  },
+  "priority": "HIGH",
+  "status": "OPEN",
+  "notes": "Hasil evaluasi acceptance dan waste"
+}
+```
+
+`GET /api/v1/ai/recommendations/{recommendation_id}`
+
+Mengambil detail satu recommendation.
+
+`GET /api/v1/ai/daily-summaries`
+
+Mengambil daftar AI daily summary.
+
+`POST /api/v1/ai/daily-summaries`
+
+Menyimpan ringkasan harian AI untuk operasi, keuangan, atau kualitas layanan.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "summary_date": "2026-07-19",
+  "summary_type": "OPERATIONS",
+  "headline": "Operasi stabil dengan satu anomali minor",
+  "summary_text": "Produksi dan delivery berjalan baik, namun ada satu deviasi suhu saat distribusi pagi.",
+  "metrics_payload": {
+    "on_time_delivery_rate": 0.96,
+    "avg_cost_per_portion": 14850,
+    "service_quality_index": 87.8
+  },
+  "anomaly_count": 1,
+  "recommendation_count": 2,
+  "status": "GENERATED",
+  "notes": "Daily AI summary otomatis"
+}
+```
+
+`GET /api/v1/ai/daily-summaries/{summary_id}`
+
+Mengambil detail satu AI daily summary.
+
+`GET /api/v1/ai/overview`
+
+Mengembalikan ringkasan:
+
+- jumlah forecast
+- jumlah recommendation
+- jumlah daily summary
+- recommendation yang masih `OPEN`
+- recommendation prioritas `HIGH`
+- forecast berstatus `GENERATED`
+- total anomaly flags dari daily summary
+
+Frontend sebaiknya mengirim `X-Tenant-ID` untuk seluruh endpoint AI dan `X-SPPG-ID` untuk data level dapur.
+
+`GET /api/v1/ai/providers/status`
+
+Mengembalikan status konfigurasi provider AI yang dipakai backend.
+
+Struktur `data.providers`:
+
+- `openai_nl2sql.enabled`
+- `openai_nl2sql.configured`
+- `openai_nl2sql.base_url`
+- `openai_nl2sql.model`
+- `openai_nl2sql.allow_execution`
+- `google_ai_media.enabled`
+- `google_ai_media.configured`
+- `google_ai_media.base_url`
+- `google_ai_media.model`
+- `google_ai_media.max_download_mb`
+
+Endpoint ini berguna agar frontend bisa:
+
+- menampilkan badge provider siap pakai atau belum
+- menyembunyikan fitur NL2SQL bila belum dikonfigurasi
+- memberi warning bila analisa media belum aktif
+
+`POST /api/v1/ai/nl2sql/query`
+
+Mengubah pertanyaan analitik menjadi SQL PostgreSQL read-only dengan provider OpenAI. Endpoint ini mendukung dua mode:
+
+- generate SQL saja
+- generate lalu eksekusi SQL bila `OPENAI_NL2SQL_ALLOW_EXECUTION=true`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+- `finance_manager`
+- `operations_manager`
+
+Payload:
+
+```json
+{
+  "question": "Tampilkan 10 meal plan terbaru untuk tenant aktif beserta total planned_portions.",
+  "dialect": "postgresql",
+  "schema_context": null,
+  "auto_schema_context": true,
+  "execute_sql": false,
+  "max_rows": 10
+}
+```
+
+Response `data`:
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "sql": "SELECT id, plan_date, planned_portions FROM meal_plans ORDER BY plan_date DESC LIMIT 10",
+  "explanation": "Mengambil 10 meal plan terbaru pada tenant aktif.",
+  "assumptions": ["Tabel meal_plans tersedia pada schema public."],
+  "safety_notes": ["Query dibatasi read-only."],
+  "executed": false,
+  "rows": [],
+  "row_count": 0
+}
+```
+
+Aturan penting:
+
+- backend hanya menerima SQL `SELECT` atau `WITH`
+- multi-statement dan query mutasi seperti `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, dan sejenisnya ditolak
+- bila `execute_sql=false`, frontend bisa menampilkan SQL untuk direview user
+- bila `execute_sql=true` tetapi konfigurasi env belum mengizinkan eksekusi, backend mengembalikan error `OPENAI_NL2SQL_EXECUTION_DISABLED`
+
+`POST /api/v1/ai/media/analyze-image`
+
+Menganalisa foto menggunakan Google AI untuk kebutuhan quality, operasional, atau inspeksi lapangan.
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+- `quality_officer`
+- `operations_manager`
+
+Payload:
+
+```json
+{
+  "prompt": "Jelaskan kondisi makanan, kebersihan wadah, dan potensi masalah kualitas pada foto ini.",
+  "mime_type": "image/jpeg",
+  "source_url": "https://example.com/sample-food-photo.jpg",
+  "base64_data": null
+}
+```
+
+`POST /api/v1/ai/media/analyze-video`
+
+Menganalisa video menggunakan Google AI. Cocok untuk audit distribusi, inspeksi fasilitas, atau review proses produksi singkat.
+
+Payload:
+
+```json
+{
+  "prompt": "Ringkas aktivitas utama pada video dan tandai potensi pelanggaran SOP.",
+  "mime_type": "video/mp4",
+  "source_url": "https://example.com/sample-distribution-video.mp4",
+  "base64_data": null
+}
+```
+
+Response `data` untuk image dan video:
+
+```json
+{
+  "provider": "google_ai",
+  "model": "gemini-2.5-flash",
+  "analysis_text": "Foto menunjukkan makanan tersaji rapi, tetapi tutup wadah tidak tertutup sempurna.",
+  "raw_response": {}
+}
+```
+
+Aturan penting media AI:
+
+- isi salah satu `source_url` atau `base64_data`
+- `mime_type` wajib sesuai endpoint: `image/*` untuk image dan `video/*` untuk video
+- file hasil download dibatasi oleh `GOOGLE_AI_MEDIA_MAX_DOWNLOAD_MB`
+- untuk video besar, implementasi saat ini lebih cocok untuk clip pendek; bila nanti butuh video panjang, sebaiknya dikembangkan ke workflow upload file terpisah
 
 ## Standard JSON Response
 

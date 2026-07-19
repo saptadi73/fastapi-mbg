@@ -41,6 +41,20 @@ Authorization: Bearer <access_token>
 | `PUT` | `/api/v1/identity/users/{user_id}` | Yes | `super_admin`, `tenant_admin` | Update profil, role, dan scope user |
 | `GET` | `/api/v1/identity/users/{user_id}/sppg-access` | Yes | `super_admin`, `tenant_admin` | Lihat akses SPPG user |
 | `PUT` | `/api/v1/identity/users/{user_id}/sppg-access` | Yes | `super_admin`, `tenant_admin` | Ubah akses SPPG user |
+| `GET` | `/api/v1/ai/forecasts` | No | - | List AI forecast |
+| `POST` | `/api/v1/ai/forecasts` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `finance_manager` | Simpan AI forecast |
+| `GET` | `/api/v1/ai/forecasts/{forecast_id}` | No | - | Detail AI forecast |
+| `GET` | `/api/v1/ai/recommendations` | No | - | List AI recommendation |
+| `POST` | `/api/v1/ai/recommendations` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `finance_manager` | Simpan AI recommendation |
+| `GET` | `/api/v1/ai/recommendations/{recommendation_id}` | No | - | Detail AI recommendation |
+| `GET` | `/api/v1/ai/daily-summaries` | No | - | List AI daily summary |
+| `POST` | `/api/v1/ai/daily-summaries` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `finance_manager` | Simpan AI daily summary |
+| `GET` | `/api/v1/ai/daily-summaries/{summary_id}` | No | - | Detail AI daily summary |
+| `GET` | `/api/v1/ai/overview` | No | - | Ringkasan AI forecast/recommendation/summary |
+| `GET` | `/api/v1/ai/providers/status` | No | - | Cek status konfigurasi OpenAI NL2SQL dan Google AI |
+| `POST` | `/api/v1/ai/nl2sql/query` | Yes | `super_admin`, `tenant_admin`, `finance_manager`, `operations_manager` | Ubah pertanyaan analitik menjadi SQL aman |
+| `POST` | `/api/v1/ai/media/analyze-image` | Yes | `super_admin`, `tenant_admin`, `quality_officer`, `operations_manager` | Analisa foto dengan Google AI |
+| `POST` | `/api/v1/ai/media/analyze-video` | Yes | `super_admin`, `tenant_admin`, `quality_officer`, `operations_manager` | Analisa video dengan Google AI |
 | `GET` | `/api/v1/tenants/` | No | - | List tenant |
 | `GET` | `/api/v1/sppg/` | No | - | List SPPG |
 | `GET` | `/api/v1/programs/` | No | - | List program |
@@ -552,6 +566,35 @@ Catatan `GET /api/v1/costing/production-costs/{production_order_id}`:
   "condition_notes": "Diterima dengan sedikit reject"
 }
 ```
+
+### Generate NL2SQL
+
+```json
+{
+  "question": "Tampilkan 10 meal plan terbaru untuk tenant aktif beserta total planned_portions.",
+  "dialect": "postgresql",
+  "auto_schema_context": true,
+  "execute_sql": false,
+  "max_rows": 10
+}
+```
+
+### Analyze Image With Google AI
+
+```json
+{
+  "prompt": "Jelaskan kondisi makanan, kebersihan wadah, dan potensi masalah kualitas pada foto ini.",
+  "mime_type": "image/jpeg",
+  "source_url": "https://example.com/sample-food-photo.jpg"
+}
+```
+
+### AI Integration Notes
+
+- Aktifkan OpenAI lewat `OPENAI_ENABLED=true`, isi `OPENAI_API_KEY`, dan pilih `OPENAI_NL2SQL_MODEL`.
+- Aktifkan Google AI lewat `GOOGLE_AI_ENABLED=true`, isi `GOOGLE_AI_API_KEY`, dan pilih `GOOGLE_AI_MEDIA_MODEL`.
+- Untuk browser frontend, pastikan header `X-SPPG-ID` ikut diizinkan CORS karena dipakai luas di modul multi-SPPG.
+- Default `OPENAI_NL2SQL_ALLOW_EXECUTION=false`, jadi endpoint NL2SQL aman dipakai dulu untuk generate query tanpa eksekusi database.
 
 ### Create Account
 

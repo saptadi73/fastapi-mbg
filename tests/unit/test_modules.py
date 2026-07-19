@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -174,6 +175,159 @@ def test_identity_admin_user_management_endpoints_work() -> None:
     assert update_payload["code"] == "IDENTITY_USER_UPDATED"
     assert update_payload["data"]["full_name"] == "QA Admin User Updated"
     assert update_payload["data"]["role_names"] == ["operations_manager"]
+
+
+def test_ai_foundation_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        recommendation_ref_id = str(uuid4())
+        ai_base_dt = date(2027, 1, 1) + timedelta(days=uuid4().int % 365)
+        ai_target_dt = ai_base_dt + timedelta(days=1)
+        ai_base_date = ai_base_dt.isoformat()
+        ai_target_date = ai_target_dt.isoformat()
+
+        forecast_response = client.post(
+            "/api/v1/ai/forecasts",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "forecast_type": "DEMAND_PORTIONS",
+                "forecast_date": ai_base_date,
+                "target_date": ai_target_date,
+                "model_name": "baseline_moving_average_v1",
+                "input_snapshot": {"historical_days": 14, "recent_average_portions": 1280},
+                "forecast_payload": {"forecast_portions": 1325, "lower_bound": 1275, "upper_bound": 1375},
+                "confidence_score": 0.86,
+                "status": "GENERATED",
+                "notes": "Forecast permintaan porsi harian",
+            },
+        )
+        assert forecast_response.status_code == 201, forecast_response.json()
+        forecast_id = forecast_response.json()["data"]["id"]
+
+        recommendation_response = client.post(
+            "/api/v1/ai/recommendations",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "recommendation_date": ai_base_date,
+                "recommendation_type": "MENU_RECOMMENDATION",
+                "reference_type": "meal_plan",
+                "reference_id": recommendation_ref_id,
+                "title": "Optimalkan menu besok",
+                "summary_text": "Naikkan porsi protein dan kurangi lauk dengan waste tinggi.",
+                "recommendation_payload": {
+                    "suggested_recipe_codes": ["REC-AYAM-01", "REC-SAYUR-02"],
+                    "reason_codes": ["HIGH_WASTE", "LOW_ACCEPTANCE"],
+                },
+                "priority": "HIGH",
+                "status": "OPEN",
+                "notes": "Hasil evaluasi acceptance dan waste",
+            },
+        )
+        assert recommendation_response.status_code == 201, recommendation_response.json()
+        recommendation_id = recommendation_response.json()["data"]["id"]
+
+        summary_response = client.post(
+            "/api/v1/ai/daily-summaries",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "summary_date": ai_base_date,
+                "summary_type": "OPERATIONS",
+                "headline": "Operasi stabil dengan satu anomali minor",
+                "summary_text": "Produksi dan delivery berjalan baik, namun ada satu deviasi suhu saat distribusi pagi.",
+                "metrics_payload": {
+                    "on_time_delivery_rate": 0.96,
+                    "avg_cost_per_portion": 14850,
+                    "service_quality_index": 87.8,
+                },
+                "anomaly_count": 1,
+                "recommendation_count": 2,
+                "status": "GENERATED",
+                "notes": "Daily AI summary otomatis",
+            },
+        )
+        assert summary_response.status_code == 201, summary_response.json()
+        summary_id = summary_response.json()["data"]["id"]
+
+        forecast_detail_response = client.get(
+            f"/api/v1/ai/forecasts/{forecast_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        recommendation_detail_response = client.get(
+            f"/api/v1/ai/recommendations/{recommendation_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        summary_detail_response = client.get(
+            f"/api/v1/ai/daily-summaries/{summary_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        forecasts_response = client.get("/api/v1/ai/forecasts", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        recommendations_response = client.get(
+            "/api/v1/ai/recommendations",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        summaries_response = client.get(
+            "/api/v1/ai/daily-summaries",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        overview_response = client.get("/api/v1/ai/overview", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+
+    assert forecast_response.json()["code"] == "AI_FORECAST_CREATED"
+    assert recommendation_response.json()["code"] == "AI_RECOMMENDATION_CREATED"
+    assert summary_response.json()["code"] == "AI_DAILY_SUMMARY_CREATED"
+    assert forecast_detail_response.status_code == 200
+    assert forecast_detail_response.json()["data"]["id"] == forecast_id
+    assert recommendation_detail_response.status_code == 200
+    assert recommendation_detail_response.json()["data"]["id"] == recommendation_id
+    assert summary_detail_response.status_code == 200
+    assert summary_detail_response.json()["data"]["id"] == summary_id
+    assert forecasts_response.status_code == 200
+    assert any(item["id"] == forecast_id for item in forecasts_response.json()["data"])
+    assert recommendations_response.status_code == 200
+    assert any(item["id"] == recommendation_id for item in recommendations_response.json()["data"])
+    assert summaries_response.status_code == 200
+    assert any(item["id"] == summary_id for item in summaries_response.json()["data"])
+    assert overview_response.status_code == 200
+    overview_payload = overview_response.json()["data"]
+    assert overview_payload["totals"]["forecasts"] >= 1
+    assert overview_payload["totals"]["recommendations"] >= 1
+    assert overview_payload["totals"]["daily_summaries"] >= 1
+
+
+def test_ai_provider_status_returns_standard_envelope() -> None:
+    with TestClient(app) as client:
+        response = client.get("/api/v1/ai/providers/status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["code"] == "AI_PROVIDER_STATUS_FOUND"
+    assert "providers" in payload["data"]
+    assert "openai_nl2sql" in payload["data"]["providers"]
+    assert "google_ai_media" in payload["data"]["providers"]
 
 
 def test_sppg_endpoint_supports_tenant_context_filter() -> None:
@@ -3435,8 +3589,7 @@ def test_feedback_submission_complaint_score_and_summary_flow_works() -> None:
         sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
         school_id = client.get("/api/v1/geography/schools/").json()["data"][0]["id"]
         recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
-        feedback_day = 20 + (uuid4().int % 8)
-        feedback_date = f"2026-07-{feedback_day:02d}"
+        feedback_date = (date(2027, 1, 1) + timedelta(days=uuid4().int % 365)).isoformat()
 
         meal_plan_response = client.post(
             "/api/v1/meal-plans/",
