@@ -667,6 +667,50 @@ def test_workflow_definition_endpoints_and_document_history_work() -> None:
         sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
         recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
         code_suffix = str(uuid4()).split("-")[0].upper()
+        position_response = client.post(
+            "/api/v1/workforce/positions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"CST-{code_suffix}",
+                "name": "Costing Crew",
+                "description": "Crew for costing test",
+                "is_active": True,
+            },
+        )
+        assert position_response.status_code == 201, position_response.json()
+        position_id = position_response.json()["data"]["id"]
+        employee_response = client.post(
+            "/api/v1/workforce/employees",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "position_id": position_id,
+                "employee_code": f"EMP-COST-{code_suffix}",
+                "full_name": "Crew Costing",
+                "employment_type": "DAILY",
+                "join_date": "2026-07-19",
+                "phone_number": "081111111111",
+                "daily_rate": 150000,
+                "is_active": True,
+            },
+        )
+        assert employee_response.status_code == 201, employee_response.json()
+        employee_id = employee_response.json()["data"]["id"]
+        assignment_response = client.post(
+            f"/api/v1/workforce/employees/{employee_id}/assignments",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "sppg_id": sppg_id,
+                "start_date": "2026-07-19",
+                "end_date": None,
+                "assignment_role": "COOK",
+                "is_primary": True,
+                "is_active": True,
+                "notes": "Assignment costing test",
+            },
+        )
+        assert assignment_response.status_code == 201, assignment_response.json()
 
         create_definition_response = client.post(
             "/api/v1/workflows/definitions",
@@ -923,12 +967,15 @@ def test_reporting_endpoints_work() -> None:
     assert "totals" in tenant_payload
     assert "finance" in tenant_payload
     assert "governance" in tenant_payload
+    assert "employees" in tenant_payload["totals"]
+    assert "actual_labor_cost_amount" in tenant_payload["finance"]
 
     assert sppg_dashboard_response.status_code == 200, sppg_dashboard_response.json()
     sppg_payload = sppg_dashboard_response.json()["data"]
     assert "production" in sppg_payload
     assert "delivery" in sppg_payload
     assert "stock" in sppg_payload
+    assert "workforce" in sppg_payload
 
     assert stock_summary_response.status_code == 200, stock_summary_response.json()
     assert "totals" in stock_summary_response.json()["data"]
@@ -1038,6 +1085,50 @@ def test_costing_policy_and_production_cost_summary_work() -> None:
         sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
         recipe_id = client.get("/api/v1/recipes/").json()["data"][0]["id"]
         code_suffix = str(uuid4()).split("-")[0].upper()
+        position_response = client.post(
+            "/api/v1/workforce/positions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"CST-{code_suffix}",
+                "name": "Costing Crew",
+                "description": "Crew for costing test",
+                "is_active": True,
+            },
+        )
+        assert position_response.status_code == 201, position_response.json()
+        position_id = position_response.json()["data"]["id"]
+        employee_response = client.post(
+            "/api/v1/workforce/employees",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "position_id": position_id,
+                "employee_code": f"EMP-COST-{code_suffix}",
+                "full_name": "Crew Costing",
+                "employment_type": "DAILY",
+                "join_date": "2026-07-19",
+                "phone_number": "081111111111",
+                "daily_rate": 150000,
+                "is_active": True,
+            },
+        )
+        assert employee_response.status_code == 201, employee_response.json()
+        employee_id = employee_response.json()["data"]["id"]
+        assignment_response = client.post(
+            f"/api/v1/workforce/employees/{employee_id}/assignments",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "sppg_id": sppg_id,
+                "start_date": "2026-07-19",
+                "end_date": None,
+                "assignment_role": "COOK",
+                "is_primary": True,
+                "is_active": True,
+                "notes": "Assignment costing test",
+            },
+        )
+        assert assignment_response.status_code == 201, assignment_response.json()
 
         create_policy_response = client.post(
             "/api/v1/costing/policies",
@@ -1067,7 +1158,7 @@ def test_costing_policy_and_production_cost_summary_work() -> None:
                 "tenant_id": tenant_id,
                 "sppg_id": sppg_id,
                 "recipe_id": recipe_id,
-                "plan_date": "2026-08-05",
+                "plan_date": "2026-12-31",
                 "meal_type": "LUNCH",
                 "status": "DRAFT",
                 "planned_portions": 9,
@@ -1088,6 +1179,22 @@ def test_costing_policy_and_production_cost_summary_work() -> None:
             headers={"Authorization": f"Bearer {access_token}"},
         )
         production_order_id = create_po_response.json()["data"]["production_order"]["id"]
+        labor_cost_response = client.post(
+            "/api/v1/workforce/labor-costs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "employee_id": employee_id,
+                "timesheet_id": None,
+                "cost_date": "2026-12-31",
+                "cost_component": "LABOR",
+                "hours_worked": 4,
+                "hourly_rate": 25000,
+                "notes": "Actual labor cost for costing test",
+            },
+        )
+        assert labor_cost_response.status_code == 201, labor_cost_response.json()
         complete_response = client.post(
             f"/api/v1/production-orders/{production_order_id}/complete",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -1112,6 +1219,8 @@ def test_costing_policy_and_production_cost_summary_work() -> None:
     assert payload["actual_cost_per_accepted_portion"] >= 0
     assert payload["budget_cost_per_portion"] == 15000
     assert payload["applied_cost_policy_id"] is not None
+    assert payload["labor_cost"] >= 100000
+    assert payload["labor_cost_source"] == "ACTUAL"
 
 
 def test_notification_template_preference_dispatch_and_inbox_work() -> None:
@@ -1419,6 +1528,194 @@ def test_government_claim_flow_works() -> None:
 
     assert list_response.status_code == 200, list_response.json()
     assert any(item["id"] == claim_id for item in list_response.json()["data"])
+
+
+def test_workforce_foundation_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        me = client.get(
+            "/api/v1/identity/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        ).json()["data"]
+        tenant_id = me["tenant_id"]
+        sppg_id = me["active_sppg_id"]
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        create_position_response = client.post(
+            "/api/v1/workforce/positions",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"CHEF-{code_suffix}",
+                "name": "Chief Cook",
+                "description": "Penanggung jawab dapur",
+                "is_active": True,
+            },
+        )
+        assert create_position_response.status_code == 201, create_position_response.json()
+        position_id = create_position_response.json()["data"]["id"]
+
+        create_employee_response = client.post(
+            "/api/v1/workforce/employees",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "position_id": position_id,
+                "employee_code": f"EMP-{code_suffix}",
+                "full_name": "Budi Santoso",
+                "employment_type": "DAILY",
+                "join_date": "2026-07-20",
+                "phone_number": "081234567890",
+                "daily_rate": 150000,
+                "is_active": True,
+            },
+        )
+        assert create_employee_response.status_code == 201, create_employee_response.json()
+        employee_id = create_employee_response.json()["data"]["id"]
+
+        assignment_response = client.post(
+            f"/api/v1/workforce/employees/{employee_id}/assignments",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "sppg_id": sppg_id,
+                "start_date": "2026-07-20",
+                "end_date": None,
+                "assignment_role": "COOK",
+                "is_primary": True,
+                "is_active": True,
+                "notes": "Penempatan dapur utama",
+            },
+        )
+        assert assignment_response.status_code == 201, assignment_response.json()
+        assignment_id = assignment_response.json()["data"]["id"]
+
+        shift_response = client.post(
+            "/api/v1/workforce/shifts",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "employee_id": employee_id,
+                "assignment_id": assignment_id,
+                "shift_date": "2026-07-20",
+                "shift_name": "PAGI",
+                "planned_start_at": "2026-07-20T05:00:00Z",
+                "planned_end_at": "2026-07-20T13:00:00Z",
+                "status": "PLANNED",
+                "notes": "Shift persiapan sarapan",
+            },
+        )
+        assert shift_response.status_code == 201, shift_response.json()
+        shift_id = shift_response.json()["data"]["id"]
+
+        attendance_response = client.post(
+            "/api/v1/workforce/attendance",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "employee_id": employee_id,
+                "shift_id": shift_id,
+                "check_in_at": "2026-07-20T05:05:00Z",
+                "check_out_at": "2026-07-20T13:10:00Z",
+                "attendance_status": "PRESENT",
+                "notes": "Masuk tepat waktu",
+            },
+        )
+        assert attendance_response.status_code == 201, attendance_response.json()
+
+        timesheet_response = client.post(
+            "/api/v1/workforce/timesheets",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "employee_id": employee_id,
+                "period_start": "2026-07-20",
+                "period_end": "2026-07-20",
+                "total_days": 1,
+                "total_hours": 8.083333,
+                "status": "SUBMITTED",
+                "notes": "Timesheet harian",
+            },
+        )
+        assert timesheet_response.status_code == 201, timesheet_response.json()
+        timesheet_id = timesheet_response.json()["data"]["id"]
+
+        labor_cost_response = client.post(
+            "/api/v1/workforce/labor-costs",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+            json={
+                "tenant_id": tenant_id,
+                "sppg_id": sppg_id,
+                "employee_id": employee_id,
+                "timesheet_id": timesheet_id,
+                "cost_date": "2026-07-20",
+                "cost_component": "LABOR",
+                "hours_worked": 8.083333,
+                "hourly_rate": 20000,
+                "notes": "Biaya tenaga kerja harian",
+            },
+        )
+
+        positions_response = client.get(
+            "/api/v1/workforce/positions",
+            headers={"X-Tenant-ID": tenant_id},
+        )
+        employees_response = client.get(
+            "/api/v1/workforce/employees",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        employee_detail_response = client.get(
+            f"/api/v1/workforce/employees/{employee_id}",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        shifts_response = client.get(
+            "/api/v1/workforce/shifts",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        attendance_list_response = client.get(
+            "/api/v1/workforce/attendance",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        timesheet_list_response = client.get(
+            "/api/v1/workforce/timesheets",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        labor_cost_list_response = client.get(
+            "/api/v1/workforce/labor-costs",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+
+    assert labor_cost_response.status_code == 201, labor_cost_response.json()
+    assert round(labor_cost_response.json()["data"]["total_cost"], 2) == round(8.083333 * 20000, 2)
+
+    assert positions_response.status_code == 200, positions_response.json()
+    assert any(item["id"] == position_id for item in positions_response.json()["data"])
+
+    assert employees_response.status_code == 200, employees_response.json()
+    assert any(item["id"] == employee_id for item in employees_response.json()["data"])
+
+    assert employee_detail_response.status_code == 200, employee_detail_response.json()
+    detail_payload = employee_detail_response.json()["data"]
+    assert detail_payload["employee"]["id"] == employee_id
+    assert len(detail_payload["assignments"]) == 1
+
+    assert shifts_response.status_code == 200, shifts_response.json()
+    assert any(item["id"] == shift_id for item in shifts_response.json()["data"])
+
+    assert attendance_list_response.status_code == 200, attendance_list_response.json()
+    assert attendance_list_response.json()["data"][0]["worked_hours"] > 8
+
+    assert timesheet_list_response.status_code == 200, timesheet_list_response.json()
+    assert any(item["id"] == timesheet_id for item in timesheet_list_response.json()["data"])
+
+    assert labor_cost_list_response.status_code == 200, labor_cost_list_response.json()
+    assert any(item["employee_id"] == employee_id for item in labor_cost_list_response.json()["data"])
 
 
 def test_uom_create_rejects_tenant_write_scope_violation() -> None:
@@ -2828,6 +3125,159 @@ def test_budget_create_submit_approve_and_availability_works() -> None:
 
     assert availability_response.status_code == 200
     assert availability_response.json()["code"] == "BUDGET_AVAILABILITY_FOUND"
+
+
+def test_funding_source_agreement_disbursement_repayment_flow_works() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        accounts = client.get("/api/v1/accounts").json()["data"]
+        account_by_code = {account["code"]: account for account in accounts}
+        needed_accounts = [
+            ("110000", "Kas dan Bank", "ASSET", "DEBIT"),
+            ("230500", "Liabilitas Pendanaan Jangka Pendek", "LIABILITY", "CREDIT"),
+        ]
+        for code, name, category, normal_balance in needed_accounts:
+            if code not in account_by_code:
+                create_account_response = client.post(
+                    "/api/v1/accounts",
+                    headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+                    json={
+                        "tenant_id": tenant_id,
+                        "code": code,
+                        "name": name,
+                        "category": category,
+                        "normal_balance": normal_balance,
+                    },
+                )
+                assert create_account_response.status_code == 201, create_account_response.json()
+        code_suffix = str(uuid4()).split("-")[0].upper()
+
+        source_response = client.post(
+            "/api/v1/funding/sources",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "code": f"FUND-{code_suffix}",
+                "source_type": "INVESTOR_BRIDGE_FUND",
+                "name": "Investor Bridge Fund Demo",
+                "party_name": "PT Investor Demo",
+                "contract_number": f"PKS-{code_suffix}",
+                "start_date": "2026-07-19",
+                "end_date": "2027-07-19",
+                "status": "DRAFT",
+                "is_active": True,
+                "notes": "Pendanaan awal tenant untuk tes",
+            },
+        )
+        assert source_response.status_code == 201, source_response.json()
+        source_id = source_response.json()["data"]["id"]
+
+        agreement_response = client.post(
+            "/api/v1/funding/agreements",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "funding_source_id": source_id,
+                "agreement_type": "MUDHARABAH",
+                "principal_amount": 10000000,
+                "margin_method": "PERCENTAGE",
+                "margin_rate": 12,
+                "fixed_margin_amount": None,
+                "disbursement_schedule": {"phase": "single"},
+                "repayment_terms": {"tenor_months": 6},
+                "status": "DRAFT",
+                "notes": "Agreement funding demo",
+            },
+        )
+        assert agreement_response.status_code == 201, agreement_response.json()
+        agreement_id = agreement_response.json()["data"]["id"]
+
+        disbursement_response = client.post(
+            f"/api/v1/funding/agreements/{agreement_id}/disbursements",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "sppg_id": sppg_id,
+                "disbursement_date": "2026-07-19",
+                "amount": 4000000,
+                "reference_number": f"FDB-{code_suffix}",
+                "status": "POSTED",
+                "notes": "Pencairan tahap pertama",
+                "debit_account_code": "110000",
+                "credit_account_code": "230500",
+            },
+        )
+        assert disbursement_response.status_code == 201, disbursement_response.json()
+
+        repayment_response = client.post(
+            f"/api/v1/funding/agreements/{agreement_id}/repayments",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "repayment_date": "2026-07-20",
+                "principal_amount": 1500000,
+                "margin_amount": 150000,
+                "penalty_amount": 0,
+                "payment_reference": f"FRP-{code_suffix}",
+                "status": "POSTED",
+                "notes": "Pembayaran cicilan pertama",
+                "debit_account_code": "230500",
+                "credit_account_code": "110000",
+            },
+        )
+        assert repayment_response.status_code == 201, repayment_response.json()
+
+        detail_response = client.get(
+            f"/api/v1/funding/agreements/{agreement_id}",
+            headers={"X-Tenant-ID": tenant_id},
+        )
+        sources_response = client.get("/api/v1/funding/sources", headers={"X-Tenant-ID": tenant_id})
+        agreements_response = client.get("/api/v1/funding/agreements", headers={"X-Tenant-ID": tenant_id})
+        disbursements_response = client.get("/api/v1/funding/disbursements", headers={"X-Tenant-ID": tenant_id})
+        repayments_response = client.get("/api/v1/funding/repayments", headers={"X-Tenant-ID": tenant_id})
+        summary_response = client.get("/api/v1/funding/summary", headers={"X-Tenant-ID": tenant_id})
+
+    assert source_response.json()["code"] == "FUNDING_SOURCE_CREATED"
+    assert agreement_response.json()["code"] == "FUNDING_AGREEMENT_CREATED"
+    assert disbursement_response.json()["code"] == "FUNDING_DISBURSEMENT_CREATED"
+    assert repayment_response.json()["code"] == "FUNDING_REPAYMENT_CREATED"
+
+    assert detail_response.status_code == 200, detail_response.json()
+    detail_payload = detail_response.json()["data"]
+    assert detail_payload["agreement"]["id"] == agreement_id
+    assert detail_payload["source"]["id"] == source_id
+    assert detail_payload["principal_disbursed"] == 4000000
+    assert detail_payload["principal_repaid"] == 1500000
+    assert detail_payload["outstanding_principal"] == 2500000
+    assert detail_payload["realized_margin"] == 150000
+    assert len(detail_payload["disbursements"]) == 1
+    assert len(detail_payload["repayments"]) == 1
+
+    assert sources_response.status_code == 200
+    assert any(item["id"] == source_id for item in sources_response.json()["data"])
+    assert agreements_response.status_code == 200
+    assert any(item["id"] == agreement_id for item in agreements_response.json()["data"])
+    assert disbursements_response.status_code == 200
+    assert any(item["agreement_id"] == agreement_id for item in disbursements_response.json()["data"])
+    assert repayments_response.status_code == 200
+    assert any(item["agreement_id"] == agreement_id for item in repayments_response.json()["data"])
+
+    assert summary_response.status_code == 200, summary_response.json()
+    summary_payload = summary_response.json()["data"]
+    assert summary_payload["totals"]["funding_sources"] >= 1
+    assert summary_payload["totals"]["funding_agreements"] >= 1
+    assert summary_payload["totals"]["principal_committed"] >= 10000000
+    assert summary_payload["totals"]["principal_disbursed"] >= 4000000
+    assert summary_payload["totals"]["principal_repaid"] >= 1500000
+    assert summary_payload["totals"]["outstanding_principal"] >= 2500000
+    assert summary_payload["totals"]["margin_realized"] >= 150000
 
 
 def test_create_delivery_order_and_record_proof_flow_works() -> None:

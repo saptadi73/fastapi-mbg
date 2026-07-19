@@ -14,6 +14,7 @@ class SppgDashboardRead(BaseModel):
     delivery: dict
     quality: dict
     stock: dict
+    workforce: dict
 
 
 class StockSummaryRead(BaseModel):

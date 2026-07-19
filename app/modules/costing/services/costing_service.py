@@ -12,6 +12,7 @@ from app.modules.production.repositories.production_material_consumption_reposit
 from app.modules.production.repositories.production_order_repository import ProductionOrderRepository
 from app.modules.sppg.repositories.sppg_repository import SppgRepository
 from app.modules.tenant.repositories.tenant_repository import TenantRepository
+from app.modules.workforce.repositories.workforce_repository import WorkforceRepository
 from app.support.exceptions.base import BadRequestException, ConflictException, NotFoundException
 
 
@@ -24,6 +25,7 @@ class CostingService:
         meal_plan_repository: MealPlanRepository,
         tenant_repository: TenantRepository,
         sppg_repository: SppgRepository,
+        workforce_repository: WorkforceRepository,
     ) -> None:
         self.cost_policy_repository = cost_policy_repository
         self.production_order_repository = production_order_repository
@@ -31,6 +33,7 @@ class CostingService:
         self.meal_plan_repository = meal_plan_repository
         self.tenant_repository = tenant_repository
         self.sppg_repository = sppg_repository
+        self.workforce_repository = workforce_repository
 
     def _parse_scope_uuid(self, value: str | None, code: str, message: str) -> UUID | None:
         if value is None:
@@ -109,7 +112,18 @@ class CostingService:
             production_order.sppg_id,
             production_order.production_date,
         )
-        labor_cost = round((policy.labor_cost_per_portion if policy else 0) * accepted_portions, 6)
+        actual_labor_cost_rows = await self.workforce_repository.list_labor_costs_by_date(
+            tenant_id=production_order.tenant_id,
+            sppg_id=production_order.sppg_id,
+            cost_date=production_order.production_date,
+        )
+        actual_labor_cost = round(sum(item.total_cost for item in actual_labor_cost_rows), 6)
+        if actual_labor_cost > 0:
+            labor_cost = actual_labor_cost
+            labor_cost_source = "ACTUAL"
+        else:
+            labor_cost = round((policy.labor_cost_per_portion if policy else 0) * accepted_portions, 6)
+            labor_cost_source = "POLICY" if policy else "NONE"
         utility_cost = round((policy.utility_cost_per_portion if policy else 0) * accepted_portions, 6)
         packaging_cost = round((policy.packaging_cost_per_portion if policy else 0) * accepted_portions, 6)
         distribution_cost = round((policy.distribution_cost_per_portion if policy else 0) * accepted_portions, 6)
@@ -130,6 +144,7 @@ class CostingService:
             "tenant_id": str(production_order.tenant_id),
             "sppg_id": str(production_order.sppg_id),
             "applied_cost_policy_id": str(policy.id) if policy else None,
+            "labor_cost_source": labor_cost_source,
             "accepted_portions": accepted_portions,
             "planned_portions": production_order.planned_portions,
             "actual_portions": actual_portions,

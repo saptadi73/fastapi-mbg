@@ -14,6 +14,9 @@ from app.modules.meal_plan.models.meal_plan import MealPlan
 from app.modules.production.models.production_order import ProductionOrder
 from app.modules.quality.models.qc_inspection import QCInspection
 from app.modules.workflow.models.workflow_instance import WorkflowInstance
+from app.modules.workforce.models.attendance import Attendance
+from app.modules.workforce.models.employee import Employee
+from app.modules.workforce.models.labor_cost import LaborCost
 from app.support.exceptions.base import BadRequestException
 
 
@@ -51,12 +54,15 @@ class ReportingService:
         workflow_conditions = [WorkflowInstance.tenant_id == tenant_id] if tenant_id else []
         audit_conditions = [AuditEvent.tenant_id == tenant_id] if tenant_id else []
         document_conditions = [Document.tenant_id == tenant_id] if tenant_id else []
+        workforce_employee_conditions = [Employee.tenant_id == tenant_id] if tenant_id else []
+        labor_cost_conditions = [LaborCost.tenant_id == tenant_id] if tenant_id else []
         if sppg_id:
             meal_plan_conditions.append(MealPlan.sppg_id == sppg_id)
             production_conditions.append(ProductionOrder.sppg_id == sppg_id)
             delivery_conditions.append(DeliveryOrder.sppg_id == sppg_id)
             audit_conditions.append(AuditEvent.sppg_id == sppg_id)
             document_conditions.append(Document.sppg_id == sppg_id)
+            labor_cost_conditions.append(LaborCost.sppg_id == sppg_id)
 
         approved_budget_amount_query = select(
             func.coalesce(
@@ -78,6 +84,11 @@ class ReportingService:
             actual_budget_amount_query = actual_budget_amount_query.where(Budget.tenant_id == tenant_id)
         actual_budget_amount = float((await self.session.execute(actual_budget_amount_query)).scalar_one() or 0.0)
 
+        labor_cost_query = select(func.coalesce(func.sum(LaborCost.total_cost), 0.0)).select_from(LaborCost)
+        for condition in labor_cost_conditions:
+            labor_cost_query = labor_cost_query.where(condition)
+        actual_labor_cost_amount = float((await self.session.execute(labor_cost_query)).scalar_one() or 0.0)
+
         return {
             "totals": {
                 "meal_plans": await self._count(MealPlan, *meal_plan_conditions),
@@ -85,6 +96,7 @@ class ReportingService:
                 "production_orders": await self._count(ProductionOrder, *production_conditions),
                 "delivery_orders": await self._count(DeliveryOrder, *delivery_conditions),
                 "documents": await self._count(Document, *document_conditions),
+                "employees": await self._count(Employee, *workforce_employee_conditions),
             },
             "statuses": {
                 "meal_plan_approved": await self._count(MealPlan, *meal_plan_conditions, MealPlan.status == "APPROVED"),
@@ -95,6 +107,7 @@ class ReportingService:
             "finance": {
                 "approved_budget_amount": round(approved_budget_amount, 6),
                 "actual_budget_amount": round(actual_budget_amount, 6),
+                "actual_labor_cost_amount": round(actual_labor_cost_amount, 6),
             },
             "governance": {
                 "workflow_instances": await self._count(WorkflowInstance, *workflow_conditions),
@@ -108,22 +121,30 @@ class ReportingService:
         delivery_conditions = []
         qc_conditions = []
         stock_conditions = []
+        labor_conditions = []
+        attendance_conditions = []
         if tenant_id:
             production_conditions.append(ProductionOrder.tenant_id == tenant_id)
             delivery_conditions.append(DeliveryOrder.tenant_id == tenant_id)
             qc_conditions.append(QCInspection.tenant_id == tenant_id)
             stock_conditions.append(InventoryBalance.tenant_id == tenant_id)
+            labor_conditions.append(LaborCost.tenant_id == tenant_id)
+            attendance_conditions.append(Attendance.tenant_id == tenant_id)
         if sppg_id:
             production_conditions.append(ProductionOrder.sppg_id == sppg_id)
             delivery_conditions.append(DeliveryOrder.sppg_id == sppg_id)
             qc_conditions.append(QCInspection.sppg_id == sppg_id)
             stock_conditions.append(InventoryBalance.sppg_id == sppg_id)
+            labor_conditions.append(LaborCost.sppg_id == sppg_id)
+            attendance_conditions.append(Attendance.sppg_id == sppg_id)
 
         accepted_query = select(func.coalesce(func.sum(ProductionOrder.accepted_portions), 0)).select_from(ProductionOrder)
         rejected_query = select(func.coalesce(func.sum(ProductionOrder.rejected_portions), 0)).select_from(ProductionOrder)
         received_query = select(func.coalesce(func.sum(DeliveryOrder.received_portions), 0)).select_from(DeliveryOrder)
         stock_on_hand_query = select(func.coalesce(func.sum(InventoryBalance.quantity_on_hand), 0.0)).select_from(InventoryBalance)
         stock_available_query = select(func.coalesce(func.sum(InventoryBalance.quantity_available), 0.0)).select_from(InventoryBalance)
+        labor_cost_query = select(func.coalesce(func.sum(LaborCost.total_cost), 0.0)).select_from(LaborCost)
+        attendance_hours_query = select(func.coalesce(func.sum(Attendance.worked_hours), 0.0)).select_from(Attendance)
         for condition in production_conditions:
             accepted_query = accepted_query.where(condition)
             rejected_query = rejected_query.where(condition)
@@ -132,6 +153,10 @@ class ReportingService:
         for condition in stock_conditions:
             stock_on_hand_query = stock_on_hand_query.where(condition)
             stock_available_query = stock_available_query.where(condition)
+        for condition in labor_conditions:
+            labor_cost_query = labor_cost_query.where(condition)
+        for condition in attendance_conditions:
+            attendance_hours_query = attendance_hours_query.where(condition)
 
         return {
             "totals": {
@@ -156,6 +181,11 @@ class ReportingService:
             "stock": {
                 "quantity_on_hand": round(float((await self.session.execute(stock_on_hand_query)).scalar_one() or 0.0), 6),
                 "quantity_available": round(float((await self.session.execute(stock_available_query)).scalar_one() or 0.0), 6),
+            },
+            "workforce": {
+                "attendance_records": await self._count(Attendance, *attendance_conditions),
+                "worked_hours": round(float((await self.session.execute(attendance_hours_query)).scalar_one() or 0.0), 6),
+                "labor_cost_amount": round(float((await self.session.execute(labor_cost_query)).scalar_one() or 0.0), 6),
             },
         }
 

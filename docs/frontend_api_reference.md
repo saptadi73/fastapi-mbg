@@ -36,76 +36,100 @@ http://127.0.0.1:8000
 4. `GET /api/v1/sppg/`
 5. `GET /api/v1/sppg/{sppg_id}`
 6. `POST /api/v1/sppg/`
-7. `GET /api/v1/programs/`
-8. `GET /api/v1/programs/{program_id}`
-9. `POST /api/v1/programs/`
-10. `POST /api/v1/programs/{program_id}/periods`
-11. `POST /api/v1/programs/{program_id}/tenants`
-12. `POST /api/v1/programs/{program_id}/sppg`
-13. `GET /api/v1/quality/inspections/`
-14. `GET /api/v1/quality/inspections/{inspection_id}`
-15. `POST /api/v1/quality/inspections/`
-16. `POST /api/v1/quality/inspections/{inspection_id}/lines`
-17. `POST /api/v1/quality/inspections/{inspection_id}/finalize`
-18. `GET /api/v1/costing/policies`
-19. `POST /api/v1/costing/policies`
-20. `GET /api/v1/costing/production-costs/{production_order_id}`
-21. `GET /api/v1/notifications/templates`
-22. `POST /api/v1/notifications/templates`
-23. `GET /api/v1/notifications/preferences/me`
-24. `PUT /api/v1/notifications/preferences/me`
-25. `GET /api/v1/notifications/inbox`
-26. `POST /api/v1/notifications`
-27. `GET /api/v1/notifications/{notification_id}`
-28. `POST /api/v1/notifications/inbox/{recipient_id}/mark-read`
-29. `GET /api/v1/government-claims`
-30. `GET /api/v1/government-claims/{claim_id}`
-31. `POST /api/v1/government-claims`
-32. `POST /api/v1/government-claims/{claim_id}/submit`
-33. `POST /api/v1/government-claims/{claim_id}/verify`
-34. `POST /api/v1/government-claims/{claim_id}/adjustments`
-35. `POST /api/v1/government-claims/{claim_id}/payments`
-36. `GET /api/v1/workflows/definitions`
-37. `GET /api/v1/workflows/definitions/{definition_id}`
-38. `POST /api/v1/workflows/definitions`
-39. `POST /api/v1/workflows/definitions/{definition_id}/transitions`
-40. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
-41. `GET /api/v1/audit/events/`
-42. `GET /api/v1/audit/events/{event_id}`
-43. `GET /api/v1/documents`
-44. `GET /api/v1/documents/{document_id}`
-45. `POST /api/v1/documents`
-46. `POST /api/v1/documents/{document_id}/versions`
-47. `POST /api/v1/documents/{document_id}/links`
-48. `GET /api/v1/reporting/dashboard/tenant`
-49. `GET /api/v1/reporting/dashboard/sppg`
-50. `GET /api/v1/reporting/stock-summary`
-51. `GET /api/v1/reporting/delivery-performance`
-52. `GET /api/v1/reporting/budget-summary`
-53. `GET /api/v1/integration/external-systems`
-54. `GET /api/v1/integration/external-systems/{external_system_id}`
-55. `POST /api/v1/integration/external-systems`
-56. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
-57. `GET /api/v1/integration/sync-logs`
-58. `GET /api/v1/integration/sync-logs/{sync_log_id}`
-59. `POST /api/v1/integration/sync-logs`
-45. `GET /api/v1/geography/schools/`
-43. `GET /api/v1/geography/schools/{school_id}`
-44. `POST /api/v1/geography/schools/`
-45. `GET /api/v1/beneficiaries/`
-46. `GET /api/v1/beneficiaries/{beneficiary_id}`
-47. `POST /api/v1/beneficiaries/`
-48. `GET /api/v1/uoms/`
-49. `GET /api/v1/uoms/{uom_id}`
-50. `POST /api/v1/uoms/`
-51. `GET /api/v1/products/`
-52. `GET /api/v1/products/{product_id}`
-53. `POST /api/v1/products/`
-54. `GET /api/v1/recipes/`
-55. `GET /api/v1/recipes/{recipe_id}`
-56. `POST /api/v1/recipes/`
-57. `GET /api/v1/recipes/{recipe_id}/lines`
-58. `POST /api/v1/recipes/{recipe_id}/lines`
+7. `GET /api/v1/geography/schools/`
+8. `GET /api/v1/geography/schools/{school_id}`
+9. `POST /api/v1/geography/schools/`
+10. `GET /api/v1/beneficiaries/`
+11. `GET /api/v1/beneficiaries/{beneficiary_id}`
+12. `POST /api/v1/beneficiaries/`
+13. `GET /api/v1/uoms/`
+14. `GET /api/v1/uoms/{uom_id}`
+15. `POST /api/v1/uoms/`
+16. `GET /api/v1/products/`
+17. `GET /api/v1/products/{product_id}`
+18. `POST /api/v1/products/`
+19. `GET /api/v1/recipes/`
+20. `GET /api/v1/recipes/{recipe_id}`
+21. `POST /api/v1/recipes/`
+22. `GET /api/v1/recipes/{recipe_id}/lines`
+23. `POST /api/v1/recipes/{recipe_id}/lines`
+24. `GET /api/v1/programs/`
+25. `GET /api/v1/programs/{program_id}`
+26. `POST /api/v1/programs/`
+27. `POST /api/v1/programs/{program_id}/periods`
+28. `POST /api/v1/programs/{program_id}/tenants`
+29. `POST /api/v1/programs/{program_id}/sppg`
+30. `GET /api/v1/quality/inspections/`
+31. `GET /api/v1/quality/inspections/{inspection_id}`
+32. `POST /api/v1/quality/inspections/`
+33. `POST /api/v1/quality/inspections/{inspection_id}/lines`
+34. `POST /api/v1/quality/inspections/{inspection_id}/finalize`
+35. `GET /api/v1/costing/policies`
+36. `POST /api/v1/costing/policies`
+37. `GET /api/v1/costing/production-costs/{production_order_id}`
+38. `GET /api/v1/notifications/templates`
+39. `POST /api/v1/notifications/templates`
+40. `GET /api/v1/notifications/preferences/me`
+41. `PUT /api/v1/notifications/preferences/me`
+42. `GET /api/v1/notifications/inbox`
+43. `POST /api/v1/notifications`
+44. `GET /api/v1/notifications/{notification_id}`
+45. `POST /api/v1/notifications/inbox/{recipient_id}/mark-read`
+46. `GET /api/v1/government-claims`
+47. `GET /api/v1/government-claims/{claim_id}`
+48. `POST /api/v1/government-claims`
+49. `POST /api/v1/government-claims/{claim_id}/submit`
+50. `POST /api/v1/government-claims/{claim_id}/verify`
+51. `POST /api/v1/government-claims/{claim_id}/adjustments`
+52. `POST /api/v1/government-claims/{claim_id}/payments`
+53. `GET /api/v1/funding/sources`
+54. `POST /api/v1/funding/sources`
+55. `GET /api/v1/funding/agreements`
+56. `GET /api/v1/funding/agreements/{agreement_id}`
+57. `POST /api/v1/funding/agreements`
+58. `GET /api/v1/funding/disbursements`
+59. `POST /api/v1/funding/agreements/{agreement_id}/disbursements`
+60. `GET /api/v1/funding/repayments`
+61. `POST /api/v1/funding/agreements/{agreement_id}/repayments`
+62. `GET /api/v1/funding/summary`
+63. `GET /api/v1/workforce/positions`
+64. `POST /api/v1/workforce/positions`
+65. `GET /api/v1/workforce/employees`
+66. `GET /api/v1/workforce/employees/{employee_id}`
+67. `POST /api/v1/workforce/employees`
+68. `POST /api/v1/workforce/employees/{employee_id}/assignments`
+69. `GET /api/v1/workforce/shifts`
+70. `POST /api/v1/workforce/shifts`
+71. `GET /api/v1/workforce/attendance`
+72. `POST /api/v1/workforce/attendance`
+73. `GET /api/v1/workforce/timesheets`
+74. `POST /api/v1/workforce/timesheets`
+75. `GET /api/v1/workforce/labor-costs`
+76. `POST /api/v1/workforce/labor-costs`
+77. `GET /api/v1/workflows/definitions`
+78. `GET /api/v1/workflows/definitions/{definition_id}`
+79. `POST /api/v1/workflows/definitions`
+80. `POST /api/v1/workflows/definitions/{definition_id}/transitions`
+81. `GET /api/v1/workflows/documents/{document_type}/{document_id}`
+82. `GET /api/v1/audit/events/`
+83. `GET /api/v1/audit/events/{event_id}`
+84. `GET /api/v1/documents`
+85. `GET /api/v1/documents/{document_id}`
+86. `POST /api/v1/documents`
+87. `POST /api/v1/documents/{document_id}/versions`
+88. `POST /api/v1/documents/{document_id}/links`
+89. `GET /api/v1/reporting/dashboard/tenant`
+90. `GET /api/v1/reporting/dashboard/sppg`
+91. `GET /api/v1/reporting/stock-summary`
+92. `GET /api/v1/reporting/delivery-performance`
+93. `GET /api/v1/reporting/budget-summary`
+94. `GET /api/v1/integration/external-systems`
+95. `GET /api/v1/integration/external-systems/{external_system_id}`
+96. `POST /api/v1/integration/external-systems`
+97. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
+98. `GET /api/v1/integration/sync-logs`
+99. `GET /api/v1/integration/sync-logs/{sync_log_id}`
+100. `POST /api/v1/integration/sync-logs`
 
 ### Meal Plan
 
@@ -261,6 +285,11 @@ Endpoint write saat ini butuh token:
 | `404` | `NOTIFICATION_NOT_FOUND` | Notification tidak ditemukan |
 | `404` | `NOTIFICATION_RECIPIENT_NOT_FOUND` | Inbox notification item tidak ditemukan |
 | `404` | `GOVERNMENT_CLAIM_NOT_FOUND` | Government claim tidak ditemukan |
+| `404` | `POSITION_NOT_FOUND` | Posisi workforce tidak ditemukan |
+| `404` | `EMPLOYEE_NOT_FOUND` | Employee workforce tidak ditemukan |
+| `404` | `EMPLOYEE_ASSIGNMENT_NOT_FOUND` | Assignment employee tidak ditemukan |
+| `404` | `WORK_SHIFT_NOT_FOUND` | Shift kerja tidak ditemukan |
+| `404` | `TIMESHEET_NOT_FOUND` | Timesheet tidak ditemukan |
 | `409` | `TENANT_CODE_ALREADY_EXISTS` | Kode tenant sudah dipakai |
 | `409` | `SPPG_CODE_ALREADY_EXISTS` | Kode SPPG sudah dipakai |
 | `409` | `PROGRAM_CODE_ALREADY_EXISTS` | Kode program sudah dipakai |
@@ -281,6 +310,9 @@ Endpoint write saat ini butuh token:
 | `409` | `SYNC_LOG_IDEMPOTENCY_CONFLICT` | idempotency key sync log sudah pernah dipakai |
 | `409` | `COST_POLICY_CODE_ALREADY_EXISTS` | Kode cost policy tenant ini sudah ada |
 | `409` | `NOTIFICATION_TEMPLATE_CODE_ALREADY_EXISTS` | Kode notification template tenant ini sudah ada |
+| `409` | `POSITION_CODE_ALREADY_EXISTS` | Kode posisi workforce tenant ini sudah ada |
+| `409` | `EMPLOYEE_CODE_ALREADY_EXISTS` | Kode employee workforce tenant ini sudah ada |
+| `409` | `EMPLOYEE_ALREADY_ASSIGNED` | Employee sudah aktif di SPPG tersebut |
 | `400` | `QC_INSPECTION_LINES_REQUIRED` | QC belum punya line saat finalize |
 | `400` | `QC_INSPECTION_ALREADY_FINALIZED` | QC sudah final |
 | `400` | `QC_RESULT_STATUS_INVALID` | Status result QC bukan PASS/FAIL |
@@ -303,6 +335,11 @@ Endpoint write saat ini butuh token:
 | `400` | `CLAIM_VERIFY_INVALID_STATUS` | Status claim tidak valid untuk verifikasi |
 | `400` | `CLAIM_PAYMENT_INVALID_STATUS` | Status claim tidak valid untuk pembayaran |
 | `400` | `INVALID_CLAIM_PAYMENT_AMOUNT` | Nilai pembayaran claim tidak valid |
+| `400` | `INVALID_ASSIGNMENT_DATE_RANGE` | Rentang tanggal assignment employee tidak valid |
+| `400` | `INVALID_SHIFT_TIME_RANGE` | Rentang waktu shift tidak valid |
+| `400` | `INVALID_ATTENDANCE_TIME_RANGE` | Rentang waktu attendance tidak valid |
+| `400` | `INVALID_TIMESHEET_PERIOD` | Periode timesheet tidak valid |
+| `400` | `INVALID_LABOR_COST_VALUE` | Nilai labor cost tidak valid |
 | `422` | `REQUEST_VALIDATION_ERROR` | Payload tidak valid |
 
 ## Demo Credentials
@@ -536,6 +573,209 @@ Contoh response sukses:
 }
 ```
 
+### Master Data
+
+`GET /api/v1/tenants/`
+
+Mengembalikan daftar tenant.
+
+`GET /api/v1/tenants/{tenant_id}`
+
+Mengembalikan detail satu tenant berdasarkan `tenant_id`.
+
+`POST /api/v1/tenants/`
+
+Membuat tenant baru.
+
+Payload:
+
+```json
+{
+  "name": "Yayasan MBG Jawa Barat",
+  "code": "MBG-JABAR",
+  "description": "Tenant operasional wilayah Jawa Barat",
+  "is_active": true
+}
+```
+
+`GET /api/v1/sppg/`
+
+Mengembalikan daftar SPPG aktif lintas tenant atau sesuai scope tenant.
+
+`GET /api/v1/sppg/{sppg_id}`
+
+Mengembalikan detail satu SPPG.
+
+`POST /api/v1/sppg/`
+
+Membuat SPPG baru berikut identitas lokasi dan geo tagging dasar.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "code": "SPPG-BDG-01",
+  "name": "SPPG Bandung 01",
+  "address": "Jl. Asia Afrika No. 10, Bandung",
+  "latitude": -6.921757,
+  "longitude": 107.607611,
+  "radius_km": 5,
+  "is_active": true
+}
+```
+
+`GET /api/v1/geography/schools/`
+
+Mengembalikan daftar sekolah penerima manfaat berdasarkan scope tenant dan opsional SPPG.
+
+`GET /api/v1/geography/schools/{school_id}`
+
+Mengembalikan detail sekolah.
+
+`POST /api/v1/geography/schools/`
+
+Membuat master sekolah baru.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "npsn": "20202020",
+  "name": "SDN Merdeka 01",
+  "school_level": "SD",
+  "address": "Jl. Merdeka No. 1, Bandung",
+  "latitude": -6.9,
+  "longitude": 107.61,
+  "is_active": true
+}
+```
+
+`GET /api/v1/beneficiaries/`
+
+Mengembalikan daftar beneficiary/penerima manfaat.
+
+`GET /api/v1/beneficiaries/{beneficiary_id}`
+
+Mengembalikan detail beneficiary.
+
+`POST /api/v1/beneficiaries/`
+
+Membuat beneficiary baru yang terhubung ke sekolah.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "sppg_id": "sppg-uuid",
+  "school_id": "school-uuid",
+  "full_name": "Siswa Demo",
+  "beneficiary_type": "STUDENT",
+  "gender": "M",
+  "date_of_birth": "2015-01-10",
+  "classroom_name": "3A",
+  "is_active": true
+}
+```
+
+`GET /api/v1/uoms/`
+
+Mengembalikan daftar unit of measure.
+
+`GET /api/v1/uoms/{uom_id}`
+
+Mengembalikan detail satu UoM.
+
+`POST /api/v1/uoms/`
+
+Membuat UoM baru.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "code": "KG",
+  "name": "Kilogram",
+  "category": "WEIGHT",
+  "is_active": true
+}
+```
+
+`GET /api/v1/products/`
+
+Mengembalikan daftar produk atau bahan.
+
+`GET /api/v1/products/{product_id}`
+
+Mengembalikan detail produk.
+
+`POST /api/v1/products/`
+
+Membuat master produk baru.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "code": "BERAS-01",
+  "name": "Beras Medium",
+  "product_type": "RAW_MATERIAL",
+  "uom_id": "uom-uuid",
+  "category_name": "Bahan Pokok",
+  "is_active": true
+}
+```
+
+`GET /api/v1/recipes/`
+
+Mengembalikan daftar recipe.
+
+`GET /api/v1/recipes/{recipe_id}`
+
+Mengembalikan detail recipe.
+
+`POST /api/v1/recipes/`
+
+Membuat header recipe baru.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "code": "RCP-NASI-GORENG",
+  "name": "Nasi Goreng Telur",
+  "yield_portions": 100,
+  "notes": "Menu sarapan",
+  "is_active": true
+}
+```
+
+`GET /api/v1/recipes/{recipe_id}/lines`
+
+Mengembalikan daftar komponen recipe.
+
+`POST /api/v1/recipes/{recipe_id}/lines`
+
+Menambahkan komponen bahan ke recipe.
+
+Payload:
+
+```json
+{
+  "component_product_id": "product-uuid",
+  "quantity": 25,
+  "uom_id": "uom-uuid",
+  "waste_percentage": 2.5,
+  "notes": "Komponen utama"
+}
+```
+
 ### Program Management
 
 `GET /api/v1/programs/`
@@ -735,7 +975,10 @@ Mengembalikan:
 Catatan:
 
 - pembagi cost per portion memakai `accepted_portions`
-- bila ada `cost policy` aktif pada tanggal produksi, biaya tambahan per porsi akan ikut dihitung
+- `labor_cost_source` bernilai `ACTUAL` bila ada `workforce.labor_cost` pada tanggal produksi yang sama
+- `labor_cost_source` bernilai `POLICY` bila labor cost aktual belum ada dan sistem fallback ke `cost_policy`
+- `labor_cost_source` bernilai `NONE` bila tidak ada labor cost aktual dan tidak ada policy aktif
+- bila ada `cost policy` aktif pada tanggal produksi, komponen utility, packaging, distribution, overhead, waste, dan fallback labor akan ikut dihitung
 
 ### Notification
 
@@ -901,6 +1144,213 @@ Payload:
   "credit_account_code": "120500"
 }
 ```
+
+### Funding
+
+`GET /api/v1/funding/sources`
+
+Mengambil daftar funding source sesuai scope tenant aktif.
+
+`POST /api/v1/funding/sources`
+
+Membuat sumber pendanaan tenant seperti APBN/APBD, investor bridge fund, atau sumber lain.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "code": "FUND-INV-001",
+  "source_type": "INVESTOR_BRIDGE_FUND",
+  "name": "Investor Bridge Fund Batch 1",
+  "party_name": "PT Investor Demo",
+  "contract_number": "PKS-2026-001",
+  "start_date": "2026-07-19",
+  "end_date": "2027-07-19",
+  "status": "DRAFT",
+  "is_active": true,
+  "notes": "Skema pendanaan awal tenant"
+}
+```
+
+`GET /api/v1/funding/agreements`
+
+Mengambil daftar funding agreement tenant.
+
+`GET /api/v1/funding/agreements/{agreement_id}`
+
+Mengembalikan bundle:
+
+- `agreement`
+- `source`
+- `disbursements`
+- `repayments`
+- `principal_disbursed`
+- `principal_repaid`
+- `outstanding_principal`
+- `realized_margin`
+
+`POST /api/v1/funding/agreements`
+
+Membuat agreement pendanaan turunan dari funding source.
+
+Payload:
+
+```json
+{
+  "funding_source_id": "funding-source-uuid",
+  "agreement_type": "MUDHARABAH",
+  "principal_amount": 10000000,
+  "margin_method": "PERCENTAGE",
+  "margin_rate": 12,
+  "fixed_margin_amount": null,
+  "disbursement_schedule": {
+    "phase": "single"
+  },
+  "repayment_terms": {
+    "tenor_months": 6
+  },
+  "status": "DRAFT",
+  "notes": "Perjanjian pendanaan awal"
+}
+```
+
+`GET /api/v1/funding/disbursements`
+
+Mengambil daftar pencairan dana tenant.
+
+`POST /api/v1/funding/agreements/{agreement_id}/disbursements`
+
+Mencatat pencairan principal dan otomatis membuat jurnal `POSTED`.
+
+Payload:
+
+```json
+{
+  "sppg_id": "sppg-uuid",
+  "disbursement_date": "2026-07-19",
+  "amount": 4000000,
+  "bank_account_id": null,
+  "reference_number": "FDB-2026-0001",
+  "status": "POSTED",
+  "notes": "Pencairan tahap pertama",
+  "debit_account_code": "110000",
+  "credit_account_code": "230500"
+}
+```
+
+`GET /api/v1/funding/repayments`
+
+Mengambil daftar pengembalian funding tenant.
+
+`POST /api/v1/funding/agreements/{agreement_id}/repayments`
+
+Mencatat pengembalian principal, margin, dan penalty. Backend otomatis membuat jurnal `POSTED`.
+
+Payload:
+
+```json
+{
+  "repayment_date": "2026-08-19",
+  "principal_amount": 1500000,
+  "margin_amount": 150000,
+  "penalty_amount": 0,
+  "payment_reference": "FRP-2026-0001",
+  "status": "POSTED",
+  "notes": "Pembayaran cicilan pertama",
+  "debit_account_code": "230500",
+  "credit_account_code": "110000"
+}
+```
+
+`GET /api/v1/funding/summary`
+
+Mengembalikan ringkasan tenant:
+
+- total funding source
+- total funding agreement
+- principal committed
+- principal disbursed
+- principal repaid
+- outstanding principal
+- realized margin
+- breakdown agreement aktif/closed
+
+Frontend sebaiknya mengirim `X-Tenant-ID` untuk hasil yang spesifik tenant.
+
+### Workforce
+
+`GET /api/v1/workforce/positions`
+
+Mengambil daftar posisi kerja per tenant.
+
+`POST /api/v1/workforce/positions`
+
+Membuat master posisi kerja.
+
+`GET /api/v1/workforce/employees`
+
+Mengambil daftar employee sesuai scope tenant dan opsional SPPG.
+
+`GET /api/v1/workforce/employees/{employee_id}`
+
+Mengambil detail employee beserta assignment ke SPPG.
+
+`POST /api/v1/workforce/employees`
+
+Membuat employee baru.
+
+Payload:
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "position_id": "position-uuid",
+  "employee_code": "EMP-0001",
+  "full_name": "Budi Santoso",
+  "employment_type": "DAILY",
+  "join_date": "2026-07-20",
+  "phone_number": "081234567890",
+  "daily_rate": 150000,
+  "is_active": true
+}
+```
+
+`POST /api/v1/workforce/employees/{employee_id}/assignments`
+
+Menempatkan employee ke SPPG dalam rentang periode tertentu.
+
+`GET /api/v1/workforce/shifts`
+
+Mengambil daftar shift kerja.
+
+`POST /api/v1/workforce/shifts`
+
+Membuat jadwal shift kerja.
+
+`GET /api/v1/workforce/attendance`
+
+Mengambil daftar attendance.
+
+`POST /api/v1/workforce/attendance`
+
+Mencatat attendance dan menghitung `worked_hours` otomatis bila `check_in_at` dan `check_out_at` diisi.
+
+`GET /api/v1/workforce/timesheets`
+
+Mengambil daftar timesheet.
+
+`POST /api/v1/workforce/timesheets`
+
+Membuat timesheet periodik untuk employee.
+
+`GET /api/v1/workforce/labor-costs`
+
+Mengambil daftar labor cost.
+
+`POST /api/v1/workforce/labor-costs`
+
+Mencatat biaya tenaga kerja aktual. `total_cost` dihitung dari `hours_worked * hourly_rate`.
 - variance dibandingkan terhadap `meal_plan.budget_cost_per_portion`
 
 ### Quality Control
@@ -1210,9 +1660,40 @@ Mengembalikan ringkasan tenant:
 - total production order
 - total delivery order
 - total document
+- total employee
 - status operasional utama
-- ringkasan finance
+- ringkasan finance termasuk `approved_budget_amount`, `actual_budget_amount`, dan `actual_labor_cost_amount`
 - ringkasan governance seperti workflow dan audit
+
+Contoh struktur response `data`:
+
+```json
+{
+  "totals": {
+    "meal_plans": 12,
+    "budgets": 2,
+    "production_orders": 10,
+    "delivery_orders": 10,
+    "documents": 25,
+    "employees": 8
+  },
+  "statuses": {
+    "meal_plan_approved": 9,
+    "meal_plan_material_reserved": 8,
+    "budget_approved": 2,
+    "delivery_received": 10
+  },
+  "finance": {
+    "approved_budget_amount": 250000000,
+    "actual_budget_amount": 120500000,
+    "actual_labor_cost_amount": 18500000
+  },
+  "governance": {
+    "workflow_instances": 14,
+    "audit_events": 320
+  }
+}
+```
 
 Frontend sebaiknya mengirim `X-Tenant-ID`.
 
@@ -1224,6 +1705,42 @@ Mengembalikan ringkasan level SPPG:
 - delivery
 - quality
 - stok
+- workforce
+
+Contoh struktur response `data`:
+
+```json
+{
+  "totals": {
+    "production_orders": 10,
+    "delivery_orders": 10,
+    "qc_inspections": 10
+  },
+  "production": {
+    "completed_orders": 10,
+    "accepted_portions": 1200,
+    "rejected_portions": 15
+  },
+  "delivery": {
+    "received_orders": 10,
+    "partially_received_orders": 1,
+    "received_portions": 1185
+  },
+  "quality": {
+    "passed_inspections": 9,
+    "failed_inspections": 1
+  },
+  "stock": {
+    "quantity_on_hand": 89202.222215,
+    "quantity_available": 89127.777776
+  },
+  "workforce": {
+    "attendance_records": 35,
+    "worked_hours": 271.5,
+    "labor_cost_amount": 5425000
+  }
+}
+```
 
 Frontend sebaiknya mengirim `X-Tenant-ID` dan `X-SPPG-ID`.
 

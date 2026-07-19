@@ -12,6 +12,10 @@ def import_all_models() -> None:
     import app.modules.document.models.document  # noqa: F401
     import app.modules.document.models.document_link  # noqa: F401
     import app.modules.document.models.document_version  # noqa: F401
+    import app.modules.funding.models.funding_agreement  # noqa: F401
+    import app.modules.funding.models.funding_disbursement  # noqa: F401
+    import app.modules.funding.models.funding_repayment  # noqa: F401
+    import app.modules.funding.models.funding_source  # noqa: F401
     import app.modules.geography.models.school  # noqa: F401
     import app.modules.government_claim.models.claim_adjustment  # noqa: F401
     import app.modules.government_claim.models.claim_evidence  # noqa: F401
@@ -58,3 +62,10 @@ def import_all_models() -> None:
     import app.modules.workflow.models.workflow_history  # noqa: F401
     import app.modules.workflow.models.workflow_instance  # noqa: F401
     import app.modules.workflow.models.workflow_transition  # noqa: F401
+    import app.modules.workforce.models.attendance  # noqa: F401
+    import app.modules.workforce.models.employee  # noqa: F401
+    import app.modules.workforce.models.employee_assignment  # noqa: F401
+    import app.modules.workforce.models.labor_cost  # noqa: F401
+    import app.modules.workforce.models.position  # noqa: F401
+    import app.modules.workforce.models.timesheet  # noqa: F401
+    import app.modules.workforce.models.work_shift  # noqa: F401

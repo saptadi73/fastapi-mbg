@@ -67,6 +67,30 @@ Authorization: Bearer <access_token>
 | `POST` | `/api/v1/government-claims/{claim_id}/verify` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Verifikasi government claim |
 | `POST` | `/api/v1/government-claims/{claim_id}/adjustments` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Tambah adjustment claim |
 | `POST` | `/api/v1/government-claims/{claim_id}/payments` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Catat pembayaran claim dan posting jurnal |
+| `GET` | `/api/v1/funding/sources` | No | - | List funding source |
+| `POST` | `/api/v1/funding/sources` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Buat funding source |
+| `GET` | `/api/v1/funding/agreements` | No | - | List funding agreement |
+| `GET` | `/api/v1/funding/agreements/{agreement_id}` | No | - | Detail funding agreement, source, disbursement, repayment |
+| `POST` | `/api/v1/funding/agreements` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Buat funding agreement |
+| `GET` | `/api/v1/funding/disbursements` | No | - | List funding disbursement |
+| `POST` | `/api/v1/funding/agreements/{agreement_id}/disbursements` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Catat pencairan dana dan posting jurnal |
+| `GET` | `/api/v1/funding/repayments` | No | - | List funding repayment |
+| `POST` | `/api/v1/funding/agreements/{agreement_id}/repayments` | Yes | `super_admin`, `tenant_admin`, `finance_manager` | Catat pengembalian pokok/margin dan posting jurnal |
+| `GET` | `/api/v1/funding/summary` | No | - | Ringkasan funding tenant |
+| `GET` | `/api/v1/workforce/positions` | No | - | List posisi kerja |
+| `POST` | `/api/v1/workforce/positions` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat posisi kerja |
+| `GET` | `/api/v1/workforce/employees` | No | - | List employee |
+| `GET` | `/api/v1/workforce/employees/{employee_id}` | No | - | Detail employee dan assignment |
+| `POST` | `/api/v1/workforce/employees` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat employee |
+| `POST` | `/api/v1/workforce/employees/{employee_id}/assignments` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Assign employee ke SPPG |
+| `GET` | `/api/v1/workforce/shifts` | No | - | List shift kerja |
+| `POST` | `/api/v1/workforce/shifts` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat shift kerja |
+| `GET` | `/api/v1/workforce/attendance` | No | - | List attendance |
+| `POST` | `/api/v1/workforce/attendance` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Catat attendance |
+| `GET` | `/api/v1/workforce/timesheets` | No | - | List timesheet |
+| `POST` | `/api/v1/workforce/timesheets` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `finance_manager` | Buat timesheet |
+| `GET` | `/api/v1/workforce/labor-costs` | No | - | List labor cost |
+| `POST` | `/api/v1/workforce/labor-costs` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `finance_manager` | Catat labor cost |
 | `GET` | `/api/v1/quality/inspections/` | No | - | List inspeksi QC |
 | `GET` | `/api/v1/quality/inspections/{inspection_id}` | No | - | Detail inspeksi QC |
 | `POST` | `/api/v1/quality/inspections/` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer` | Buat inspeksi QC |
@@ -187,6 +211,13 @@ Authorization: Bearer <access_token>
 | `NOTIFICATION_CHANNEL_DISABLED` | Channel notifikasi untuk user sedang dinonaktifkan |
 | `NOTIFICATION_NOT_FOUND` | Notification tidak ditemukan |
 | `NOTIFICATION_RECIPIENT_NOT_FOUND` | Inbox notification item tidak ditemukan |
+| `labor_cost_source = ACTUAL` | Costing memakai labor cost aktual dari modul workforce |
+| `labor_cost_source = POLICY` | Costing fallback ke labor cost dari cost policy |
+| `labor_cost_source = NONE` | Belum ada labor cost aktual maupun policy aktif |
+| `actual_labor_cost_amount` | Total biaya tenaga kerja aktual pada tenant dashboard reporting |
+| `workforce.attendance_records` | Jumlah attendance pada dashboard SPPG |
+| `workforce.worked_hours` | Total jam kerja pada dashboard SPPG |
+| `workforce.labor_cost_amount` | Total labor cost aktual pada dashboard SPPG |
 | `INVALID_CLAIM_PERIOD` | Periode government claim tidak valid |
 | `CLAIM_DELIVERY_REQUIRED` | Minimal satu delivery order wajib dipilih |
 | `DELIVERY_ORDER_NOT_RECEIVED` | Delivery order belum memiliki proof penerimaan |
@@ -197,6 +228,19 @@ Authorization: Bearer <access_token>
 | `CLAIM_VERIFY_INVALID_STATUS` | Claim belum berada pada status yang dapat diverifikasi |
 | `CLAIM_PAYMENT_INVALID_STATUS` | Claim belum berada pada status yang dapat dibayar |
 | `INVALID_CLAIM_PAYMENT_AMOUNT` | Jumlah pembayaran claim tidak valid |
+| `POSITION_CODE_ALREADY_EXISTS` | Kode posisi workforce sudah digunakan |
+| `EMPLOYEE_CODE_ALREADY_EXISTS` | Kode employee sudah digunakan |
+| `POSITION_NOT_FOUND` | Posisi workforce tidak ditemukan |
+| `EMPLOYEE_NOT_FOUND` | Employee workforce tidak ditemukan |
+| `INVALID_ASSIGNMENT_DATE_RANGE` | Rentang tanggal assignment employee tidak valid |
+| `EMPLOYEE_ALREADY_ASSIGNED` | Employee sudah aktif di SPPG tersebut |
+| `EMPLOYEE_ASSIGNMENT_NOT_FOUND` | Assignment employee tidak ditemukan |
+| `INVALID_SHIFT_TIME_RANGE` | Rentang waktu shift tidak valid |
+| `WORK_SHIFT_NOT_FOUND` | Shift kerja tidak ditemukan |
+| `INVALID_ATTENDANCE_TIME_RANGE` | Rentang waktu attendance tidak valid |
+| `INVALID_TIMESHEET_PERIOD` | Periode timesheet tidak valid |
+| `TIMESHEET_NOT_FOUND` | Timesheet tidak ditemukan |
+| `INVALID_LABOR_COST_VALUE` | Nilai labor cost tidak valid |
 | `SUPPLIER_INVOICE_ALREADY_EXISTS_FOR_RECEIPT` | Disable tombol create invoice jika GR sudah punya invoice |
 | `SUPPLIER_PAYMENT_ALREADY_EXISTS_FOR_INVOICE` | Disable tombol bayar jika invoice sudah punya payment |
 
@@ -390,6 +434,12 @@ GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
 }
 ```
 
+Catatan `GET /api/v1/costing/production-costs/{production_order_id}`:
+
+- `labor_cost_source` bernilai `ACTUAL` bila ada `workforce.labor_cost` pada tanggal produksi yang sama.
+- `labor_cost_source` bernilai `POLICY` bila tidak ada data aktual dan sistem memakai `cost_policy`.
+- `labor_cost_source` bernilai `NONE` bila keduanya tidak tersedia.
+
 ### Dispatch Notification
 
 ```json
@@ -424,6 +474,22 @@ GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
   "delivery_order_ids": ["delivery-order-uuid"],
   "evidence_document_ids": ["document-uuid"],
   "notes": "Klaim Agustus 2026"
+}
+```
+
+### Create Workforce Employee
+
+```json
+{
+  "tenant_id": "tenant-uuid",
+  "position_id": "position-uuid",
+  "employee_code": "EMP-0001",
+  "full_name": "Budi Santoso",
+  "employment_type": "DAILY",
+  "join_date": "2026-07-20",
+  "phone_number": "081234567890",
+  "daily_rate": 150000,
+  "is_active": true
 }
 ```
 

@@ -13,6 +13,7 @@ from app.modules.budget.manifest import manifest as budget_manifest
 from app.modules.costing.manifest import manifest as costing_manifest
 from app.modules.delivery.manifest import manifest as delivery_manifest
 from app.modules.document.manifest import manifest as document_manifest
+from app.modules.funding.manifest import manifest as funding_manifest
 from app.modules.geography.manifest import manifest as geography_manifest
 from app.modules.government_claim.manifest import manifest as government_claim_manifest
 from app.modules.health.manifest import manifest as health_manifest
@@ -33,6 +34,7 @@ from app.modules.sppg.manifest import manifest as sppg_manifest
 from app.modules.tenant.manifest import manifest as tenant_manifest
 from app.modules.uom.manifest import manifest as uom_manifest
 from app.modules.workflow.manifest import manifest as workflow_manifest
+from app.modules.workforce.manifest import manifest as workforce_manifest
 from app.support.exceptions.handlers import register_exception_handlers
 from app.support.middleware.cors import register_cors
 from app.support.middleware.request_id import register_request_id
@@ -54,6 +56,7 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         costing_manifest,
         delivery_manifest,
         document_manifest,
+        funding_manifest,
         government_claim_manifest,
         integration_manifest,
         inventory_manifest,
@@ -63,6 +66,7 @@ def get_module_manifests() -> Iterable[ModuleManifest]:
         reporting_manifest,
         uom_manifest,
         workflow_manifest,
+        workforce_manifest,
         product_manifest,
         production_manifest,
         procurement_manifest,

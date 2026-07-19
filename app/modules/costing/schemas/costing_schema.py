@@ -45,6 +45,7 @@ class ProductionCostSummaryRead(BaseModel):
     tenant_id: str
     sppg_id: str
     applied_cost_policy_id: str | None
+    labor_cost_source: str
     accepted_portions: int
     planned_portions: int
     actual_portions: int

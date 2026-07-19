@@ -18,6 +18,7 @@ from app.modules.production.repositories.production_material_consumption_reposit
 from app.modules.production.repositories.production_order_repository import ProductionOrderRepository
 from app.modules.sppg.repositories.sppg_repository import SppgRepository
 from app.modules.tenant.repositories.tenant_repository import TenantRepository
+from app.modules.workforce.repositories.workforce_repository import WorkforceRepository
 from app.support.responses.envelope import success_response
 
 router = APIRouter()
@@ -31,6 +32,7 @@ def get_costing_service(session: AsyncSession = Depends(get_db_session)) -> Cost
         MealPlanRepository(session),
         TenantRepository(session),
         SppgRepository(session),
+        WorkforceRepository(session),
     )
 
 
