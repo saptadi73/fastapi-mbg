@@ -10,7 +10,7 @@ from app.core.security.jwt import decode_token
 from app.core.tenancy.context import get_current_sppg, get_current_tenant, set_current_sppg, set_current_tenant
 from app.modules.identity.models.user import User
 from app.modules.identity.repositories.user_repository import UserRepository
-from app.support.exceptions.base import UnauthorizedException
+from app.support.exceptions.base import ForbiddenException, UnauthorizedException
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/identity/login", auto_error=False)
 
@@ -41,10 +41,25 @@ async def get_current_user(
             message="Access token tidak valid.",
         ) from exc
 
-    user = await UserRepository(session).get_by_id(user_id)
+    repository = UserRepository(session)
+    user = await repository.get_by_id(user_id)
     if user is None or not user.is_active:
         raise UnauthorizedException(
             code="USER_NOT_FOUND",
             message="User tidak ditemukan atau tidak aktif.",
+        )
+    accessible_sppg_ids = await repository.list_accessible_sppg_ids(user.id)
+    current_sppg = get_current_sppg()
+    if current_sppg is not None:
+        current_sppg_id = UUID(current_sppg)
+        if accessible_sppg_ids and current_sppg_id not in accessible_sppg_ids:
+            raise ForbiddenException(
+                code="USER_SPPG_ACCESS_DENIED",
+                message="User tidak memiliki akses ke SPPG pada context ini.",
+            )
+    elif user.active_sppg_id is not None and accessible_sppg_ids and user.active_sppg_id not in accessible_sppg_ids:
+        raise ForbiddenException(
+            code="USER_SPPG_ACCESS_DENIED",
+            message="User tidak memiliki akses ke active SPPG yang tersimpan.",
         )
     return user

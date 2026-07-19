@@ -9,6 +9,7 @@ def import_all_models() -> None:
     import app.modules.delivery.models.delivery_proof  # noqa: F401
     import app.modules.geography.models.school  # noqa: F401
     import app.modules.identity.models.user  # noqa: F401
+    import app.modules.identity.models.user_sppg_access  # noqa: F401
     import app.modules.inventory.models.inventory_balance  # noqa: F401
     import app.modules.inventory.models.inventory_transaction  # noqa: F401
     import app.modules.inventory.models.warehouse  # noqa: F401

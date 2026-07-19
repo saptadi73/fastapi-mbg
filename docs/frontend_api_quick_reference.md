@@ -34,6 +34,13 @@ Authorization: Bearer <access_token>
 | `GET` | `/health/database` | No | - | Check database |
 | `POST` | `/api/v1/identity/login` | No | - | Login JWT |
 | `GET` | `/api/v1/identity/me` | Yes | Any | Profil user aktif |
+| `POST` | `/api/v1/identity/switch-active-sppg` | Yes | Any | Pindah context SPPG aktif |
+| `GET` | `/api/v1/identity/users` | Yes | `super_admin`, `tenant_admin` | List user admin |
+| `GET` | `/api/v1/identity/users/{user_id}` | Yes | `super_admin`, `tenant_admin` | Detail user admin |
+| `POST` | `/api/v1/identity/users` | Yes | `super_admin`, `tenant_admin` | Buat user baru |
+| `PUT` | `/api/v1/identity/users/{user_id}` | Yes | `super_admin`, `tenant_admin` | Update profil, role, dan scope user |
+| `GET` | `/api/v1/identity/users/{user_id}/sppg-access` | Yes | `super_admin`, `tenant_admin` | Lihat akses SPPG user |
+| `PUT` | `/api/v1/identity/users/{user_id}/sppg-access` | Yes | `super_admin`, `tenant_admin` | Ubah akses SPPG user |
 | `GET` | `/api/v1/tenants/` | No | - | List tenant |
 | `GET` | `/api/v1/sppg/` | No | - | List SPPG |
 | `GET` | `/api/v1/geography/schools/` | No | - | List sekolah |
@@ -88,6 +95,10 @@ Authorization: Bearer <access_token>
 | `AUTHENTICATION_REQUIRED` | Redirect login |
 | `INVALID_ACCESS_TOKEN` | Hapus token lalu login ulang |
 | `INSUFFICIENT_ROLE` | Tampilkan unauthorized |
+| `USER_SPPG_ACCESS_DENIED` | Blok akses bila user memilih SPPG di luar hak aksesnya |
+| `ACTIVE_SPPG_NOT_IN_ACCESS_LIST` | Validasi form admin akses user sebelum submit |
+| `ACTIVE_SPPG_NOT_ACCESSIBLE` | Blok switch SPPG bila user tidak punya akses ke target SPPG |
+| `USER_EMAIL_ALREADY_EXISTS` | Validasi email user admin agar tidak duplikat |
 | `INSUFFICIENT_STOCK_FOR_MEAL_PLAN` | Tampilkan shortage dan arahkan ke procurement |
 | `NO_SHORTAGE_FOR_PURCHASE_REQUEST` | Info bahwa stok sudah cukup |
 | `MEAL_PLAN_NOT_READY_FOR_PRODUCTION` | Minta user reserve material dulu |
@@ -110,6 +121,7 @@ Authorization: Bearer <access_token>
 - Supplier payment otomatis membuat jurnal `POSTED` debit `210000` dan kredit `110000`, lalu mengubah status supplier invoice menjadi `PAID`.
 - Production completion otomatis membuat jurnal `POSTED` debit `510000` dan kredit `130000`.
 - Frontend sebaiknya treat field `status` journal entry sebagai workflow sederhana: `DRAFT` lalu `POSTED`.
+- Endpoint identity sekarang juga mengembalikan `accessible_sppg_ids` agar frontend bisa membatasi pilihan SPPG aktif sesuai hak akses user.
 
 ## Example Requests
 
@@ -130,6 +142,38 @@ Authorization: Bearer <access_token>
   "payment_date": "2026-07-19",
   "bank_account_id": "{{account_id_2}}",
   "notes": "Supplier payment posted"
+}
+```
+
+### Update User SPPG Access
+
+```json
+{
+  "accessible_sppg_ids": ["{{sppg_id}}"],
+  "active_sppg_id": "{{sppg_id}}"
+}
+```
+
+### Create User Admin
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "full_name": "QA Admin User",
+  "email": "qa-admin@example.com",
+  "password": "qa12345",
+  "role_names": ["tenant_admin"],
+  "is_active": true,
+  "accessible_sppg_ids": ["{{sppg_id}}"],
+  "active_sppg_id": "{{sppg_id}}"
+}
+```
+
+### Switch Active SPPG
+
+```json
+{
+  "sppg_id": "{{sppg_id}}"
 }
 ```
 

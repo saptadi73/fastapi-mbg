@@ -20,6 +20,13 @@ http://127.0.0.1:8000
 
 1. `POST /api/v1/identity/login`
 2. `GET /api/v1/identity/me`
+3. `POST /api/v1/identity/switch-active-sppg`
+4. `GET /api/v1/identity/users`
+5. `GET /api/v1/identity/users/{user_id}`
+6. `POST /api/v1/identity/users`
+7. `PUT /api/v1/identity/users/{user_id}`
+8. `GET /api/v1/identity/users/{user_id}/sppg-access`
+9. `PUT /api/v1/identity/users/{user_id}/sppg-access`
 
 ### Master Data
 
@@ -228,6 +235,206 @@ username=operator@example.com&password=mbg12345
 `GET /api/v1/identity/me`
 
 Mengembalikan profil user aktif dari token saat ini.
+
+Response penting:
+
+- `tenant_id`
+- `active_sppg_id`
+- `accessible_sppg_ids`
+
+`POST /api/v1/identity/switch-active-sppg`
+
+Mengganti `active_sppg_id` user yang sedang login dan mengembalikan token baru.
+
+Payload:
+
+```json
+{
+  "sppg_id": "uuid"
+}
+```
+
+Aturan:
+
+- `sppg_id` harus termasuk dalam `accessible_sppg_ids` user
+- setelah berhasil, frontend sebaiknya mengganti access token lama dengan token baru dari response
+
+Error:
+
+- `ACTIVE_SPPG_NOT_ACCESSIBLE`
+
+Contoh response sukses:
+
+```json
+{
+  "success": true,
+  "code": "IDENTITY_ACTIVE_SPPG_SWITCHED",
+  "message": "SPPG aktif berhasil diganti.",
+  "data": {
+    "access_token": "jwt-token-baru",
+    "token_type": "bearer",
+    "active_sppg_id": "uuid",
+    "accessible_sppg_ids": ["uuid"]
+  },
+  "meta": {
+    "path": "/api/v1/identity/switch-active-sppg",
+    "method": "POST",
+    "timestamp": "2026-07-19T11:40:00Z"
+  }
+}
+```
+
+`GET /api/v1/identity/users`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Mengembalikan daftar user. Bila request membawa `X-Tenant-ID`, hasil akan terfilter per tenant.
+
+`GET /api/v1/identity/users/{user_id}`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Mengembalikan detail satu user admin, termasuk:
+
+- `role_names`
+- `is_active`
+- `active_sppg_id`
+- `accessible_sppg_ids`
+
+`POST /api/v1/identity/users`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "tenant_id": "uuid",
+  "full_name": "QA Admin User",
+  "email": "qa-admin@example.com",
+  "password": "qa12345",
+  "role_names": ["tenant_admin"],
+  "is_active": true,
+  "accessible_sppg_ids": ["uuid"],
+  "active_sppg_id": "uuid"
+}
+```
+
+Aturan:
+
+- `tenant_id` harus sesuai dengan context tenant bila `X-Tenant-ID` dikirim
+- `active_sppg_id` harus ada di `accessible_sppg_ids`
+- email user harus unik
+
+`PUT /api/v1/identity/users/{user_id}`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "full_name": "QA Admin User Updated",
+  "role_names": ["operations_manager"],
+  "is_active": true,
+  "password": null,
+  "accessible_sppg_ids": ["uuid"],
+  "active_sppg_id": "uuid"
+}
+```
+
+Jika `password` diisi, backend akan mengganti password user.
+
+`GET /api/v1/identity/users/{user_id}/sppg-access`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Mengembalikan konfigurasi akses SPPG untuk user tertentu.
+
+Contoh response:
+
+```json
+{
+  "success": true,
+  "code": "IDENTITY_USER_SPPG_ACCESS_FOUND",
+  "message": "Akses SPPG user berhasil diambil.",
+  "data": {
+    "user_id": "uuid",
+    "tenant_id": "uuid",
+    "active_sppg_id": "uuid",
+    "accessible_sppg_ids": ["uuid"]
+  },
+  "meta": {
+    "path": "/api/v1/identity/users/uuid/sppg-access",
+    "method": "GET",
+    "timestamp": "2026-07-19T11:30:00Z"
+  }
+}
+```
+
+`PUT /api/v1/identity/users/{user_id}/sppg-access`
+
+Role:
+
+- `super_admin`
+- `tenant_admin`
+
+Payload:
+
+```json
+{
+  "accessible_sppg_ids": ["uuid"],
+  "active_sppg_id": "uuid"
+}
+```
+
+Aturan:
+
+- semua `accessible_sppg_ids` harus milik tenant yang sama dengan user
+- `active_sppg_id` harus ada di dalam `accessible_sppg_ids`
+- bila context request memakai `X-SPPG-ID`, user juga harus punya akses ke SPPG itu
+
+Error yang perlu ditangani frontend:
+
+- `USER_SPPG_ACCESS_DENIED`
+- `ACTIVE_SPPG_NOT_IN_ACCESS_LIST`
+- `USER_EMAIL_ALREADY_EXISTS`
+
+Contoh response sukses:
+
+```json
+{
+  "success": true,
+  "code": "IDENTITY_USER_SPPG_ACCESS_UPDATED",
+  "message": "Akses SPPG user berhasil diperbarui.",
+  "data": {
+    "user_id": "uuid",
+    "tenant_id": "uuid",
+    "active_sppg_id": "uuid",
+    "accessible_sppg_ids": ["uuid"]
+  },
+  "meta": {
+    "path": "/api/v1/identity/users/uuid/sppg-access",
+    "method": "PUT",
+    "timestamp": "2026-07-19T11:35:00Z"
+  }
+}
+```
 
 ### Meal Plan Workflow
 

@@ -221,6 +221,10 @@ async def _seed_test_data() -> None:
                 operator_user.active_sppg_id = sppg.id
             if viewer_user is not None and viewer_user.active_sppg_id != sppg.id:
                 viewer_user.active_sppg_id = sppg.id
+            if operator_user is not None:
+                await user_repository.add_sppg_access(operator_user.id, tenant.id, sppg.id)
+            if viewer_user is not None:
+                await user_repository.add_sppg_access(viewer_user.id, tenant.id, sppg.id)
             await session.commit()
 
             beneficiary_service = BeneficiaryService(

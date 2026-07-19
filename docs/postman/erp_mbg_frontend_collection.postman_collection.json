@@ -11,6 +11,7 @@
     { "key": "tenant_id", "value": "3ddb74ec-1d0d-4ca7-8372-0d65e570ae8e" },
     { "key": "sppg_id", "value": "e36ce909-457b-4784-ba7c-9767bc55fb0b" },
     { "key": "school_id", "value": "91dd5bec-a3db-4583-8dc6-6e00cc8fd831" },
+    { "key": "user_id", "value": "" },
     { "key": "beneficiary_id", "value": "32e00486-5f3e-4a52-8411-692a6246a922" },
     { "key": "uom_id", "value": "3d3279c0-de81-4741-ae0e-92c6377b5837" },
     { "key": "product_id", "value": "922752e0-0f72-4496-b166-52984da118e5" },
@@ -48,7 +49,8 @@
               "script": {
                 "exec": [
                   "const payload = pm.response.json();",
-                  "if (payload?.data?.access_token) pm.collectionVariables.set('access_token', payload.data.access_token);"
+                  "if (payload?.data?.access_token) pm.collectionVariables.set('access_token', payload.data.access_token);",
+                  "if (payload?.data?.active_sppg_id) pm.collectionVariables.set('sppg_id', payload.data.active_sppg_id);"
                 ],
                 "type": "text/javascript"
               }
@@ -69,10 +71,131 @@
         },
         {
           "name": "Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.id) pm.collectionVariables.set('user_id', payload.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
             "url": "{{base_url}}/api/v1/identity/me"
+          }
+        },
+        {
+          "name": "Switch Active SPPG",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.access_token) pm.collectionVariables.set('access_token', payload.data.access_token);",
+                  "if (payload?.data?.active_sppg_id) pm.collectionVariables.set('sppg_id', payload.data.active_sppg_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sppg_id\": \"{{sppg_id}}\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/identity/switch-active-sppg"
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/identity/users"
+          }
+        },
+        {
+          "name": "Get User Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/identity/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const payload = pm.response.json();",
+                  "if (payload?.data?.id) pm.collectionVariables.set('user_id', payload.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"{{tenant_id}}\",\n  \"full_name\": \"QA Admin User\",\n  \"email\": \"qa-admin@example.com\",\n  \"password\": \"qa12345\",\n  \"role_names\": [\"tenant_admin\"],\n  \"is_active\": true,\n  \"accessible_sppg_ids\": [\"{{sppg_id}}\"],\n  \"active_sppg_id\": \"{{sppg_id}}\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/identity/users"
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"QA Admin User Updated\",\n  \"role_names\": [\"operations_manager\"],\n  \"is_active\": true,\n  \"password\": null,\n  \"accessible_sppg_ids\": [\"{{sppg_id}}\"],\n  \"active_sppg_id\": \"{{sppg_id}}\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/identity/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Get User SPPG Access",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": "{{base_url}}/api/v1/identity/users/{{user_id}}/sppg-access"
+          }
+        },
+        {
+          "name": "Update User SPPG Access",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessible_sppg_ids\": [\"{{sppg_id}}\"],\n  \"active_sppg_id\": \"{{sppg_id}}\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/identity/users/{{user_id}}/sppg-access"
           }
         }
       ]

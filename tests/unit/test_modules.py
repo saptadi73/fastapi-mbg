@@ -22,6 +22,7 @@ def test_identity_endpoint_returns_envelope() -> None:
     assert payload["success"] is True
     assert payload["data"]["email"] == "operator@example.com"
     assert payload["data"]["active_sppg_id"] is not None
+    assert len(payload["data"]["accessible_sppg_ids"]) >= 1
 
 
 def test_identity_login_returns_token() -> None:
@@ -36,6 +37,143 @@ def test_identity_login_returns_token() -> None:
     assert payload["success"] is True
     assert payload["data"]["token_type"] == "bearer"
     assert payload["data"]["active_sppg_id"] is not None
+
+
+def test_identity_switch_active_sppg_returns_new_token() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        current_user = client.get(
+            "/api/v1/identity/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        ).json()["data"]
+        active_sppg_id = current_user["active_sppg_id"]
+
+        response = client.post(
+            "/api/v1/identity/switch-active-sppg",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"sppg_id": active_sppg_id},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["code"] == "IDENTITY_ACTIVE_SPPG_SWITCHED"
+    assert payload["data"]["token_type"] == "bearer"
+    assert payload["data"]["active_sppg_id"] == active_sppg_id
+
+
+def test_identity_user_sppg_access_admin_endpoints_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        current_user = client.get(
+            "/api/v1/identity/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        ).json()["data"]
+        user_id = current_user["id"]
+        accessible_sppg_ids = current_user["accessible_sppg_ids"]
+        active_sppg_id = current_user["active_sppg_id"]
+
+        get_response = client.get(
+            f"/api/v1/identity/users/{user_id}/sppg-access",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        put_response = client.put(
+            f"/api/v1/identity/users/{user_id}/sppg-access",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "accessible_sppg_ids": accessible_sppg_ids,
+                "active_sppg_id": active_sppg_id,
+            },
+        )
+
+    assert get_response.status_code == 200
+    get_payload = get_response.json()
+    assert get_payload["code"] == "IDENTITY_USER_SPPG_ACCESS_FOUND"
+    assert get_payload["data"]["user_id"] == user_id
+    assert active_sppg_id in get_payload["data"]["accessible_sppg_ids"]
+
+    assert put_response.status_code == 200
+    put_payload = put_response.json()
+    assert put_payload["code"] == "IDENTITY_USER_SPPG_ACCESS_UPDATED"
+    assert put_payload["data"]["user_id"] == user_id
+    assert put_payload["data"]["active_sppg_id"] == active_sppg_id
+
+
+def test_identity_admin_user_management_endpoints_work() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+        sppg_id = client.get("/api/v1/sppg/").json()["data"][0]["id"]
+        user_email = f"qa-admin-{uuid4()}@example.com"
+
+        list_response = client.get(
+            "/api/v1/identity/users",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        create_response = client.post(
+            "/api/v1/identity/users",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "tenant_id": tenant_id,
+                "full_name": "QA Admin User",
+                "email": user_email,
+                "password": "qa12345",
+                "role_names": ["tenant_admin"],
+                "is_active": True,
+                "accessible_sppg_ids": [sppg_id],
+                "active_sppg_id": sppg_id,
+            },
+        )
+        created_user_id = create_response.json()["data"]["id"]
+        get_response = client.get(
+            f"/api/v1/identity/users/{created_user_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
+        update_response = client.put(
+            f"/api/v1/identity/users/{created_user_id}",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+            json={
+                "full_name": "QA Admin User Updated",
+                "role_names": ["operations_manager"],
+                "is_active": True,
+                "password": None,
+                "accessible_sppg_ids": [sppg_id],
+                "active_sppg_id": sppg_id,
+            },
+        )
+
+    assert list_response.status_code == 200
+    list_payload = list_response.json()
+    assert list_payload["code"] == "IDENTITY_USER_LIST_FOUND"
+    assert all(item["tenant_id"] == tenant_id for item in list_payload["data"])
+
+    assert create_response.status_code == 200
+    create_payload = create_response.json()
+    assert create_payload["code"] == "IDENTITY_USER_CREATED"
+    assert create_payload["data"]["email"] == user_email
+    assert create_payload["data"]["active_sppg_id"] == sppg_id
+
+    assert get_response.status_code == 200
+    get_payload = get_response.json()
+    assert get_payload["code"] == "IDENTITY_USER_FOUND"
+    assert get_payload["data"]["id"] == created_user_id
+
+    assert update_response.status_code == 200
+    update_payload = update_response.json()
+    assert update_payload["code"] == "IDENTITY_USER_UPDATED"
+    assert update_payload["data"]["full_name"] == "QA Admin User Updated"
+    assert update_payload["data"]["role_names"] == ["operations_manager"]
 
 
 def test_sppg_endpoint_supports_tenant_context_filter() -> None:
@@ -257,11 +395,11 @@ def test_meal_plan_create_rejects_sppg_write_scope_violation() -> None:
             "/api/v1/meal-plans/",
             headers={
                 "Authorization": f"Bearer {access_token}",
-                "X-SPPG-ID": str(uuid4()),
+                "X-SPPG-ID": sppg_id,
             },
             json={
                 "tenant_id": tenant_id,
-                "sppg_id": sppg_id,
+                "sppg_id": str(uuid4()),
                 "recipe_id": recipe_id,
                 "plan_date": "2026-07-30",
                 "meal_type": "LUNCH",
