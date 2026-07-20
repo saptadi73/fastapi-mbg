@@ -26,6 +26,30 @@ def test_identity_endpoint_returns_envelope() -> None:
     assert len(payload["data"]["accessible_sppg_ids"]) >= 1
 
 
+def test_gis_endpoints_ignore_placeholder_scope_headers() -> None:
+    with TestClient(app) as client:
+        tenant_id = client.get("/api/v1/tenants/").json()["data"][0]["id"]
+
+        service_area_response = client.get(
+            "/api/v1/gis/service-areas",
+            headers={"X-Tenant-ID": "undefined", "X-SPPG-ID": "undefined"},
+        )
+        distribution_response = client.get(
+            "/api/v1/gis/heatmaps/distribution",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": "undefined"},
+        )
+
+    assert service_area_response.status_code == 200, service_area_response.json()
+    service_area_payload = service_area_response.json()
+    assert service_area_payload["success"] is True
+    assert "items" in service_area_payload["data"]
+
+    assert distribution_response.status_code == 200, distribution_response.json()
+    distribution_payload = distribution_response.json()
+    assert distribution_payload["success"] is True
+    assert distribution_payload["data"]["type"] == "FeatureCollection"
+
+
 def test_identity_login_returns_token() -> None:
     with TestClient(app) as client:
         response = client.post(
