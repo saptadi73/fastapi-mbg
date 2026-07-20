@@ -4,7 +4,7 @@
 
 Dokumen addendum ini melengkapi `erp_mbg_fastapi_backend_technical_design_v3_multi_tenant_multi_sppg.md` dan menjadi referensi keputusan desain terbaru untuk implementasi backend.
 
-**Tanggal pembaruan:** 2026-07-19
+**Tanggal pembaruan:** 2026-07-20
 **Status:** berlaku untuk implementasi backend saat ini dan tahap refactor berikutnya
 
 ---
@@ -164,7 +164,29 @@ Artinya, fondasi multi-SPPG sudah ada, tetapi enforcement scope dan metadata GIS
 
 ---
 
-# 7. Urutan Implementasi yang Direkomendasikan
+# 7. Pembaruan Implementasi per 20 Juli 2026
+
+Status implementasi backend saat ini yang sudah tersedia:
+
+* middleware tenancy sudah menormalisasi placeholder header seperti `undefined`, `null`, `none`, dan string kosong agar tidak memicu scope error palsu
+* endpoint GIS utama untuk coverage, service area, rute distribusi, dan heatmap sudah tersedia
+* modul Fleet sudah memiliki master `vehicle_type`, `vehicle`, `driver`, `vehicle_assignment`, dan `vehicle_maintenance`
+* backend kini memiliki tracking lokasi armada melalui tabel `vehicle_locations`
+* endpoint fleet live tracking yang tersedia:
+  * `GET /api/v1/fleet/vehicle-locations/live`
+  * `GET /api/v1/fleet/vehicles/{vehicle_id}/locations`
+  * `POST /api/v1/fleet/vehicles/{vehicle_id}/locations`
+* detail kendaraan sekarang dapat mengembalikan `current_location` dan `recent_locations`
+
+Tracking armada ini menjadi penghubung operasional antara domain Fleet, GIS, dan Delivery:
+
+* Fleet menyimpan identitas kendaraan, driver, assignment, maintenance, dan histori GPS
+* GIS memakai koordinat kendaraan untuk peta armada aktif, status pergerakan, dan dispatch board
+* Delivery tetap menjadi pemilik delivery order, route, stop, proof, dan incident
+
+---
+
+# 8. Urutan Implementasi yang Direkomendasikan
 
 1. Lengkapi model dan schema `sppg`.
 2. Tambahkan migration field lokasi dan GIS.
@@ -175,7 +197,27 @@ Artinya, fondasi multi-SPPG sudah ada, tetapi enforcement scope dan metadata GIS
 
 ---
 
-# 8. Definition of Done
+# 9. Seed Demo Operasional
+
+Untuk kebutuhan demo dan frontend lokal, paket seed backend saat ini sebaiknya dianggap sebagai baseline resmi:
+
+* `8` SPPG demo
+* `24` sekolah demo
+* polygon service area untuk setiap SPPG
+* data distribusi, route, proof, feedback, complaint, dan claim keuangan
+* `40` kendaraan demo atau minimal `5` armada per SPPG
+* `40` driver demo
+* `40` assignment armada
+* `120` histori titik GPS armada pada `2026-07-20`
+
+Konvensi kode demo yang aman dipakai integrasi:
+
+* kendaraan: `VH-JKT01-01` sampai `VH-JKT08-05`
+* driver: `DRV-JKT01-01` sampai `DRV-JKT08-05`
+
+---
+
+# 10. Definition of Done
 
 Perubahan dianggap sesuai desain v3 bila:
 
@@ -184,3 +226,4 @@ Perubahan dianggap sesuai desain v3 bila:
 * model `sppg` menyimpan GPS dan metadata lokasi minimum
 * JWT atau request context mendukung active SPPG
 * test backend mencakup skenario lintas tenant dan lintas SPPG
+* armada dapat dipantau melalui histori GPS dan posisi live per tenant/SPPG

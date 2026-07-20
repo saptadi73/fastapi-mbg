@@ -792,6 +792,8 @@ Mengelola:
 * jadwal;
 * bahan bakar;
 * maintenance;
+* histori lokasi GPS kendaraan;
+* status pergerakan armada;
 * biaya perjalanan.
 
 ## 16.2 Aggregate Utama
@@ -807,6 +809,47 @@ VehicleMaintenance
 ```
 
 Fleet menyediakan informasi kendaraan kepada Distribution, tetapi Delivery tetap dimiliki domain Distribution.
+
+## 16.3 Implementasi Saat Ini
+
+Implementasi backend saat ini telah mencakup:
+
+* master `vehicle_types`
+* master `vehicles`
+* master `drivers`
+* `vehicle_assignments`
+* `vehicle_maintenances`
+* `vehicle_locations` untuk histori GPS armada
+
+Endpoint live tracking yang tersedia:
+
+* `GET /api/v1/fleet/vehicle-locations/live`
+* `GET /api/v1/fleet/vehicles/{vehicle_id}/locations`
+* `POST /api/v1/fleet/vehicles/{vehicle_id}/locations`
+
+Pola ini dipilih agar:
+
+* posisi kendaraan tidak dicampur ke tabel master `vehicles`
+* histori perjalanan tetap dapat diaudit
+* frontend dapat membangun fleet map, dispatch board, dan playback histori rute
+
+## 16.4 Relasi Fleet dengan GIS dan Delivery
+
+Hubungan domain yang direkomendasikan:
+
+* Fleet adalah sumber kebenaran untuk kendaraan, driver, assignment, maintenance, dan GPS ping
+* GIS memakai `vehicle_locations` untuk memetakan posisi armada aktif
+* Delivery menggunakan vehicle dan route sebagai konteks distribusi, tetapi ownership transaksi pengiriman tetap berada pada domain Delivery
+
+## 16.5 Demo Data Operasional
+
+Seed demo backend saat ini menyediakan:
+
+* `40` kendaraan demo
+* `40` driver demo
+* `40` assignment armada
+* `120` titik GPS demo pada `2026-07-20`
+* minimal `5` armada pada setiap SPPG demo
 
 ---
 

@@ -1493,6 +1493,9 @@ Mengelola pengiriman makanan atau paket bantuan dari dapur ke sekolah/titik pene
 - delivery_incidents
 - vehicles
 - drivers
+- vehicle_assignments
+- vehicle_maintenances
+- vehicle_locations
 
 ### 15.3 Delivery Order
 
@@ -2136,6 +2139,7 @@ GET /api/v1/gis/service-coverage
 GET /api/v1/gis/delivery-routes
 GET /api/v1/gis/unserved-schools
 GET /api/v1/gis/sppg-risk-heatmap
+GET /api/v1/fleet/vehicle-locations/live
 ```
 
 ---
@@ -2895,6 +2899,24 @@ location: Mapped[object] = mapped_column(
 ```
 
 Setelah autogenerate, migration GIS harus direview manual. Pastikan index GiST, SRID, geometry type, dan constraint dibuat sesuai desain.
+
+Untuk tracking armada, pola yang kini dipakai backend adalah tabel histori `vehicle_locations` dengan field minimum:
+
+- `vehicle_id`
+- `sppg_id`
+- `assignment_id`
+- `recorded_at`
+- `latitude`
+- `longitude`
+- `location geometry(Point, 4326)`
+- `speed_kph`
+- `heading_degree`
+- `accuracy_meter`
+- `engine_on`
+- `movement_status`
+- `event_type`
+
+Tabel ini sebaiknya memiliki index GiST pada kolom `location` dan index biasa pada `tenant_id`, `sppg_id`, `vehicle_id`, dan `recorded_at`.
 
 ### 31.10 Strategi UUID pada PostgreSQL 18
 
