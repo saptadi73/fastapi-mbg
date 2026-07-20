@@ -47,6 +47,7 @@ from app.modules.meal_plan.services.meal_plan_service import MealPlanService
 from app.modules.geography.repositories.school_repository import SchoolRepository
 from app.modules.geography.schemas.school_schema import SchoolCreate
 from app.modules.geography.services.school_service import SchoolService
+from app.modules.beneficiary.models.beneficiary import Beneficiary
 from app.modules.beneficiary.repositories.beneficiary_repository import BeneficiaryRepository
 from app.modules.beneficiary.schemas.beneficiary_schema import BeneficiaryCreate
 from app.modules.beneficiary.services.beneficiary_service import BeneficiaryService
@@ -60,6 +61,10 @@ from app.modules.accounting.models.journal_line import JournalLine
 from app.modules.accounting.schemas.accounting_schema import AccountCreate, JournalEntryCreate
 from app.modules.accounting.schemas.accounting_schema import JournalLineCreate
 from app.modules.accounting.services.accounting_service import AccountingService
+from app.modules.asset.models.asset import Asset
+from app.modules.asset.models.asset_assignment import AssetAssignment
+from app.modules.asset.models.asset_category import AssetCategory
+from app.modules.asset.models.asset_depreciation import AssetDepreciation
 from app.modules.budget.repositories.budget_line_repository import BudgetLineRepository
 from app.modules.budget.repositories.budget_repository import BudgetRepository
 from app.modules.budget.schemas.budget_schema import BudgetCreate, BudgetLineCreate
@@ -115,6 +120,31 @@ def _fleet_offset(base_value: float, unit_index: int, axis: str) -> float:
     if axis == "lat":
         return base_value + (0.0024 * multiplier)
     return base_value + (0.0017 * multiplier)
+
+
+def _build_beneficiary_profile(school_level: str, index: int) -> tuple[str, str | None, str | None]:
+    if school_level == "SD":
+        age_group = "7-12"
+    elif school_level == "SMP":
+        age_group = "13-15"
+    else:
+        age_group = "16-18"
+    dietary_cycle = {
+        0: "vegetarian",
+        1: "low_sugar",
+        2: "lactose_free",
+        3: None,
+    }
+    allergy_cycle = {
+        0: "alergi telur",
+        1: "alergi seafood",
+        2: "intoleransi susu",
+        3: None,
+        4: "alergi kacang",
+    }
+    dietary_restriction = dietary_cycle[index % 13 % len(dietary_cycle)] if index % 11 == 0 else None
+    allergy_notes = allergy_cycle[index % len(allergy_cycle)] if index % 9 == 0 else None
+    return age_group, dietary_restriction, allergy_notes
 
 
 async def main() -> None:
@@ -706,6 +736,20 @@ async def main() -> None:
             existing_beneficiaries = {
                 item.external_reference: item for item in await beneficiary_service.list_beneficiaries()
             }
+            legacy_beneficiaries = [
+                item
+                for item in existing_beneficiaries.values()
+                if not item.external_reference.startswith("BEN-SCH-JKT-")
+                or len(item.external_reference.split("-")) != 5
+            ]
+            if legacy_beneficiaries:
+                legacy_beneficiary_ids = [item.id for item in legacy_beneficiaries]
+                await session.execute(delete(Beneficiary).where(Beneficiary.id.in_(legacy_beneficiary_ids)))
+                await session.commit()
+                for item in legacy_beneficiaries:
+                    existing_beneficiaries.pop(item.external_reference, None)
+                print(f"Beneficiary demo lama dibersihkan: {len(legacy_beneficiaries)}")
+
             school_beneficiary_targets = {
                 "SCH-JKT-01": 24,
                 "SCH-JKT-02": 20,
@@ -733,11 +777,22 @@ async def main() -> None:
                 "SCH-JKT-24": 16,
             }
             created_beneficiary_count = 0
+            updated_beneficiary_count = 0
             for school_code, beneficiary_target in school_beneficiary_targets.items():
                 school_item = school_map[school_code]
                 for index in range(1, beneficiary_target + 1):
                     external_reference = f"BEN-{school_code}-{index:03d}"
+                    age_group, dietary_restriction, allergy_notes = _build_beneficiary_profile(school_item.school_level, index)
                     if external_reference in existing_beneficiaries:
+                        beneficiary = existing_beneficiaries[external_reference]
+                        beneficiary.school_id = school_item.id
+                        beneficiary.category = "student"
+                        beneficiary.age_group = age_group
+                        beneficiary.gender = "female" if index % 2 == 0 else "male"
+                        beneficiary.dietary_restriction = dietary_restriction
+                        beneficiary.allergy_notes = allergy_notes
+                        beneficiary.is_active = True
+                        updated_beneficiary_count += 1
                         continue
                     beneficiary = await beneficiary_service.create_beneficiary(
                         BeneficiaryCreate(
@@ -745,10 +800,10 @@ async def main() -> None:
                             school_id=str(school_item.id),
                             external_reference=external_reference,
                             category="student",
-                            age_group="7-12" if school_item.school_level == "SD" else "13-18",
+                            age_group=age_group,
                             gender="female" if index % 2 == 0 else "male",
-                            dietary_restriction="vegetarian" if index % 17 == 0 else None,
-                            allergy_notes="alergi telur" if index % 19 == 0 else None,
+                            dietary_restriction=dietary_restriction,
+                            allergy_notes=allergy_notes,
                             is_active=True,
                         )
                     )
@@ -759,6 +814,8 @@ async def main() -> None:
                 print(f"Beneficiary tambahan dibuat: {created_beneficiary_count}")
             else:
                 print(f"Beneficiary sudah mencukupi: {len(existing_beneficiaries)} data")
+            if updated_beneficiary_count:
+                print(f"Beneficiary demo diperbarui: {updated_beneficiary_count}")
 
             meal_plan_service = MealPlanService(
                 MealPlanRepository(session),
@@ -2214,6 +2271,301 @@ async def main() -> None:
                 print(f"Accounts tambahan dibuat: {', '.join(created_account_codes)}")
             else:
                 print("Accounts tambahan sudah tersedia.")
+
+            asset_account_seed = [
+                ("140100", "Peralatan Dapur", "ASSET", "DEBIT"),
+                ("140200", "Kendaraan Operasional", "ASSET", "DEBIT"),
+                ("140300", "Peralatan Rantai Dingin", "ASSET", "DEBIT"),
+                ("540100", "Beban Depresiasi Peralatan", "EXPENSE", "DEBIT"),
+                ("540200", "Beban Depresiasi Kendaraan", "EXPENSE", "DEBIT"),
+                ("149100", "Akumulasi Depresiasi Peralatan", "ASSET_CONTRA", "CREDIT"),
+                ("149200", "Akumulasi Depresiasi Kendaraan", "ASSET_CONTRA", "CREDIT"),
+            ]
+            created_asset_account_codes: list[str] = []
+            for code, name, category, normal_balance in asset_account_seed:
+                if code in account_map:
+                    continue
+                created_account = await accounting_service.create_account(
+                    AccountCreate(
+                        tenant_id=str(tenant.id),
+                        code=code,
+                        name=name,
+                        category=category,
+                        normal_balance=normal_balance,
+                    )
+                )
+                await session.commit()
+                account_map[created_account.code] = created_account
+                created_asset_account_codes.append(created_account.code)
+            if created_asset_account_codes:
+                print(f"Accounts asset dibuat: {', '.join(created_asset_account_codes)}")
+            else:
+                print("Accounts asset sudah tersedia.")
+
+            legacy_asset_categories = list(
+                (
+                    await session.execute(
+                        select(AssetCategory).where(
+                            AssetCategory.tenant_id == tenant.id,
+                            AssetCategory.code.like("EQP-%"),
+                        )
+                    )
+                ).scalars().all()
+            )
+            legacy_assets = list(
+                (
+                    await session.execute(
+                        select(Asset).where(
+                            Asset.tenant_id == tenant.id,
+                            Asset.asset_code.like("AST-%"),
+                            ~Asset.asset_code.like("AST-KIT-%"),
+                            ~Asset.asset_code.like("AST-CC-%"),
+                            ~Asset.asset_code.like("AST-IT-%"),
+                        )
+                    )
+                ).scalars().all()
+            )
+            legacy_asset_ids = [item.id for item in legacy_assets]
+            legacy_asset_category_ids = [item.id for item in legacy_asset_categories]
+            if legacy_asset_ids:
+                await session.execute(delete(AssetAssignment).where(AssetAssignment.asset_id.in_(legacy_asset_ids)))
+                await session.execute(delete(AssetDepreciation).where(AssetDepreciation.asset_id.in_(legacy_asset_ids)))
+                await session.execute(delete(Asset).where(Asset.id.in_(legacy_asset_ids)))
+            if legacy_asset_category_ids:
+                await session.execute(delete(AssetCategory).where(AssetCategory.id.in_(legacy_asset_category_ids)))
+            if legacy_asset_ids or legacy_asset_category_ids:
+                await session.commit()
+                print(
+                    "Asset demo lama dibersihkan: "
+                    f"{len(legacy_asset_categories)} kategori, "
+                    f"{len(legacy_assets)} asset."
+                )
+
+            asset_category_seed = [
+                ("KITCHEN-EQUIP", "Peralatan Dapur", "140100", "540100", "149100", 60, "STRAIGHT_LINE"),
+                ("COLD-CHAIN", "Peralatan Rantai Dingin", "140300", "540100", "149100", 72, "STRAIGHT_LINE"),
+                ("FLEET-ASSET", "Kendaraan Operasional", "140200", "540200", "149200", 84, "STRAIGHT_LINE"),
+                ("IT-EQUIP", "Perangkat IT Operasional", "140100", "540100", "149100", 36, "STRAIGHT_LINE"),
+            ]
+            existing_asset_categories = {
+                item.code: item
+                for item in (
+                    await session.execute(select(AssetCategory).where(AssetCategory.tenant_id == tenant.id))
+                ).scalars().all()
+            }
+            created_asset_category_count = 0
+            for code, name, asset_account_code, depreciation_expense_code, accumulated_code, useful_life_months, depreciation_method in asset_category_seed:
+                asset_category = existing_asset_categories.get(code)
+                if asset_category is None:
+                    asset_category = AssetCategory(
+                        tenant_id=tenant.id,
+                        code=code,
+                        name=name,
+                        asset_account_id=account_map[asset_account_code].id,
+                        depreciation_expense_account_id=account_map[depreciation_expense_code].id,
+                        accumulated_depreciation_account_id=account_map[accumulated_code].id,
+                        useful_life_months=useful_life_months,
+                        depreciation_method=depreciation_method,
+                        is_active=True,
+                    )
+                    session.add(asset_category)
+                    created_asset_category_count += 1
+                else:
+                    asset_category.name = name
+                    asset_category.asset_account_id = account_map[asset_account_code].id
+                    asset_category.depreciation_expense_account_id = account_map[depreciation_expense_code].id
+                    asset_category.accumulated_depreciation_account_id = account_map[accumulated_code].id
+                    asset_category.useful_life_months = useful_life_months
+                    asset_category.depreciation_method = depreciation_method
+                    asset_category.is_active = True
+                await session.commit()
+                existing_asset_categories[code] = asset_category
+            if created_asset_category_count:
+                print(f"Asset category demo dibuat: {created_asset_category_count}")
+            else:
+                print("Asset category demo sudah tersedia.")
+
+            existing_assets = {
+                item.asset_code: item
+                for item in (
+                    await session.execute(select(Asset).where(Asset.tenant_id == tenant.id))
+                ).scalars().all()
+            }
+            asset_seed: list[tuple[str, str, str, str, date, float, float, int, str, str, str, str, str]] = []
+            for sppg_index in range(1, 9):
+                sppg_code = f"SPPG-JKT-{sppg_index:02d}"
+                sppg_item = sppg_map[sppg_code]
+                asset_seed.extend(
+                    [
+                        (
+                            f"AST-KIT-{sppg_index:02d}-01",
+                            sppg_code,
+                            "KITCHEN-EQUIP",
+                            "Steam Kettle 150L",
+                            date(2025, 12, min(28, sppg_index + 5)),
+                            28500000.0,
+                            3500000.0,
+                            60,
+                            "ACTIVE",
+                            f"SN-KIT-{sppg_index:02d}-150L",
+                            "GOOD",
+                            f"Area produksi panas {sppg_item.name}",
+                            "Kettle utama untuk produksi massal harian",
+                        ),
+                        (
+                            f"AST-CC-{sppg_index:02d}-01",
+                            sppg_code,
+                            "COLD-CHAIN",
+                            "Cold Storage Modular 5 Ton",
+                            date(2026, 1, min(28, sppg_index + 3)),
+                            47500000.0,
+                            5000000.0,
+                            72,
+                            "ACTIVE",
+                            f"SN-CC-{sppg_index:02d}-5000",
+                            "GOOD",
+                            f"Gudang dingin {sppg_item.name}",
+                            "Cold storage untuk bahan baku dan buffer menu siap saji",
+                        ),
+                        (
+                            f"AST-IT-{sppg_index:02d}-01",
+                            sppg_code,
+                            "IT-EQUIP",
+                            "Tablet Operasional Dispatch",
+                            date(2026, 2, min(28, sppg_index + 7)),
+                            4250000.0,
+                            350000.0,
+                            36,
+                            "ACTIVE",
+                            f"SN-TAB-{sppg_index:02d}-OPS",
+                            "GOOD",
+                            f"Ruang admin {sppg_item.name}",
+                            "Tablet untuk checklist dispatch dan monitoring GPS",
+                        ),
+                    ]
+                )
+            created_asset_count = 0
+            for (
+                asset_code,
+                sppg_code,
+                category_code,
+                asset_name,
+                acquisition_date,
+                acquisition_cost,
+                residual_value,
+                useful_life_months,
+                status,
+                serial_number,
+                condition_status,
+                location_name,
+                notes,
+            ) in asset_seed:
+                asset = existing_assets.get(asset_code)
+                if asset is None:
+                    asset = Asset(
+                        tenant_id=tenant.id,
+                        sppg_id=sppg_map[sppg_code].id,
+                        asset_category_id=existing_asset_categories[category_code].id,
+                        asset_code=asset_code,
+                        asset_name=asset_name,
+                        acquisition_date=acquisition_date,
+                        acquisition_cost=acquisition_cost,
+                        residual_value=residual_value,
+                        useful_life_months=useful_life_months,
+                        depreciation_method="STRAIGHT_LINE",
+                        status=status,
+                        serial_number=serial_number,
+                        condition_status=condition_status,
+                        location_name=location_name,
+                        is_active=True,
+                        notes=notes,
+                    )
+                    session.add(asset)
+                    created_asset_count += 1
+                else:
+                    asset.sppg_id = sppg_map[sppg_code].id
+                    asset.asset_category_id = existing_asset_categories[category_code].id
+                    asset.asset_name = asset_name
+                    asset.acquisition_date = acquisition_date
+                    asset.acquisition_cost = acquisition_cost
+                    asset.residual_value = residual_value
+                    asset.useful_life_months = useful_life_months
+                    asset.depreciation_method = "STRAIGHT_LINE"
+                    asset.status = status
+                    asset.serial_number = serial_number
+                    asset.condition_status = condition_status
+                    asset.location_name = location_name
+                    asset.is_active = True
+                    asset.notes = notes
+                await session.commit()
+                existing_assets[asset_code] = asset
+            if created_asset_count:
+                print(f"Asset demo dibuat: {created_asset_count}")
+            else:
+                print("Asset demo sudah tersedia.")
+
+            demo_asset_ids = [asset.id for asset_code, asset in existing_assets.items() if asset_code.startswith("AST-")]
+            if demo_asset_ids:
+                await session.execute(delete(AssetAssignment).where(AssetAssignment.asset_id.in_(demo_asset_ids)))
+                await session.execute(delete(AssetDepreciation).where(AssetDepreciation.asset_id.in_(demo_asset_ids)))
+                await session.commit()
+
+            asset_assignment_seed: list[tuple[str, str, str, date, date | None, str, str, str]] = []
+            for sppg_index in range(1, 9):
+                sppg_code = f"SPPG-JKT-{sppg_index:02d}"
+                asset_assignment_seed.extend(
+                    [
+                        (f"AST-KIT-{sppg_index:02d}-01", sppg_code, f"Chef Supervisor {sppg_index:02d}", date(2026, 7, 1), None, "PRODUCTION", "ASSIGNED", "Digunakan untuk produksi harian dapur."),
+                        (f"AST-CC-{sppg_index:02d}-01", sppg_code, f"Cold Chain Lead {sppg_index:02d}", date(2026, 7, 1), None, "STORAGE", "ASSIGNED", "Digunakan untuk penyimpanan bahan dingin."),
+                        (f"AST-IT-{sppg_index:02d}-01", sppg_code, f"Dispatch Admin {sppg_index:02d}", date(2026, 7, 10), None, "MONITORING", "ASSIGNED", "Digunakan untuk dashboard operasional dan GPS."),
+                    ]
+                )
+            created_asset_assignment_count = 0
+            for asset_code, sppg_code, assigned_to_name, assignment_date, end_date, assignment_role, status, notes in asset_assignment_seed:
+                session.add(
+                    AssetAssignment(
+                        tenant_id=tenant.id,
+                        sppg_id=sppg_map[sppg_code].id,
+                        asset_id=existing_assets[asset_code].id,
+                        assigned_to_name=assigned_to_name,
+                        assignment_date=assignment_date,
+                        end_date=end_date,
+                        assignment_role=assignment_role,
+                        status=status,
+                        is_active=True,
+                        notes=notes,
+                    )
+                )
+                created_asset_assignment_count += 1
+            await session.commit()
+            print(f"Asset assignment demo dibuat: {created_asset_assignment_count}")
+
+            asset_depreciation_seed = [
+                ("AST-KIT-01-01", "SPPG-JKT-01", date(2026, 6, 30), 416666.67, 416666.67, 28083333.33, "POSTED", "Depresiasi bulan Juni kettle utama."),
+                ("AST-CC-03-01", "SPPG-JKT-03", date(2026, 6, 30), 590277.78, 1180555.56, 46319444.44, "POSTED", "Depresiasi cold storage cluster utara."),
+                ("AST-IT-04-01", "SPPG-JKT-04", date(2026, 6, 30), 108333.33, 433333.32, 3816666.68, "POSTED", "Depresiasi perangkat dispatch."),
+                ("AST-KIT-06-01", "SPPG-JKT-06", date(2026, 7, 15), 416666.67, 833333.34, 27666666.66, "POSTED", "Depresiasi tengah bulan untuk audit internal."),
+                ("AST-CC-08-01", "SPPG-JKT-08", date(2026, 7, 15), 590277.78, 1770833.34, 45729166.66, "POSTED", "Depresiasi aset cold chain area selatan."),
+            ]
+            created_asset_depreciation_count = 0
+            for asset_code, sppg_code, depreciation_date, depreciation_amount, accumulated_amount, book_value_after, status, notes in asset_depreciation_seed:
+                session.add(
+                    AssetDepreciation(
+                        tenant_id=tenant.id,
+                        sppg_id=sppg_map[sppg_code].id,
+                        asset_id=existing_assets[asset_code].id,
+                        journal_entry_id=None,
+                        depreciation_date=depreciation_date,
+                        depreciation_amount=depreciation_amount,
+                        accumulated_depreciation_amount=accumulated_amount,
+                        book_value_after=book_value_after,
+                        status=status,
+                        notes=notes,
+                    )
+                )
+                created_asset_depreciation_count += 1
+            await session.commit()
+            print(f"Asset depreciation demo dibuat: {created_asset_depreciation_count}")
 
             budget_service = BudgetService(
                 BudgetRepository(session),
