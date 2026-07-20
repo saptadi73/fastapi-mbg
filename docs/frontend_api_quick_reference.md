@@ -62,6 +62,7 @@ frontend lokal bisa mengandalkan paket demo berikut:
 - `475` beneficiary demo
 - service area polygon untuk dapur demo
 - production order, delivery order, route, proof, dan incident demo
+- vehicle type, vehicle, driver, assignment, dan maintenance demo
 - feedback submission, complaint, dan service quality score demo
 
 Tanggal demo yang aman dipakai untuk preview UI:
@@ -77,6 +78,14 @@ Skenario yang sudah terlihat di data demo:
 - aktivitas operasional aktif pada `Senin, 20 Juli 2026`
 - route dan delivery terjadwal untuk `Selasa, 21 Juli 2026`
 - klaster distribusi kini mencakup pusat, utara, selatan, barat, dan timur Jakarta
+
+Kode fleet demo yang aman dipakai frontend:
+
+- kendaraan: `VH-JKT01-01` sampai `VH-JKT08-05`
+- driver: `DRV-JKT01-01` sampai `DRV-JKT08-05`
+- total armada demo: `40` unit atau minimal `5` armada per SPPG
+- assignment utama: `2026-07-20`
+- histori GPS demo: tersedia untuk seluruh armada pada `2026-07-20`
 
 ## Endpoint Matrix
 
@@ -162,9 +171,12 @@ Skenario yang sudah terlihat di data demo:
 | `GET` | `/api/v1/funding/summary` | No | - | Ringkasan funding tenant |
 | `GET` | `/api/v1/fleet/vehicle-types` | No | - | List tipe kendaraan |
 | `POST` | `/api/v1/fleet/vehicle-types` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat tipe kendaraan |
+| `GET` | `/api/v1/fleet/vehicle-locations/live` | No | - | Posisi terbaru seluruh armada untuk map |
 | `GET` | `/api/v1/fleet/vehicles` | No | - | List kendaraan |
 | `GET` | `/api/v1/fleet/vehicles/{vehicle_id}` | No | - | Detail kendaraan, assignment, maintenance |
+| `GET` | `/api/v1/fleet/vehicles/{vehicle_id}/locations` | No | - | Histori GPS kendaraan |
 | `POST` | `/api/v1/fleet/vehicles` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat kendaraan |
+| `POST` | `/api/v1/fleet/vehicles/{vehicle_id}/locations` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Catat/update lokasi GPS kendaraan |
 | `GET` | `/api/v1/fleet/drivers` | No | - | List driver |
 | `POST` | `/api/v1/fleet/drivers` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat driver |
 | `GET` | `/api/v1/fleet/assignments` | No | - | List assignment kendaraan |

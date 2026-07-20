@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.fleet.models.driver import Driver
 from app.modules.fleet.models.vehicle import Vehicle
 from app.modules.fleet.models.vehicle_assignment import VehicleAssignment
+from app.modules.fleet.models.vehicle_location import VehicleLocation
 from app.modules.fleet.models.vehicle_maintenance import VehicleMaintenance
 from app.modules.fleet.models.vehicle_type import VehicleType
 
@@ -131,6 +132,9 @@ class FleetRepository:
         await self.session.refresh(assignment)
         return assignment
 
+    async def get_assignment_by_id(self, assignment_id: UUID) -> VehicleAssignment | None:
+        return await self.session.get(VehicleAssignment, assignment_id)
+
     async def list_maintenances(self, tenant_id: UUID | None = None, sppg_id: UUID | None = None) -> list[VehicleMaintenance]:
         query = select(VehicleMaintenance).order_by(
             VehicleMaintenance.maintenance_date.desc(),
@@ -156,3 +160,27 @@ class FleetRepository:
         await self.session.flush()
         await self.session.refresh(maintenance)
         return maintenance
+
+    async def list_vehicle_locations(
+        self,
+        *,
+        tenant_id: UUID | None = None,
+        sppg_id: UUID | None = None,
+        vehicle_id: UUID | None = None,
+        limit: int = 50,
+    ) -> list[VehicleLocation]:
+        query = select(VehicleLocation).order_by(VehicleLocation.recorded_at.desc(), VehicleLocation.created_at.desc())
+        if tenant_id is not None:
+            query = query.where(VehicleLocation.tenant_id == tenant_id)
+        if sppg_id is not None:
+            query = query.where(VehicleLocation.sppg_id == sppg_id)
+        if vehicle_id is not None:
+            query = query.where(VehicleLocation.vehicle_id == vehicle_id)
+        result = await self.session.execute(query.limit(limit))
+        return list(result.scalars().all())
+
+    async def add_vehicle_location(self, location: VehicleLocation) -> VehicleLocation:
+        self.session.add(location)
+        await self.session.flush()
+        await self.session.refresh(location)
+        return location

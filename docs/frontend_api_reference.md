@@ -22,6 +22,7 @@ Seed lokal saat ini menyiapkan paket data yang cukup padat untuk integrasi front
 - `24` sekolah
 - `475` beneficiary
 - service area GIS, delivery order, route, proof of delivery, dan incident
+- vehicle type, vehicle, driver, assignment, dan maintenance untuk 8 dapur demo
 - feedback submission, complaint, dan service quality score
 
 Tanggal acuan demo:
@@ -177,15 +178,18 @@ Aturan praktis:
 62. `GET /api/v1/funding/summary`
 63. `GET /api/v1/fleet/vehicle-types`
 64. `POST /api/v1/fleet/vehicle-types`
-65. `GET /api/v1/fleet/vehicles`
-66. `GET /api/v1/fleet/vehicles/{vehicle_id}`
-67. `POST /api/v1/fleet/vehicles`
-68. `GET /api/v1/fleet/drivers`
-69. `POST /api/v1/fleet/drivers`
-70. `GET /api/v1/fleet/assignments`
-71. `POST /api/v1/fleet/vehicles/{vehicle_id}/assignments`
-72. `GET /api/v1/fleet/maintenances`
-73. `POST /api/v1/fleet/vehicles/{vehicle_id}/maintenances`
+65. `GET /api/v1/fleet/vehicle-locations/live`
+66. `GET /api/v1/fleet/vehicles`
+67. `GET /api/v1/fleet/vehicles/{vehicle_id}`
+68. `GET /api/v1/fleet/vehicles/{vehicle_id}/locations`
+69. `POST /api/v1/fleet/vehicles`
+70. `POST /api/v1/fleet/vehicles/{vehicle_id}/locations`
+71. `GET /api/v1/fleet/drivers`
+72. `POST /api/v1/fleet/drivers`
+73. `GET /api/v1/fleet/assignments`
+74. `POST /api/v1/fleet/vehicles/{vehicle_id}/assignments`
+75. `GET /api/v1/fleet/maintenances`
+76. `POST /api/v1/fleet/vehicles/{vehicle_id}/maintenances`
 74. `GET /api/v1/feedback/submissions`
 75. `GET /api/v1/feedback/submissions/{submission_id}`
 76. `POST /api/v1/feedback/submissions`
@@ -2035,6 +2039,12 @@ Frontend sebaiknya mengirim `X-Tenant-ID` untuk hasil yang spesifik tenant.
 
 Mengambil daftar tipe kendaraan per tenant.
 
+Seed demo saat ini menyiapkan tipe utama:
+
+- `VAN-COLD`
+- `BOX-MED`
+- `PICKUP-FAST`
+
 `POST /api/v1/fleet/vehicle-types`
 
 Membuat master tipe kendaraan.
@@ -2054,9 +2064,33 @@ Payload:
 }
 ```
 
+`GET /api/v1/fleet/vehicle-locations/live`
+
+Mengembalikan posisi terbaru seluruh kendaraan pada scope tenant/SPPG aktif. Endpoint ini cocok untuk dashboard GIS armada atau dispatch board.
+
+Field penting:
+
+- `vehicle_id`
+- `vehicle_code`
+- `plate_number`
+- `driver_name`
+- `assignment_role`
+- `status`
+- `latest_location`
+
 `GET /api/v1/fleet/vehicles`
 
 Mengambil daftar kendaraan sesuai scope tenant dan opsional `X-SPPG-ID`.
+
+Kode kendaraan demo yang direkomendasikan untuk UI:
+
+- `VH-JKT01-01`
+- `VH-JKT01-05`
+- `VH-JKT03-03`
+- `VH-JKT05-04`
+- `VH-JKT08-05`
+
+Seed demo saat ini menyediakan total `40` kendaraan atau `5` armada untuk masing-masing SPPG demo.
 
 `GET /api/v1/fleet/vehicles/{vehicle_id}`
 
@@ -2065,6 +2099,14 @@ Mengembalikan bundle:
 - `vehicle`
 - `assignments`
 - `maintenances`
+- `current_location`
+- `recent_locations`
+
+`GET /api/v1/fleet/vehicles/{vehicle_id}/locations`
+
+Mengambil histori GPS kendaraan. Query opsional:
+
+- `limit` default `50`, maksimum `200`
 
 `POST /api/v1/fleet/vehicles`
 
@@ -2091,9 +2133,38 @@ Payload:
 }
 ```
 
+`POST /api/v1/fleet/vehicles/{vehicle_id}/locations`
+
+Mencatat update GPS kendaraan.
+
+Payload:
+
+```json
+{
+  "sppg_id": "sppg-uuid",
+  "assignment_id": "assignment-uuid",
+  "recorded_at": "2026-07-20T08:11:00Z",
+  "latitude": -6.1942,
+  "longitude": 106.8321,
+  "speed_kph": 32.5,
+  "heading_degree": 135,
+  "accuracy_meter": 7.5,
+  "engine_on": true,
+  "movement_status": "IN_TRANSIT",
+  "event_type": "GPS_PING",
+  "source": "mobile_app",
+  "address_label": "Jl. Kramat Raya",
+  "notes": "Ping otomatis tiap 60 detik"
+}
+```
+
 `GET /api/v1/fleet/drivers`
 
 Mengambil daftar driver tenant.
+
+Kode driver demo yang tersedia:
+
+- `DRV-JKT01-01` sampai `DRV-JKT08-05`
 
 `POST /api/v1/fleet/drivers`
 
@@ -2120,6 +2191,8 @@ Payload:
 
 Mengambil daftar assignment kendaraan ke SPPG.
 
+Untuk demo lokal, assignment paling representatif ada pada tanggal `2026-07-20`.
+
 `POST /api/v1/fleet/vehicles/{vehicle_id}/assignments`
 
 Menugaskan kendaraan ke SPPG dan opsional ke driver.
@@ -2143,6 +2216,14 @@ Payload:
 
 Mengambil daftar maintenance kendaraan.
 
+Contoh maintenance demo yang sudah ada:
+
+- `VH-JKT01-05` `BRAKE_CHECK` pada `2026-07-19`
+- `VH-JKT03-05` `PREVENTIVE_SERVICE` pada `2026-07-18`
+- `VH-JKT05-03` `TIRE_REPLACEMENT` pada `2026-07-19`
+- `VH-JKT06-05` `COOLING_CHECK` pada `2026-07-20`
+- `VH-JKT08-02` `OIL_CHANGE` pada `2026-07-17`
+
 `POST /api/v1/fleet/vehicles/{vehicle_id}/maintenances`
 
 Mencatat maintenance kendaraan.
@@ -2163,6 +2244,8 @@ Payload:
 ```
 
 Frontend sebaiknya mengirim `X-Tenant-ID` untuk semua operasi fleet, dan `X-SPPG-ID` saat ingin membatasi kendaraan/assignment/maintenance pada satu dapur tertentu.
+
+Data demo GPS armada disiapkan untuk tanggal `2026-07-20` dengan status seperti `LOADING`, `IN_TRANSIT`, `ARRIVED`, dan `MAINTENANCE`.
 
 ### Feedback
 

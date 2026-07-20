@@ -1,3 +1,5 @@
+from geoalchemy2.elements import WKTElement
+
 from uuid import UUID
 
 from app.core.tenancy.context import get_current_sppg, get_current_tenant
@@ -5,6 +7,7 @@ from app.core.tenancy.write_scope import enforce_sppg_write_scope, enforce_tenan
 from app.modules.fleet.models.driver import Driver
 from app.modules.fleet.models.vehicle import Vehicle
 from app.modules.fleet.models.vehicle_assignment import VehicleAssignment
+from app.modules.fleet.models.vehicle_location import VehicleLocation
 from app.modules.fleet.models.vehicle_maintenance import VehicleMaintenance
 from app.modules.fleet.models.vehicle_type import VehicleType
 from app.modules.fleet.repositories.fleet_repository import FleetRepository
@@ -75,10 +78,18 @@ class FleetService:
         vehicle = await self.repository.get_vehicle_by_id_and_scope(vehicle_id, tenant_id=tenant_id, sppg_id=sppg_id)
         if vehicle is None:
             raise NotFoundException(code="VEHICLE_NOT_FOUND", message="Vehicle tidak ditemukan.")
+        recent_locations = await self.repository.list_vehicle_locations(
+            tenant_id=tenant_id,
+            sppg_id=sppg_id,
+            vehicle_id=vehicle.id,
+            limit=10,
+        )
         return {
             "vehicle": vehicle,
             "assignments": await self.repository.list_assignments_by_vehicle(vehicle.id),
             "maintenances": await self.repository.list_maintenances_by_vehicle(vehicle.id),
+            "current_location": recent_locations[0] if recent_locations else None,
+            "recent_locations": recent_locations,
         }
 
     async def create_vehicle(self, payload) -> Vehicle:
@@ -216,6 +227,116 @@ class FleetService:
                 cost_amount=payload.cost_amount,
                 vendor_name=payload.vendor_name,
                 status=payload.status,
+                notes=payload.notes,
+            )
+        )
+
+    async def list_live_vehicle_locations(self) -> list[dict]:
+        tenant_id, sppg_id = self._get_scope()
+        vehicles = await self.repository.list_vehicles(tenant_id=tenant_id, sppg_id=sppg_id)
+        if not vehicles:
+            return []
+        assignments = await self.repository.list_assignments(tenant_id=tenant_id, sppg_id=sppg_id)
+        drivers = await self.repository.list_drivers(tenant_id=tenant_id)
+        latest_locations = await self.repository.list_vehicle_locations(tenant_id=tenant_id, sppg_id=sppg_id, limit=500)
+
+        assignment_by_vehicle_id: dict[UUID, VehicleAssignment] = {}
+        for assignment in assignments:
+            if assignment.vehicle_id not in assignment_by_vehicle_id:
+                assignment_by_vehicle_id[assignment.vehicle_id] = assignment
+
+        driver_by_id = {driver.id: driver for driver in drivers}
+        location_by_vehicle_id: dict[UUID, VehicleLocation] = {}
+        for location in latest_locations:
+            if location.vehicle_id not in location_by_vehicle_id:
+                location_by_vehicle_id[location.vehicle_id] = location
+
+        payload: list[dict] = []
+        for vehicle in vehicles:
+            assignment = assignment_by_vehicle_id.get(vehicle.id)
+            driver = driver_by_id.get(assignment.driver_id) if assignment and assignment.driver_id else None
+            payload.append(
+                {
+                    "vehicle_id": vehicle.id,
+                    "vehicle_code": vehicle.vehicle_code,
+                    "plate_number": vehicle.plate_number,
+                    "home_sppg_id": vehicle.home_sppg_id,
+                    "driver_id": driver.id if driver else None,
+                    "driver_name": driver.full_name if driver else None,
+                    "assignment_id": assignment.id if assignment else None,
+                    "assignment_role": assignment.assignment_role if assignment else None,
+                    "status": vehicle.status,
+                    "latest_location": location_by_vehicle_id.get(vehicle.id),
+                }
+            )
+        return payload
+
+    async def list_vehicle_location_history(self, vehicle_id: UUID, limit: int = 50) -> list[VehicleLocation]:
+        tenant_id, sppg_id = self._get_scope()
+        vehicle = await self.repository.get_vehicle_by_id_and_scope(vehicle_id, tenant_id=tenant_id, sppg_id=sppg_id)
+        if vehicle is None:
+            raise NotFoundException(code="VEHICLE_NOT_FOUND", message="Vehicle tidak ditemukan.")
+        normalized_limit = max(1, min(limit, 200))
+        return await self.repository.list_vehicle_locations(
+            tenant_id=tenant_id,
+            sppg_id=sppg_id,
+            vehicle_id=vehicle.id,
+            limit=normalized_limit,
+        )
+
+    async def create_vehicle_location(self, vehicle_id: UUID, payload) -> VehicleLocation:
+        vehicle = await self.repository.get_vehicle_by_id(vehicle_id)
+        if vehicle is None:
+            raise NotFoundException(code="VEHICLE_NOT_FOUND", message="Vehicle tidak ditemukan.")
+        enforce_tenant_write_scope(vehicle.tenant_id)
+        sppg_id = UUID(payload.sppg_id) if payload.sppg_id else vehicle.home_sppg_id
+        assignment_id = UUID(payload.assignment_id) if payload.assignment_id else None
+
+        if payload.latitude < -90 or payload.latitude > 90:
+            raise BadRequestException(code="INVALID_VEHICLE_LATITUDE", message="Latitude lokasi vehicle tidak valid.")
+        if payload.longitude < -180 or payload.longitude > 180:
+            raise BadRequestException(code="INVALID_VEHICLE_LONGITUDE", message="Longitude lokasi vehicle tidak valid.")
+        if payload.speed_kph is not None and payload.speed_kph < 0:
+            raise BadRequestException(code="INVALID_VEHICLE_SPEED", message="Kecepatan vehicle tidak valid.")
+        if payload.heading_degree is not None and (payload.heading_degree < 0 or payload.heading_degree > 360):
+            raise BadRequestException(code="INVALID_VEHICLE_HEADING", message="Arah vehicle tidak valid.")
+        if payload.accuracy_meter is not None and payload.accuracy_meter < 0:
+            raise BadRequestException(code="INVALID_VEHICLE_ACCURACY", message="Akurasi GPS vehicle tidak valid.")
+
+        if sppg_id is not None:
+            enforce_sppg_write_scope(sppg_id)
+            sppg = await self.sppg_repository.get_by_id(sppg_id)
+            if sppg is None or sppg.tenant_id != vehicle.tenant_id:
+                raise NotFoundException(code="SPPG_NOT_FOUND", message="SPPG lokasi vehicle tidak ditemukan.")
+
+        if assignment_id is not None:
+            assignment = await self.repository.get_assignment_by_id(assignment_id)
+            if assignment is None or assignment.vehicle_id != vehicle.id:
+                raise NotFoundException(code="VEHICLE_ASSIGNMENT_NOT_FOUND", message="Assignment vehicle tidak ditemukan.")
+            if assignment.tenant_id != vehicle.tenant_id:
+                raise NotFoundException(code="VEHICLE_ASSIGNMENT_NOT_FOUND", message="Assignment vehicle tidak ditemukan.")
+        else:
+            assignment = None
+
+        location_point = WKTElement(f"POINT({payload.longitude} {payload.latitude})", srid=4326)
+        return await self.repository.add_vehicle_location(
+            VehicleLocation(
+                tenant_id=vehicle.tenant_id,
+                sppg_id=sppg_id,
+                vehicle_id=vehicle.id,
+                assignment_id=assignment.id if assignment else None,
+                recorded_at=payload.recorded_at,
+                latitude=payload.latitude,
+                longitude=payload.longitude,
+                location=location_point,
+                speed_kph=payload.speed_kph,
+                heading_degree=payload.heading_degree,
+                accuracy_meter=payload.accuracy_meter,
+                engine_on=payload.engine_on,
+                movement_status=payload.movement_status,
+                event_type=payload.event_type,
+                source=payload.source,
+                address_label=payload.address_label,
                 notes=payload.notes,
             )
         )

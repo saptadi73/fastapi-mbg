@@ -4377,11 +4377,46 @@ def test_fleet_vehicle_driver_assignment_and_maintenance_flow_works() -> None:
         )
         assert maintenance_response.status_code == 201, maintenance_response.json()
 
+        assignment_id = assignment_response.json()["data"]["id"]
+        vehicle_location_response = client.post(
+            f"/api/v1/fleet/vehicles/{vehicle_id}/locations",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Tenant-ID": tenant_id,
+                "X-SPPG-ID": sppg_id,
+            },
+            json={
+                "sppg_id": sppg_id,
+                "assignment_id": assignment_id,
+                "recorded_at": "2026-07-20T08:11:00Z",
+                "latitude": -6.1942,
+                "longitude": 106.8321,
+                "speed_kph": 32.5,
+                "heading_degree": 135.0,
+                "accuracy_meter": 7.5,
+                "engine_on": True,
+                "movement_status": "IN_TRANSIT",
+                "event_type": "GPS_PING",
+                "source": "unit_test",
+                "address_label": "Jl. Kramat Raya",
+                "notes": "Ping GPS armada tes",
+            },
+        )
+        assert vehicle_location_response.status_code == 201, vehicle_location_response.json()
+
         vehicle_detail_response = client.get(
             f"/api/v1/fleet/vehicles/{vehicle_id}",
             headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
         )
         vehicle_list_response = client.get("/api/v1/fleet/vehicles", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
+        vehicle_location_list_response = client.get(
+            f"/api/v1/fleet/vehicles/{vehicle_id}/locations",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        live_vehicle_location_response = client.get(
+            "/api/v1/fleet/vehicle-locations/live",
+            headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
         driver_list_response = client.get("/api/v1/fleet/drivers", headers={"X-Tenant-ID": tenant_id})
         assignment_list_response = client.get("/api/v1/fleet/assignments", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
         maintenance_list_response = client.get("/api/v1/fleet/maintenances", headers={"X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id})
@@ -4391,15 +4426,22 @@ def test_fleet_vehicle_driver_assignment_and_maintenance_flow_works() -> None:
     assert driver_response.json()["code"] == "DRIVER_CREATED"
     assert assignment_response.json()["code"] == "VEHICLE_ASSIGNED"
     assert maintenance_response.json()["code"] == "VEHICLE_MAINTENANCE_CREATED"
+    assert vehicle_location_response.json()["code"] == "VEHICLE_LOCATION_CREATED"
 
     assert vehicle_detail_response.status_code == 200, vehicle_detail_response.json()
     detail_payload = vehicle_detail_response.json()["data"]
     assert detail_payload["vehicle"]["id"] == vehicle_id
     assert len(detail_payload["assignments"]) == 1
     assert len(detail_payload["maintenances"]) == 1
+    assert detail_payload["current_location"]["vehicle_id"] == vehicle_id
+    assert len(detail_payload["recent_locations"]) == 1
 
     assert vehicle_list_response.status_code == 200
     assert any(item["id"] == vehicle_id for item in vehicle_list_response.json()["data"])
+    assert vehicle_location_list_response.status_code == 200
+    assert vehicle_location_list_response.json()["data"][0]["vehicle_id"] == vehicle_id
+    assert live_vehicle_location_response.status_code == 200
+    assert any(item["vehicle_id"] == vehicle_id for item in live_vehicle_location_response.json()["data"])
     assert driver_list_response.status_code == 200
     assert any(item["id"] == driver_id for item in driver_list_response.json()["data"])
     assert assignment_list_response.status_code == 200

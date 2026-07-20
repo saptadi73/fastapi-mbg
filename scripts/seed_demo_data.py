@@ -5,7 +5,7 @@ from datetime import timezone
 from uuid import UUID
 
 from geoalchemy2.elements import WKTElement
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config.settings import get_settings
@@ -24,6 +24,12 @@ from app.modules.feedback.models.complaint import Complaint
 from app.modules.feedback.models.feedback_item import FeedbackItem
 from app.modules.feedback.models.feedback_submission import FeedbackSubmission
 from app.modules.feedback.models.service_quality_score import ServiceQualityScore
+from app.modules.fleet.models.driver import Driver
+from app.modules.fleet.models.vehicle import Vehicle
+from app.modules.fleet.models.vehicle_assignment import VehicleAssignment
+from app.modules.fleet.models.vehicle_location import VehicleLocation
+from app.modules.fleet.models.vehicle_maintenance import VehicleMaintenance
+from app.modules.fleet.models.vehicle_type import VehicleType
 from app.modules.identity.models.user import User
 from app.modules.identity.repositories.user_repository import UserRepository
 from app.modules.inventory.repositories.inventory_balance_repository import InventoryBalanceRepository
@@ -102,6 +108,13 @@ def _build_square_multipolygon_wkt(latitude: float, longitude: float, half_side_
 
 def _format_gps(latitude: float, longitude: float) -> str:
     return f"{latitude:.6f},{longitude:.6f}"
+
+
+def _fleet_offset(base_value: float, unit_index: int, axis: str) -> float:
+    multiplier = unit_index + 1
+    if axis == "lat":
+        return base_value + (0.0024 * multiplier)
+    return base_value + (0.0017 * multiplier)
 
 
 async def main() -> None:
@@ -1311,6 +1324,500 @@ async def main() -> None:
                 print(f"Incident delivery demo dibuat: {created_incident_count}")
             else:
                 print("Incident delivery demo sudah tersedia.")
+
+            legacy_vehicle_types = list(
+                (
+                    await session.execute(
+                        select(VehicleType).where(
+                            VehicleType.tenant_id == tenant.id,
+                            VehicleType.code.like("VAN-%"),
+                            VehicleType.code != "VAN-COLD",
+                        )
+                    )
+                ).scalars().all()
+            )
+            legacy_vehicles = list(
+                (
+                    await session.execute(
+                        select(Vehicle).where(
+                            Vehicle.tenant_id == tenant.id,
+                            Vehicle.vehicle_code.like("VH-%"),
+                            ~Vehicle.vehicle_code.like("VH-JKT%"),
+                        )
+                    )
+                ).scalars().all()
+            )
+            legacy_drivers = list(
+                (
+                    await session.execute(
+                        select(Driver).where(
+                            Driver.tenant_id == tenant.id,
+                            or_(
+                                Driver.driver_code.like("DRV-JKT__"),
+                                Driver.driver_code.like("DRV-%"),
+                            ),
+                            ~Driver.driver_code.like("DRV-JKT__-__"),
+                        )
+                    )
+                ).scalars().all()
+            )
+            legacy_vehicle_ids = [item.id for item in legacy_vehicles]
+            legacy_driver_ids = [item.id for item in legacy_drivers]
+            legacy_vehicle_type_ids = [item.id for item in legacy_vehicle_types]
+            if legacy_vehicle_ids:
+                await session.execute(delete(VehicleLocation).where(VehicleLocation.vehicle_id.in_(legacy_vehicle_ids)))
+                await session.execute(delete(VehicleAssignment).where(VehicleAssignment.vehicle_id.in_(legacy_vehicle_ids)))
+                await session.execute(delete(VehicleMaintenance).where(VehicleMaintenance.vehicle_id.in_(legacy_vehicle_ids)))
+                await session.execute(delete(Vehicle).where(Vehicle.id.in_(legacy_vehicle_ids)))
+            if legacy_driver_ids:
+                await session.execute(delete(Driver).where(Driver.id.in_(legacy_driver_ids)))
+            if legacy_vehicle_type_ids:
+                await session.execute(delete(VehicleType).where(VehicleType.id.in_(legacy_vehicle_type_ids)))
+            if legacy_vehicle_ids or legacy_driver_ids or legacy_vehicle_type_ids:
+                await session.commit()
+                print(
+                    "Fleet demo lama dibersihkan: "
+                    f"{len(legacy_vehicle_types)} vehicle type, "
+                    f"{len(legacy_vehicles)} vehicle, "
+                    f"{len(legacy_drivers)} driver."
+                )
+
+            vehicle_type_seed = [
+                ("VAN-COLD", "Van Pendingin", "Van berpendingin untuk distribusi menu siap saji", 1200, 850.0, True),
+                ("BOX-MED", "Box Truck Medium", "Truk box medium untuk distribusi multi sekolah", 2200, 1800.0, False),
+                ("PICKUP-FAST", "Pickup Cepat", "Pickup kecil untuk rute pendek dan suplai cadangan", 600, 650.0, False),
+            ]
+            existing_vehicle_types = {
+                item.code: item
+                for item in (
+                    await session.execute(select(VehicleType).where(VehicleType.tenant_id == tenant.id))
+                ).scalars().all()
+            }
+            created_vehicle_type_count = 0
+            for code, name, description, capacity_portions, capacity_kg, temperature_controlled in vehicle_type_seed:
+                vehicle_type = existing_vehicle_types.get(code)
+                if vehicle_type is None:
+                    vehicle_type = VehicleType(
+                        tenant_id=tenant.id,
+                        code=code,
+                        name=name,
+                        description=description,
+                        capacity_portions=capacity_portions,
+                        capacity_kg=capacity_kg,
+                        temperature_controlled=temperature_controlled,
+                        is_active=True,
+                    )
+                    session.add(vehicle_type)
+                    created_vehicle_type_count += 1
+                else:
+                    vehicle_type.name = name
+                    vehicle_type.description = description
+                    vehicle_type.capacity_portions = capacity_portions
+                    vehicle_type.capacity_kg = capacity_kg
+                    vehicle_type.temperature_controlled = temperature_controlled
+                    vehicle_type.is_active = True
+                await session.commit()
+                existing_vehicle_types[code] = vehicle_type
+            if created_vehicle_type_count:
+                print(f"Vehicle type demo dibuat: {created_vehicle_type_count}")
+            else:
+                print("Vehicle type demo sudah tersedia.")
+
+            vehicle_profiles = [
+                ("VAN-COLD", "OWNED", "Toyota", "HiAce", 2024, 1000, "DIESEL", "IN_TRANSIT", "Unit distribusi utama"),
+                ("BOX-MED", "OWNED", "Isuzu", "Elf Box", 2023, 1800, "DIESEL", "READY", "Unit rute sekolah padat"),
+                ("PICKUP-FAST", "OWNED", "Suzuki", "Carry Box", 2024, 550, "BENSIN", "READY", "Unit pengiriman cepat"),
+                ("VAN-COLD", "LEASED", "Mitsubishi", "L300 Cooler", 2022, 920, "DIESEL", "IN_TRANSIT", "Unit cadangan dingin"),
+                ("BOX-MED", "OWNED", "Hino", "Dutro Box", 2021, 1900, "DIESEL", "MAINTENANCE", "Unit heavy load"),
+            ]
+            vehicle_seed: list[tuple[str, str, str, str, str, str, str, int, int, str, str, str]] = []
+            for sppg_index in range(1, 9):
+                sppg_code = f"SPPG-JKT-{sppg_index:02d}"
+                for unit_index, profile in enumerate(vehicle_profiles, start=1):
+                    (
+                        vehicle_type_code,
+                        ownership_status,
+                        brand_name,
+                        model_name,
+                        manufacture_year,
+                        capacity_portions,
+                        fuel_type,
+                        status,
+                        note_prefix,
+                    ) = profile
+                    vehicle_seed.append(
+                        (
+                            f"VH-JKT{sppg_index:02d}-{unit_index:02d}",
+                            f"B {2100 + ((sppg_index - 1) * 10) + unit_index} MBG",
+                            sppg_code,
+                            vehicle_type_code,
+                            ownership_status,
+                            brand_name,
+                            model_name,
+                            manufacture_year,
+                            capacity_portions,
+                            fuel_type,
+                            status,
+                            f"{note_prefix} {sppg_map[sppg_code].name}",
+                        )
+                    )
+            existing_vehicles = {
+                item.vehicle_code: item
+                for item in (
+                    await session.execute(select(Vehicle).where(Vehicle.tenant_id == tenant.id))
+                ).scalars().all()
+            }
+            created_vehicle_count = 0
+            for (
+                vehicle_code,
+                plate_number,
+                sppg_code,
+                vehicle_type_code,
+                ownership_status,
+                brand_name,
+                model_name,
+                manufacture_year,
+                capacity_portions,
+                fuel_type,
+                status,
+                notes,
+            ) in vehicle_seed:
+                vehicle = existing_vehicles.get(vehicle_code)
+                if vehicle is None:
+                    vehicle = Vehicle(
+                        tenant_id=tenant.id,
+                        home_sppg_id=sppg_map[sppg_code].id,
+                        vehicle_type_id=existing_vehicle_types[vehicle_type_code].id,
+                        vehicle_code=vehicle_code,
+                        plate_number=plate_number,
+                        ownership_status=ownership_status,
+                        brand_name=brand_name,
+                        model_name=model_name,
+                        manufacture_year=manufacture_year,
+                        capacity_portions=capacity_portions,
+                        fuel_type=fuel_type,
+                        status=status,
+                        is_active=True,
+                        notes=notes,
+                    )
+                    session.add(vehicle)
+                    created_vehicle_count += 1
+                else:
+                    vehicle.home_sppg_id = sppg_map[sppg_code].id
+                    vehicle.vehicle_type_id = existing_vehicle_types[vehicle_type_code].id
+                    vehicle.plate_number = plate_number
+                    vehicle.ownership_status = ownership_status
+                    vehicle.brand_name = brand_name
+                    vehicle.model_name = model_name
+                    vehicle.manufacture_year = manufacture_year
+                    vehicle.capacity_portions = capacity_portions
+                    vehicle.fuel_type = fuel_type
+                    vehicle.status = status
+                    vehicle.is_active = True
+                    vehicle.notes = notes
+                await session.commit()
+                existing_vehicles[vehicle_code] = vehicle
+            if created_vehicle_count:
+                print(f"Vehicle demo dibuat: {created_vehicle_count}")
+            else:
+                print("Vehicle demo sudah tersedia.")
+
+            first_names = ["Agus", "Rudi", "Maya", "Fajar", "Wulan", "Rahmat", "Tono", "Damar", "Siti", "Bima"]
+            last_names = ["Santoso", "Hartono", "Lestari", "Nugroho", "Sari", "Hidayat", "Prasetyo", "Wijaya", "Permata", "Saputra"]
+            license_types = ["B1", "B2", "A", "B1", "B2"]
+            driver_seed: list[tuple[str, str, str, str, str, date, str, str]] = []
+            for sppg_index in range(1, 9):
+                for unit_index in range(1, 6):
+                    seed_index = sppg_index + unit_index - 2
+                    first_name = first_names[seed_index % len(first_names)]
+                    last_name = last_names[(seed_index + unit_index) % len(last_names)]
+                    license_type = license_types[(unit_index - 1) % len(license_types)]
+                    driver_seed.append(
+                        (
+                            f"DRV-JKT{sppg_index:02d}-{unit_index:02d}",
+                            f"{first_name} {last_name}",
+                            f"081210{sppg_index:02d}{unit_index:02d}00",
+                            f"SIM{license_type}-{sppg_index:02d}{unit_index:02d}26",
+                            license_type,
+                            date(2027, min(12, unit_index + 7), min(28, 10 + sppg_index)),
+                            "ACTIVE",
+                            f"Driver unit {unit_index} untuk {sppg_map[f'SPPG-JKT-{sppg_index:02d}'].name}",
+                        )
+                    )
+            existing_drivers = {
+                item.driver_code: item
+                for item in (
+                    await session.execute(select(Driver).where(Driver.tenant_id == tenant.id))
+                ).scalars().all()
+            }
+            created_driver_count = 0
+            for driver_code, full_name, phone_number, license_number, license_type, license_expiry_date, status, notes in driver_seed:
+                driver = existing_drivers.get(driver_code)
+                if driver is None:
+                    driver = Driver(
+                        tenant_id=tenant.id,
+                        driver_code=driver_code,
+                        full_name=full_name,
+                        phone_number=phone_number,
+                        license_number=license_number,
+                        license_type=license_type,
+                        license_expiry_date=license_expiry_date,
+                        status=status,
+                        is_active=True,
+                        notes=notes,
+                    )
+                    session.add(driver)
+                    created_driver_count += 1
+                else:
+                    driver.full_name = full_name
+                    driver.phone_number = phone_number
+                    driver.license_number = license_number
+                    driver.license_type = license_type
+                    driver.license_expiry_date = license_expiry_date
+                    driver.status = status
+                    driver.is_active = True
+                    driver.notes = notes
+                await session.commit()
+                existing_drivers[driver_code] = driver
+            if created_driver_count:
+                print(f"Driver demo dibuat: {created_driver_count}")
+            else:
+                print("Driver demo sudah tersedia.")
+
+            demo_vehicle_ids = [vehicle.id for code, vehicle in existing_vehicles.items() if code.startswith("VH-JKT")]
+            if demo_vehicle_ids:
+                await session.execute(delete(VehicleLocation).where(VehicleLocation.vehicle_id.in_(demo_vehicle_ids)))
+                await session.execute(delete(VehicleAssignment).where(VehicleAssignment.vehicle_id.in_(demo_vehicle_ids)))
+                await session.execute(delete(VehicleMaintenance).where(VehicleMaintenance.vehicle_id.in_(demo_vehicle_ids)))
+                await session.commit()
+
+            assignment_roles = ["DELIVERY", "DISTRIBUTION", "BACKUP", "SUPPLY", "DELIVERY"]
+            assignment_seed: list[tuple[str, str, str, date, date | None, str, str, str]] = []
+            for sppg_index in range(1, 9):
+                sppg_code = f"SPPG-JKT-{sppg_index:02d}"
+                for unit_index in range(1, 6):
+                    vehicle_code = f"VH-JKT{sppg_index:02d}-{unit_index:02d}"
+                    driver_code = f"DRV-JKT{sppg_index:02d}-{unit_index:02d}"
+                    vehicle_status = existing_vehicles[vehicle_code].status
+                    assignment_seed.append(
+                        (
+                            vehicle_code,
+                            sppg_code,
+                            driver_code,
+                            date(2026, 7, 20),
+                            None,
+                            assignment_roles[unit_index - 1],
+                            "ASSIGNED" if vehicle_status != "MAINTENANCE" else "STANDBY",
+                            f"Assignment unit {unit_index} untuk operasi {sppg_map[sppg_code].district or sppg_map[sppg_code].city}",
+                        )
+                    )
+            existing_assignment_keys = {
+                (item.vehicle_id, item.assignment_date, item.assignment_role): item
+                for item in (
+                    await session.execute(select(VehicleAssignment).where(VehicleAssignment.tenant_id == tenant.id))
+                ).scalars().all()
+            }
+            created_assignment_count = 0
+            for vehicle_code, sppg_code, driver_code, assignment_date, end_date, assignment_role, status, notes in assignment_seed:
+                vehicle = existing_vehicles[vehicle_code]
+                driver = existing_drivers[driver_code]
+                assignment_key = (vehicle.id, assignment_date, assignment_role)
+                assignment = existing_assignment_keys.get(assignment_key)
+                if assignment is None:
+                    assignment = VehicleAssignment(
+                        tenant_id=tenant.id,
+                        sppg_id=sppg_map[sppg_code].id,
+                        vehicle_id=vehicle.id,
+                        driver_id=driver.id,
+                        assignment_date=assignment_date,
+                        end_date=end_date,
+                        assignment_role=assignment_role,
+                        status=status,
+                        is_active=True,
+                        notes=notes,
+                    )
+                    session.add(assignment)
+                    created_assignment_count += 1
+                else:
+                    assignment.sppg_id = sppg_map[sppg_code].id
+                    assignment.driver_id = driver.id
+                    assignment.end_date = end_date
+                    assignment.status = status
+                    assignment.is_active = True
+                    assignment.notes = notes
+                await session.commit()
+                existing_assignment_keys[assignment_key] = assignment
+            if created_assignment_count:
+                print(f"Vehicle assignment demo dibuat: {created_assignment_count}")
+            else:
+                print("Vehicle assignment demo sudah tersedia.")
+
+            maintenance_seed = [
+                ("VH-JKT01-05", "SPPG-JKT-01", date(2026, 7, 19), "BRAKE_CHECK", 28640.0, 780000.0, "Bengkel Armada Pusat", "SCHEDULED", "Pengecekan rem unit cadangan."),
+                ("VH-JKT03-05", "SPPG-JKT-03", date(2026, 7, 18), "PREVENTIVE_SERVICE", 48210.0, 1850000.0, "Bengkel Armada Utara", "COMPLETED", "Servis berkala sebelum distribusi puncak."),
+                ("VH-JKT05-03", "SPPG-JKT-05", date(2026, 7, 19), "TIRE_REPLACEMENT", 22140.0, 950000.0, "Ban Palmerah Jaya", "COMPLETED", "Penggantian dua ban belakang."),
+                ("VH-JKT06-05", "SPPG-JKT-06", date(2026, 7, 20), "COOLING_CHECK", 15330.0, 425000.0, "Cold Chain Service", "SCHEDULED", "Pemeriksaan pendingin sebelum rute panjang."),
+                ("VH-JKT08-02", "SPPG-JKT-08", date(2026, 7, 17), "OIL_CHANGE", 19750.0, 650000.0, "Pasar Minggu Diesel Hub", "COMPLETED", "Ganti oli selesai sebelum siklus akhir pekan."),
+            ]
+            existing_maintenance_keys = {
+                (item.vehicle_id, item.maintenance_date, item.maintenance_type): item
+                for item in (
+                    await session.execute(select(VehicleMaintenance).where(VehicleMaintenance.tenant_id == tenant.id))
+                ).scalars().all()
+            }
+            created_maintenance_count = 0
+            for vehicle_code, sppg_code, maintenance_date, maintenance_type, odometer_km, cost_amount, vendor_name, status, notes in maintenance_seed:
+                vehicle = existing_vehicles[vehicle_code]
+                maintenance_key = (vehicle.id, maintenance_date, maintenance_type)
+                maintenance = existing_maintenance_keys.get(maintenance_key)
+                if maintenance is None:
+                    maintenance = VehicleMaintenance(
+                        tenant_id=tenant.id,
+                        sppg_id=sppg_map[sppg_code].id,
+                        vehicle_id=vehicle.id,
+                        maintenance_date=maintenance_date,
+                        maintenance_type=maintenance_type,
+                        odometer_km=odometer_km,
+                        cost_amount=cost_amount,
+                        vendor_name=vendor_name,
+                        status=status,
+                        notes=notes,
+                    )
+                    session.add(maintenance)
+                    created_maintenance_count += 1
+                else:
+                    maintenance.sppg_id = sppg_map[sppg_code].id
+                    maintenance.odometer_km = odometer_km
+                    maintenance.cost_amount = cost_amount
+                    maintenance.vendor_name = vendor_name
+                    maintenance.status = status
+                    maintenance.notes = notes
+                await session.commit()
+                existing_maintenance_keys[maintenance_key] = maintenance
+            if created_maintenance_count:
+                print(f"Vehicle maintenance demo dibuat: {created_maintenance_count}")
+            else:
+                print("Vehicle maintenance demo sudah tersedia.")
+
+            existing_location_keys = {
+                (item.vehicle_id, item.recorded_at.isoformat(), item.event_type): item
+                for item in (
+                    await session.execute(select(VehicleLocation).where(VehicleLocation.tenant_id == tenant.id))
+                ).scalars().all()
+            }
+            created_location_count = 0
+            for sppg_index in range(1, 9):
+                sppg_code = f"SPPG-JKT-{sppg_index:02d}"
+                sppg = sppg_map[sppg_code]
+                for unit_index in range(1, 6):
+                    vehicle_code = f"VH-JKT{sppg_index:02d}-{unit_index:02d}"
+                    driver_code = f"DRV-JKT{sppg_index:02d}-{unit_index:02d}"
+                    vehicle = existing_vehicles[vehicle_code]
+                    assignment = existing_assignment_keys[(vehicle.id, date(2026, 7, 20), assignment_roles[unit_index - 1])]
+                    base_lat = _fleet_offset(sppg.latitude, unit_index, "lat")
+                    base_lon = _fleet_offset(sppg.longitude, unit_index, "lon")
+                    location_points = [
+                        (
+                            datetime(2026, 7, 20, 6, 45 + unit_index, tzinfo=timezone.utc),
+                            base_lat - 0.0012,
+                            base_lon - 0.0011,
+                            0.0,
+                            15.0 * unit_index,
+                            7.0,
+                            True,
+                            "LOADING",
+                            "START_SHIFT",
+                            "seed_demo",
+                            f"Area dapur {sppg.name}",
+                            f"Check-in awal {driver_code}",
+                        ),
+                        (
+                            datetime(2026, 7, 20, 7, 20 + unit_index, tzinfo=timezone.utc),
+                            base_lat,
+                            base_lon,
+                            34.0 + (unit_index * 2),
+                            42.0 * unit_index,
+                            9.5,
+                            True,
+                            "IN_TRANSIT",
+                            "GPS_PING",
+                            "seed_demo",
+                            f"Koridor distribusi {sppg.city}",
+                            f"Perjalanan aktif {vehicle_code}",
+                        ),
+                        (
+                            datetime(2026, 7, 20, 8, 5 + unit_index, tzinfo=timezone.utc),
+                            base_lat + 0.0014,
+                            base_lon + 0.0010,
+                            12.0 if unit_index != 5 else 0.0,
+                            65.0 * unit_index,
+                            6.0,
+                            unit_index != 5,
+                            "ARRIVED" if unit_index != 5 else "MAINTENANCE",
+                            "ARRIVAL" if unit_index != 5 else "SERVICE_STOP",
+                            "seed_demo",
+                            f"Titik layanan {unit_index} {sppg.district or sppg.city}",
+                            "Posisi terakhir demo untuk frontend map",
+                        ),
+                    ]
+                    for (
+                        recorded_at,
+                        latitude,
+                        longitude,
+                        speed_kph,
+                        heading_degree,
+                        accuracy_meter,
+                        engine_on,
+                        movement_status,
+                        event_type,
+                        source,
+                        address_label,
+                        notes,
+                    ) in location_points:
+                        location_key = (vehicle.id, recorded_at.isoformat(), event_type)
+                        location = existing_location_keys.get(location_key)
+                        if location is None:
+                            location = VehicleLocation(
+                                tenant_id=tenant.id,
+                                sppg_id=sppg.id,
+                                vehicle_id=vehicle.id,
+                                assignment_id=assignment.id,
+                                recorded_at=recorded_at,
+                                latitude=latitude,
+                                longitude=longitude,
+                                location=WKTElement(f"POINT({longitude} {latitude})", srid=4326),
+                                speed_kph=speed_kph,
+                                heading_degree=heading_degree,
+                                accuracy_meter=accuracy_meter,
+                                engine_on=engine_on,
+                                movement_status=movement_status,
+                                event_type=event_type,
+                                source=source,
+                                address_label=address_label,
+                                notes=notes,
+                            )
+                            session.add(location)
+                            created_location_count += 1
+                        else:
+                            location.sppg_id = sppg.id
+                            location.assignment_id = assignment.id
+                            location.latitude = latitude
+                            location.longitude = longitude
+                            location.location = WKTElement(f"POINT({longitude} {latitude})", srid=4326)
+                            location.speed_kph = speed_kph
+                            location.heading_degree = heading_degree
+                            location.accuracy_meter = accuracy_meter
+                            location.engine_on = engine_on
+                            location.movement_status = movement_status
+                            location.source = source
+                            location.address_label = address_label
+                            location.notes = notes
+                        await session.commit()
+                        existing_location_keys[location_key] = location
+            if created_location_count:
+                print(f"Vehicle location demo dibuat: {created_location_count}")
+            else:
+                print("Vehicle location demo sudah tersedia.")
 
             existing_submission_keys = {
                 (

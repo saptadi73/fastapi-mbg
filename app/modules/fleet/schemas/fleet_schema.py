@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class VehicleTypeCreate(BaseModel):
@@ -64,6 +64,23 @@ class VehicleMaintenanceCreate(BaseModel):
     cost_amount: float | None = None
     vendor_name: str | None = None
     status: str = "COMPLETED"
+    notes: str | None = None
+
+
+class VehicleLocationCreate(BaseModel):
+    sppg_id: str | None = None
+    assignment_id: str | None = None
+    recorded_at: datetime
+    latitude: float
+    longitude: float
+    speed_kph: float | None = None
+    heading_degree: float | None = None
+    accuracy_meter: float | None = None
+    engine_on: bool = True
+    movement_status: str = "IDLE"
+    event_type: str = "PING"
+    source: str | None = None
+    address_label: str | None = None
     notes: str | None = None
 
 
@@ -149,7 +166,44 @@ class VehicleMaintenanceRead(BaseModel):
     notes: str | None
 
 
+class VehicleLocationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tenant_id: UUID
+    sppg_id: UUID | None
+    vehicle_id: UUID
+    assignment_id: UUID | None
+    recorded_at: datetime
+    latitude: float
+    longitude: float
+    speed_kph: float | None
+    heading_degree: float | None
+    accuracy_meter: float | None
+    engine_on: bool
+    movement_status: str
+    event_type: str
+    source: str | None
+    address_label: str | None
+    notes: str | None
+
+
+class VehicleLocationMapRead(BaseModel):
+    vehicle_id: UUID
+    vehicle_code: str
+    plate_number: str
+    home_sppg_id: UUID | None
+    driver_id: UUID | None
+    driver_name: str | None
+    assignment_id: UUID | None
+    assignment_role: str | None
+    status: str
+    latest_location: VehicleLocationRead | None
+
+
 class VehicleBundleRead(BaseModel):
     vehicle: VehicleRead
     assignments: list[VehicleAssignmentRead]
     maintenances: list[VehicleMaintenanceRead]
+    current_location: VehicleLocationRead | None = None
+    recent_locations: list[VehicleLocationRead] = Field(default_factory=list)

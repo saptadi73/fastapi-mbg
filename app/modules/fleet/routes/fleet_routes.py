@@ -15,6 +15,9 @@ from app.modules.fleet.schemas.fleet_schema import (
     VehicleAssignmentRead,
     VehicleBundleRead,
     VehicleCreate,
+    VehicleLocationCreate,
+    VehicleLocationMapRead,
+    VehicleLocationRead,
     VehicleMaintenanceCreate,
     VehicleMaintenanceRead,
     VehicleRead,
@@ -135,6 +138,17 @@ async def create_vehicle(
         message="Vehicle berhasil dibuat.",
         data=VehicleRead.model_validate(vehicle),
         meta={"request_id": request.state.request_id},
+    )
+
+
+@router.get("/vehicle-locations/live")
+async def list_live_vehicle_locations(request: Request, service: FleetService = Depends(get_fleet_service)) -> dict:
+    items = [VehicleLocationMapRead.model_validate(item) for item in await service.list_live_vehicle_locations()]
+    return success_response(
+        code="VEHICLE_LOCATION_LIVE_LIST_FOUND",
+        message="Posisi live vehicle berhasil diambil.",
+        data=items,
+        meta={"request_id": request.state.request_id, "total": len(items)},
     )
 
 
@@ -264,5 +278,60 @@ async def create_maintenance(
         code="VEHICLE_MAINTENANCE_CREATED",
         message="Maintenance vehicle berhasil dicatat.",
         data=VehicleMaintenanceRead.model_validate(maintenance),
+        meta={"request_id": request.state.request_id},
+    )
+
+
+@router.get("/vehicles/{vehicle_id}/locations")
+async def list_vehicle_locations(
+    vehicle_id: UUID,
+    request: Request,
+    limit: int = 50,
+    service: FleetService = Depends(get_fleet_service),
+) -> dict:
+    items = [VehicleLocationRead.model_validate(item) for item in await service.list_vehicle_location_history(vehicle_id, limit=limit)]
+    return success_response(
+        code="VEHICLE_LOCATION_LIST_FOUND",
+        message="Histori lokasi vehicle berhasil diambil.",
+        data=items,
+        meta={"request_id": request.state.request_id, "total": len(items)},
+    )
+
+
+@router.post("/vehicles/{vehicle_id}/locations", status_code=status.HTTP_201_CREATED)
+async def create_vehicle_location(
+    vehicle_id: UUID,
+    payload: VehicleLocationCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    actor: User = Depends(require_roles("super_admin", "tenant_admin", "operations_manager", "delivery_officer")),
+) -> dict:
+    service = get_fleet_service(session)
+    location = await service.create_vehicle_location(vehicle_id, payload)
+    await get_audit_service(session).record_event(
+        event_type="FLEET",
+        module_name="fleet",
+        action_name="CREATE_VEHICLE_LOCATION",
+        summary="Lokasi vehicle diperbarui.",
+        actor=actor,
+        tenant_id=location.tenant_id,
+        sppg_id=location.sppg_id,
+        entity_type="vehicle_location",
+        entity_id=location.id,
+        request_id=request.state.request_id,
+        ip_address=request.client.host if request.client else None,
+        metadata_json={
+            "vehicle_id": str(location.vehicle_id),
+            "recorded_at": location.recorded_at.isoformat(),
+            "latitude": location.latitude,
+            "longitude": location.longitude,
+            "movement_status": location.movement_status,
+        },
+    )
+    await session.commit()
+    return success_response(
+        code="VEHICLE_LOCATION_CREATED",
+        message="Lokasi vehicle berhasil dicatat.",
+        data=VehicleLocationRead.model_validate(location),
         meta={"request_id": request.state.request_id},
     )

@@ -175,6 +175,7 @@ def register_openapi(app: FastAPI) -> None:
             {"name": "Procurement", "description": "Purchase request dan goods receipt."},
             {"name": "Production", "description": "Production order, konsumsi bahan, dan cost sheet."},
             {"name": "Delivery", "description": "Delivery order dan proof of delivery."},
+            {"name": "Fleet", "description": "Armada kendaraan, driver, assignment, maintenance, dan GPS tracking."},
         ]
 
         app.openapi_schema = schema

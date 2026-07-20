@@ -818,9 +818,16 @@ tab:
 - Vehicle Type List
 - Vehicle List
 - Vehicle Detail
+- Fleet Map Live Tracking
 - Driver List
 - Vehicle Assignment List
 - Maintenance List
+
+#### Fleet UX Notes
+
+- vehicle detail sebaiknya menampilkan current GPS, histori ping terbaru, dan status pergerakan
+- fleet map perlu marker berbeda untuk status `LOADING`, `IN_TRANSIT`, `ARRIVED`, dan `MAINTENANCE`
+- dispatch board sebaiknya bisa filter per SPPG, status armada, dan waktu update terakhir
 
 #### Asset Pages
 

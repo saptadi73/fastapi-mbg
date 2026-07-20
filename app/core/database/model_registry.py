@@ -30,6 +30,7 @@ def import_all_models() -> None:
     import app.modules.fleet.models.driver  # noqa: F401
     import app.modules.fleet.models.vehicle  # noqa: F401
     import app.modules.fleet.models.vehicle_assignment  # noqa: F401
+    import app.modules.fleet.models.vehicle_location  # noqa: F401
     import app.modules.fleet.models.vehicle_maintenance  # noqa: F401
     import app.modules.fleet.models.vehicle_type  # noqa: F401
     import app.modules.funding.models.funding_agreement  # noqa: F401
