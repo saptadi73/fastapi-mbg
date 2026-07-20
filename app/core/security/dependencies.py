@@ -10,7 +10,7 @@ from app.core.security.jwt import decode_token
 from app.core.tenancy.context import get_current_sppg, get_current_tenant, set_current_sppg, set_current_tenant
 from app.modules.identity.models.user import User
 from app.modules.identity.repositories.user_repository import UserRepository
-from app.support.exceptions.base import ForbiddenException, UnauthorizedException
+from app.support.exceptions.base import BadRequestException, ForbiddenException, UnauthorizedException
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/identity/login", auto_error=False)
 
@@ -51,7 +51,13 @@ async def get_current_user(
     accessible_sppg_ids = await repository.list_accessible_sppg_ids(user.id)
     current_sppg = get_current_sppg()
     if current_sppg is not None:
-        current_sppg_id = UUID(current_sppg)
+        try:
+            current_sppg_id = UUID(current_sppg)
+        except ValueError as exc:
+            raise BadRequestException(
+                code="INVALID_SPPG_CONTEXT",
+                message="Header X-SPPG-ID tidak valid.",
+            ) from exc
         if accessible_sppg_ids and current_sppg_id not in accessible_sppg_ids:
             raise ForbiddenException(
                 code="USER_SPPG_ACCESS_DENIED",

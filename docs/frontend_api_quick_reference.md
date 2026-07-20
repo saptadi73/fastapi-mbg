@@ -1,6 +1,6 @@
 # Frontend API Quick Reference
 
-Ringkasan cepat untuk integrasi frontend ke backend ERP MBG per 19 Juli 2026.
+Ringkasan cepat untuk integrasi frontend ke backend ERP MBG per 20 Juli 2026.
 
 ## Base URL
 
@@ -15,6 +15,22 @@ http://127.0.0.1:8000
 | `super_admin` | `operator@example.com` | `mbg12345` |
 | `viewer` | `viewer@example.com` | `viewer123` |
 
+## Scope Headers
+
+Header yang paling sering dipakai frontend:
+
+```http
+Authorization: Bearer <access_token>
+X-Tenant-ID: <tenant_uuid>
+X-SPPG-ID: <sppg_uuid>
+```
+
+Catatan:
+
+- kirim `X-Tenant-ID` untuk layar operasional, GIS, feedback, delivery, dan reporting
+- kirim `X-SPPG-ID` bila layar bekerja pada satu dapur aktif
+- `X-SPPG-ID` harus UUID valid; nilai seperti `undefined` akan menghasilkan `400 INVALID_SPPG_CONTEXT`
+
 ## Auth Flow
 
 1. `POST /api/v1/identity/login`
@@ -24,6 +40,43 @@ http://127.0.0.1:8000
 ```http
 Authorization: Bearer <access_token>
 ```
+
+4. Ambil `GET /api/v1/identity/me` untuk mengetahui:
+
+- `tenant_id`
+- `active_sppg_id`
+- `accessible_sppg_ids`
+
+## Demo Data Pack
+
+Setelah menjalankan:
+
+```powershell
+.\.venv\Scripts\python scripts\seed_demo_data.py
+```
+
+frontend lokal bisa mengandalkan paket demo berikut:
+
+- `8` SPPG/dapur demo
+- `24` sekolah demo
+- `475` beneficiary demo
+- service area polygon untuk dapur demo
+- production order, delivery order, route, proof, dan incident demo
+- feedback submission, complaint, dan service quality score demo
+
+Tanggal demo yang aman dipakai untuk preview UI:
+
+- `2026-07-18`
+- `2026-07-19`
+- `2026-07-20`
+- `2026-07-21`
+
+Skenario yang sudah terlihat di data demo:
+
+- histori distribusi pada `Sabtu, 18 Juli 2026` dan `Minggu, 19 Juli 2026`
+- aktivitas operasional aktif pada `Senin, 20 Juli 2026`
+- route dan delivery terjadwal untuk `Selasa, 21 Juli 2026`
+- klaster distribusi kini mencakup pusat, utara, selatan, barat, dan timur Jakarta
 
 ## Endpoint Matrix
 
@@ -518,6 +571,7 @@ GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
 - `/api/v1/reporting/finance/cash-flow` mendukung `period_start` dan `period_end`
 - `/api/v1/reporting/finance/government-receivable-aging` dan `/api/v1/reporting/finance/investor-funding-position` mendukung `as_of_date`
 - `/api/v1/reporting/finance/roi-by-sppg` menghitung ROI dari claim approved/claimed amount dibanding total biaya produksi dan biaya pendanaan teralokasi
+- demo seed finansial saat ini sudah diisi untuk horizon `2026-07-20`; agar tabel frontend langsung terisi, pakai `as_of_date=2026-07-20` atau periode yang mencakup Juli 2026
 - read model ini belum menjadi source of truth, hanya agregasi dari modul transaksi yang sudah ada
 
 ### Create External System

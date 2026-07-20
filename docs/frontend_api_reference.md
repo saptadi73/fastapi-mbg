@@ -1,12 +1,59 @@
 # Frontend API Reference
 
-Dokumentasi ini merangkum endpoint backend ERP MBG FastAPI yang aktif per 19 Juli 2026, dengan fokus kebutuhan integrasi frontend.
+Dokumentasi ini merangkum endpoint backend ERP MBG FastAPI yang aktif per 20 Juli 2026, dengan fokus kebutuhan integrasi frontend.
 
 ## Base URL
 
 ```text
 http://127.0.0.1:8000
 ```
+
+## Frontend Demo Pack
+
+Untuk demo lokal frontend, jalankan dulu:
+
+```powershell
+.\.venv\Scripts\python scripts\seed_demo_data.py
+```
+
+Seed lokal saat ini menyiapkan paket data yang cukup padat untuk integrasi frontend:
+
+- `8` SPPG/dapur
+- `24` sekolah
+- `475` beneficiary
+- service area GIS, delivery order, route, proof of delivery, dan incident
+- feedback submission, complaint, dan service quality score
+
+Tanggal acuan demo:
+
+- `2026-07-18` dan `2026-07-19` untuk histori
+- `2026-07-20` untuk operasional hari ini
+- `2026-07-21` untuk route dan delivery terjadwal
+
+Sebaran demo saat ini sudah mencakup klaster Jakarta Pusat, Utara, Selatan, Barat, dan Timur.
+
+Frontend sebaiknya memakai tanggal-tanggal di atas saat:
+
+- menguji filter list dan dashboard
+- menampilkan map GIS, heatmap distribusi, dan risk map
+- menguji delivery detail, route detail, feedback, dan complaint
+
+## Scope Headers
+
+Header yang paling penting untuk integrasi frontend:
+
+```http
+Authorization: Bearer <access_token>
+X-Tenant-ID: <tenant_uuid>
+X-SPPG-ID: <sppg_uuid>
+```
+
+Aturan praktis:
+
+- `GET /api/v1/identity/me` dipakai untuk mengambil `tenant_id`, `active_sppg_id`, dan `accessible_sppg_ids`
+- `X-Tenant-ID` sebaiknya dikirim ke hampir semua layar operasional
+- `X-SPPG-ID` dikirim saat layar difokuskan ke satu dapur
+- bila frontend mengirim `X-SPPG-ID` yang bukan UUID valid, backend akan mengembalikan `400 INVALID_SPPG_CONTEXT`
 
 ## Table of Contents
 
@@ -604,6 +651,11 @@ Catatan implementasi provider:
 
 Mengembalikan daftar marker SPPG yang siap dipakai frontend peta.
 
+Untuk demo lokal saat ini, frontend bisa berharap melihat marker untuk:
+
+- `SPPG-JKT-01` sampai `SPPG-JKT-08`
+- klaster Jakarta Pusat, Utara, Selatan, Barat, dan Timur
+
 Setiap item berisi:
 
 - identitas SPPG
@@ -641,10 +693,17 @@ Mengembalikan `GeoJSON FeatureCollection` untuk layer dapur dalam area `bbox`.
 Query utama:
 
 - `bbox=106.800,-6.200,106.900,-6.100`
-- `snapshot_date=2026-07-19`
+- `snapshot_date=2026-07-20`
 - `status=active`
 - `metric=performance_score`
 - `limit=2000`
+
+Contoh bbox yang berguna untuk demo:
+
+- Jakarta Pusat dan Utara: `bbox=106.820,-6.210,106.900,-6.090`
+- Jakarta Barat: `bbox=106.730,-6.230,106.820,-6.170`
+- Jakarta Timur: `bbox=106.920,-6.220,106.970,-6.160`
+- Jakarta Selatan: `bbox=106.825,-6.300,106.860,-6.220`
 
 Property utama setiap feature:
 
@@ -671,6 +730,12 @@ Filter yang tersedia:
 - `complaint_only`
 - `distribution_min`
 - `limit`
+
+Contoh query demo yang praktis:
+
+- sekolah sekitar Palmerah dan Kembangan: `bbox=106.730,-6.230,106.810,-6.170`
+- sekolah dengan distribusi aktif hari ini: `date_from=2026-07-20&date_to=2026-07-20&distribution_min=1`
+- sekolah yang punya complaint atau feedback rendah: `complaint_only=true&feedback_min=80`
 
 Property utama setiap feature:
 
@@ -730,6 +795,14 @@ Contoh `data`:
 
 Mengembalikan garis rute sederhana dari titik SPPG ke titik sekolah berdasarkan delivery order yang sudah ada.
 
+Contoh route demo yang tersedia dari seed:
+
+- `RT-DEMO-JKT01-20260720`
+- `RT-DEMO-JKT05-20260720`
+- `RT-DEMO-JKT06-20260720`
+- `RT-DEMO-JKT07-20260720`
+- `RT-DEMO-JKT08-20260720`
+
 Setiap item berisi:
 
 - `delivery_order_id`
@@ -778,6 +851,11 @@ Field penting:
 
 Mengembalikan `GeoJSON FeatureCollection` per sekolah dengan property `distribution_count`.
 
+Untuk seed demo saat ini, heatmap paling hidup jika frontend memakai:
+
+- `date_from=2026-07-20`
+- `date_to=2026-07-20`
+
 Catatan implementasi GIS v1:
 
 - seluruh endpoint GIS mendukung `X-Tenant-ID`
@@ -789,6 +867,10 @@ Catatan implementasi GIS v1:
 `GET /api/v1/gis/service-areas`
 
 Mengembalikan daftar polygon area layanan yang sudah disimpan untuk tenant/SPPG aktif.
+
+Untuk demo lokal sekarang, list ini normalnya mengembalikan minimal service area untuk:
+
+- `SPPG-JKT-01` sampai `SPPG-JKT-08`
 
 `GET /api/v1/gis/service-areas/{service_area_id}`
 
@@ -2919,7 +3001,7 @@ Mengembalikan dashboard finance gabungan untuk kebutuhan CFO/finance manager:
 
 Query opsional:
 
-- `as_of_date=2026-07-19`
+- `as_of_date=2026-07-20`
 
 `GET /api/v1/reporting/stock-summary`
 
@@ -2986,7 +3068,7 @@ Mengembalikan aging piutang government claim yang masih outstanding.
 
 Query opsional:
 
-- `as_of_date=2026-07-19`
+- `as_of_date=2026-07-20`
 
 Setiap item memuat `days_outstanding`, `aging_bucket`, dan `outstanding_amount`.
 
@@ -3021,7 +3103,7 @@ Rumus ROI saat ini:
 Query opsional:
 
 - `period_start=2026-07-01`
-- `period_end=2026-07-31`
+- `period_end=2026-07-20`
 
 Catatan:
 
@@ -4236,6 +4318,14 @@ Contoh response:
 
 Mengembalikan daftar delivery order.
 
+Contoh nomor delivery demo yang saat ini tersedia dan bagus untuk dipakai UI detail:
+
+- `DO-DEMO-JKT01-001`
+- `DO-DEMO-JKT02-001`
+- `DO-DEMO-JKT05-002`
+- `DO-DEMO-JKT07-002`
+- `DO-DEMO-JKT08-003`
+
 Field item utama biasanya mencakup:
 
 - `id`
@@ -4261,9 +4351,21 @@ Mengembalikan bundle detail delivery:
 - `proofs`
 - `incidents`
 
+Catatan demo:
+
+- delivery tanggal `2026-07-20` biasanya sudah punya route
+- beberapa delivery juga sudah punya proof dan incident, terutama pada klaster `JKT01`, `JKT05`, `JKT06`, `JKT07`, dan `JKT08`
+
 `GET /api/v1/delivery-orders/routes`
 
 Mengembalikan daftar route planning distribution. Setiap route mewakili kumpulan delivery order dalam tenant dan SPPG yang sama.
+
+Untuk demo hasil seed terbaru, route yang paling kaya untuk ditampilkan adalah:
+
+- `RT-DEMO-JKT05-20260720` dengan 3 stop
+- `RT-DEMO-JKT06-20260720` dengan 3 stop
+- `RT-DEMO-JKT07-20260720` dengan 3 stop
+- `RT-DEMO-JKT08-20260720` dengan 3 stop
 
 Contoh item response:
 
@@ -4383,6 +4485,8 @@ Response `data` mengembalikan bundle delivery order, termasuk route/proof/incide
   "linked_incident_ids": ["uuid"]
 }
 ```
+
+Payload seperti ini cocok dipakai frontend saat meniru flow penerimaan lapangan untuk delivery yang statusnya masih belum final.
 
 `POST /api/v1/delivery-orders/{delivery_order_id}/incidents`
 

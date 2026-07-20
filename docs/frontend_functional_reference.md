@@ -1,6 +1,6 @@
 # Frontend Functional Reference
 
-Dokumentasi ini menjadi acuan fungsional untuk tim frontend ERP MBG per **19 Juli 2026**.
+Dokumentasi ini menjadi acuan fungsional untuk tim frontend ERP MBG per **20 Juli 2026**.
 
 Dokumen ini melengkapi:
 
@@ -15,6 +15,29 @@ Fokus dokumen ini bukan detail payload API, tetapi:
 - status, badge, dan aksi yang relevan
 - relasi antarhalaman
 - kebutuhan state management frontend
+
+## Demo Context Lokal
+
+Untuk pairing frontend-backend di environment lokal, asumsi demo yang sekarang tersedia adalah:
+
+- `8` SPPG/dapur demo aktif
+- `24` sekolah demo
+- `475` beneficiary demo
+- data GIS, service area, delivery route, proof, incident, feedback, complaint, dan service quality score sudah terisi
+
+Tanggal demo yang direkomendasikan untuk UX testing:
+
+- `2026-07-18`
+- `2026-07-19`
+- `2026-07-20`
+- `2026-07-21`
+
+Implikasi ke frontend:
+
+- filter tanggal default yang aman untuk demo sebaiknya tidak selalu `today only`
+- layar GIS, delivery, feedback, dan reporting sebaiknya menyediakan preset cepat seperti `Hari ini`, `3 hari terakhir`, dan `Besok`
+- context switch `tenant` dan `SPPG` perlu terlihat jelas karena data demo sekarang tersebar di beberapa dapur
+- peta sebaiknya menampilkan marker dan polygon per klaster agar perpindahan Jakarta Pusat, Barat, Timur, Utara, dan Selatan langsung terbaca
 
 ## 1. Tujuan
 
@@ -411,6 +434,11 @@ Widget utama:
 - investor funding position
 - ROI by SPPG
 - budget actual vs available
+
+Catatan demo frontend:
+
+- seed demo finansial sudah mengisi aging, funding position, ROI, dan cash flow dengan referensi tanggal `2026-07-20`
+- untuk screen demo, default filter paling aman adalah `as_of_date=2026-07-20` dan periode Juli 2026
 
 ## 8. Workflow Umum Antar Modul
 

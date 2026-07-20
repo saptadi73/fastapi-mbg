@@ -2569,6 +2569,26 @@ def test_identity_me_with_invalid_token_uses_standard_error_envelope() -> None:
     assert "timestamp" in payload["meta"]
 
 
+def test_identity_me_with_invalid_sppg_header_uses_standard_error_envelope() -> None:
+    with TestClient(app) as client:
+        login_response = client.post(
+            "/api/v1/identity/login",
+            data={"username": "operator@example.com", "password": "mbg12345"},
+        )
+        access_token = login_response.json()["data"]["access_token"]
+        response = client.get(
+            "/api/v1/identity/me",
+            headers={"Authorization": f"Bearer {access_token}", "X-SPPG-ID": "undefined"},
+        )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["code"] == "INVALID_SPPG_CONTEXT"
+    assert "request_id" in payload["meta"]
+    assert "timestamp" in payload["meta"]
+
+
 def test_tenant_endpoint_returns_items() -> None:
     with TestClient(app) as client:
         response = client.get("/api/v1/tenants")
