@@ -35,6 +35,8 @@ Kolom:
 | Dashboard | Tenant Dashboard | dashboard | `tenant_admin`, `super_admin` | Ringkasan lintas SPPG dan modul | `GET /api/v1/reporting/dashboard/tenant` |
 | Dashboard | SPPG Dashboard | dashboard | `operations_manager` | Ringkasan operasional per SPPG | `GET /api/v1/reporting/dashboard/sppg` |
 | Dashboard | Finance Dashboard | dashboard | `finance_manager`, `tenant_admin` | Ringkasan finance dan funding | `GET /api/v1/reporting/dashboard/finance` |
+| Dashboard | Profit Loss Report | report | `finance_manager`, `tenant_admin` | Laporan laba rugi per periode dan opsional per SPPG | `GET /api/v1/reporting/finance/profit-loss` |
+| Dashboard | Balance Sheet Report | report | `finance_manager`, `tenant_admin` | Laporan neraca per tanggal untuk scope tenant | `GET /api/v1/reporting/finance/balance-sheet` |
 
 ## 4. Identity & Access Screens
 

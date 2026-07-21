@@ -243,6 +243,8 @@ Kode fleet demo yang aman dipakai frontend:
 | `GET` | `/api/v1/reporting/delivery-performance` | No | - | Ringkasan performa delivery |
 | `GET` | `/api/v1/reporting/budget-summary` | No | - | Ringkasan budget |
 | `GET` | `/api/v1/reporting/finance/cash-flow` | No | - | Cash flow dari jurnal kas/bank |
+| `GET` | `/api/v1/reporting/finance/profit-loss` | No | - | Laporan laba rugi finance dengan filter periode dan SPPG |
+| `GET` | `/api/v1/reporting/finance/balance-sheet` | No | - | Laporan neraca per tanggal untuk scope tenant |
 | `GET` | `/api/v1/reporting/finance/government-receivable-aging` | No | - | Aging piutang government claim |
 | `GET` | `/api/v1/reporting/finance/investor-funding-position` | No | - | Posisi pendanaan investor |
 | `GET` | `/api/v1/reporting/finance/roi-by-sppg` | No | - | ROI per SPPG |
@@ -580,7 +582,10 @@ GET /api/v1/audit/events/?module_name=meal_plan&event_type=APPROVAL
 - `/api/v1/reporting/dashboard/tenant` sebaiknya dipanggil dengan `X-Tenant-ID`
 - `/api/v1/reporting/dashboard/sppg` sebaiknya dipanggil dengan `X-Tenant-ID` dan `X-SPPG-ID`
 - `/api/v1/reporting/dashboard/finance` cocok untuk summary layar finance manager
+- `/api/v1/reporting/dashboard/finance` sekarang juga membawa kartu ringkas untuk `profit_loss` dan `balance_sheet`
 - `/api/v1/reporting/finance/cash-flow` mendukung `period_start` dan `period_end`
+- `/api/v1/reporting/finance/profit-loss` mendukung `period_start`, `period_end`, dan filter `X-SPPG-ID` untuk halaman laporan laba rugi
+- `/api/v1/reporting/finance/balance-sheet` mendukung `as_of_date` dan saat ini hanya untuk scope tenant, bukan per `X-SPPG-ID`
 - `/api/v1/reporting/finance/government-receivable-aging` dan `/api/v1/reporting/finance/investor-funding-position` mendukung `as_of_date`
 - `/api/v1/reporting/finance/roi-by-sppg` menghitung ROI dari claim approved/claimed amount dibanding total biaya produksi dan biaya pendanaan teralokasi
 - demo seed finansial saat ini sudah diisi untuk horizon `2026-07-20`; agar tabel frontend langsung terisi, pakai `as_of_date=2026-07-20` atau periode yang mencakup Juli 2026

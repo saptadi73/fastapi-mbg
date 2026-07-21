@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.accounting.models.account import Account
 from app.modules.accounting.models.journal_entry import JournalEntry
 from app.modules.accounting.models.journal_line import JournalLine
+from app.modules.asset.models.asset_depreciation import AssetDepreciation
 from app.core.tenancy.context import get_current_sppg, get_current_tenant
 from app.modules.audit.models.audit_event import AuditEvent
 from app.modules.budget.models.budget import Budget
@@ -17,6 +18,7 @@ from app.modules.funding.models.funding_agreement import FundingAgreement
 from app.modules.funding.models.funding_disbursement import FundingDisbursement
 from app.modules.funding.models.funding_repayment import FundingRepayment
 from app.modules.funding.models.funding_source import FundingSource
+from app.modules.government_claim.models.claim_payment import ClaimPayment
 from app.modules.government_claim.models.government_claim import GovernmentClaim
 from app.modules.inventory.models.inventory_balance import InventoryBalance
 from app.modules.meal_plan.models.meal_plan import MealPlan
@@ -306,6 +308,8 @@ class ReportingService:
 
     async def cash_flow(self, period_start: date | None = None, period_end: date | None = None) -> dict:
         tenant_id, _ = self._get_scope()
+        if period_start and period_end and period_end < period_start:
+            raise BadRequestException(code="INVALID_REPORTING_PERIOD", message="Periode laporan tidak valid.")
         query = (
             select(
                 JournalEntry.source_module,
@@ -363,6 +367,255 @@ class ReportingService:
                 "net_cash_flow": round(total_inflow - total_outflow, 6),
             },
             "breakdown": breakdown,
+        }
+
+    async def profit_loss(self, period_start: date | None = None, period_end: date | None = None) -> dict:
+        tenant_id, sppg_id = self._get_scope()
+        if period_start and period_end and period_end < period_start:
+            raise BadRequestException(code="INVALID_REPORTING_PERIOD", message="Periode laporan tidak valid.")
+
+        recognized_statuses = {"VERIFIED", "APPROVED", "ADJUSTED", "PARTIALLY_PAID", "PAID"}
+
+        claims_query = select(GovernmentClaim)
+        payments_query = select(ClaimPayment).join(GovernmentClaim, GovernmentClaim.id == ClaimPayment.claim_id)
+        production_query = select(ProductionOrder).where(ProductionOrder.status == "COMPLETED")
+        labor_query = select(LaborCost)
+        depreciation_query = select(AssetDepreciation).where(AssetDepreciation.status == "POSTED")
+        disbursement_query = select(FundingDisbursement)
+        repayment_query = select(FundingRepayment)
+
+        if tenant_id:
+            claims_query = claims_query.where(GovernmentClaim.tenant_id == tenant_id)
+            payments_query = payments_query.where(GovernmentClaim.tenant_id == tenant_id)
+            production_query = production_query.where(ProductionOrder.tenant_id == tenant_id)
+            labor_query = labor_query.where(LaborCost.tenant_id == tenant_id)
+            depreciation_query = depreciation_query.where(AssetDepreciation.tenant_id == tenant_id)
+            disbursement_query = disbursement_query.where(FundingDisbursement.tenant_id == tenant_id)
+            repayment_query = repayment_query.where(FundingRepayment.tenant_id == tenant_id)
+        if sppg_id:
+            claims_query = claims_query.where(GovernmentClaim.sppg_id == sppg_id)
+            payments_query = payments_query.where(GovernmentClaim.sppg_id == sppg_id)
+            production_query = production_query.where(ProductionOrder.sppg_id == sppg_id)
+            labor_query = labor_query.where(LaborCost.sppg_id == sppg_id)
+            depreciation_query = depreciation_query.where(AssetDepreciation.sppg_id == sppg_id)
+            disbursement_query = disbursement_query.where(FundingDisbursement.sppg_id == sppg_id)
+        if period_start:
+            claims_query = claims_query.where(GovernmentClaim.period_end >= period_start)
+            payments_query = payments_query.where(ClaimPayment.payment_date >= period_start)
+            production_query = production_query.where(ProductionOrder.production_date >= period_start)
+            labor_query = labor_query.where(LaborCost.cost_date >= period_start)
+            depreciation_query = depreciation_query.where(AssetDepreciation.depreciation_date >= period_start)
+            repayment_query = repayment_query.where(FundingRepayment.repayment_date >= period_start)
+        if period_end:
+            claims_query = claims_query.where(GovernmentClaim.period_start <= period_end)
+            payments_query = payments_query.where(ClaimPayment.payment_date <= period_end)
+            production_query = production_query.where(ProductionOrder.production_date <= period_end)
+            labor_query = labor_query.where(LaborCost.cost_date <= period_end)
+            depreciation_query = depreciation_query.where(AssetDepreciation.depreciation_date <= period_end)
+            disbursement_query = disbursement_query.where(FundingDisbursement.disbursement_date <= period_end)
+            repayment_query = repayment_query.where(FundingRepayment.repayment_date <= period_end)
+
+        claims = list((await self.session.execute(claims_query)).scalars().all())
+        claim_payments = list((await self.session.execute(payments_query)).scalars().all())
+        productions = list((await self.session.execute(production_query)).scalars().all())
+        labor_costs = list((await self.session.execute(labor_query)).scalars().all())
+        depreciations = list((await self.session.execute(depreciation_query)).scalars().all())
+        disbursements = list((await self.session.execute(disbursement_query)).scalars().all())
+        repayments = list((await self.session.execute(repayment_query)).scalars().all())
+
+        government_revenue = round(
+            sum(
+                float(claim.approved_amount if claim.approved_amount is not None else claim.claimed_amount or 0.0)
+                for claim in claims
+                if claim.status in recognized_statuses
+            ),
+            6,
+        )
+        government_cash_received = round(sum(float(item.amount or 0.0) for item in claim_payments), 6)
+        material_cost = round(sum(float(item.actual_total_cost or 0.0) for item in productions), 6)
+        labor_cost = round(sum(float(item.total_cost or 0.0) for item in labor_costs), 6)
+        depreciation_cost = round(sum(float(item.depreciation_amount or 0.0) for item in depreciations), 6)
+
+        disbursement_share_by_agreement: dict[UUID, dict[UUID, float]] = {}
+        for item in disbursements:
+            if item.sppg_id is None:
+                continue
+            agreement_bucket = disbursement_share_by_agreement.setdefault(item.agreement_id, {})
+            agreement_bucket[item.sppg_id] = round(
+                agreement_bucket.get(item.sppg_id, 0.0) + float(item.amount or 0.0),
+                6,
+            )
+
+        financing_cost = 0.0
+        for repayment in repayments:
+            finance_amount = round(float(repayment.margin_amount or 0.0) + float(repayment.penalty_amount or 0.0), 6)
+            if finance_amount <= 0:
+                continue
+            sppg_amounts = disbursement_share_by_agreement.get(repayment.agreement_id, {})
+            total_disbursed = round(sum(sppg_amounts.values()), 6)
+            if total_disbursed <= 0:
+                continue
+            if sppg_id is not None:
+                allocated = round((sppg_amounts.get(sppg_id, 0.0) / total_disbursed) * finance_amount, 6)
+                financing_cost = round(financing_cost + allocated, 6)
+                continue
+            financing_cost = round(financing_cost + finance_amount, 6)
+
+        direct_service_cost = round(material_cost + labor_cost, 6)
+        total_expense = round(direct_service_cost + depreciation_cost + financing_cost, 6)
+        categories = [
+            {"category_code": "MATERIAL_COST", "category_name": "Biaya Bahan Produksi", "amount": material_cost},
+            {"category_code": "LABOR_COST", "category_name": "Biaya Tenaga Kerja", "amount": labor_cost},
+            {"category_code": "DEPRECIATION_EXPENSE", "category_name": "Beban Depresiasi", "amount": depreciation_cost},
+            {"category_code": "FINANCING_COST", "category_name": "Biaya Pendanaan", "amount": financing_cost},
+        ]
+
+        return {
+            "period": {
+                "start_date": str(period_start) if period_start else None,
+                "end_date": str(period_end) if period_end else None,
+            },
+            "scope": {
+                "tenant_id": str(tenant_id) if tenant_id else None,
+                "sppg_id": str(sppg_id) if sppg_id else None,
+            },
+            "revenue": {
+                "government_revenue": government_revenue,
+                "government_cash_received": government_cash_received,
+            },
+            "expenses": {
+                "direct_service_cost": direct_service_cost,
+                "operating_expense": depreciation_cost,
+                "financing_expense": financing_cost,
+                "total_expense": total_expense,
+                "categories": categories,
+            },
+            "totals": {
+                "gross_surplus": round(government_revenue - direct_service_cost, 6),
+                "net_surplus": round(government_revenue - total_expense, 6),
+            },
+        }
+
+    async def balance_sheet(self, as_of_date: date | None = None) -> dict:
+        tenant_id, sppg_id = self._get_scope()
+        if sppg_id is not None:
+            raise BadRequestException(
+                code="BALANCE_SHEET_SPPG_SCOPE_NOT_SUPPORTED",
+                message="Laporan neraca saat ini hanya mendukung scope tenant dan belum bisa difilter per SPPG.",
+            )
+
+        as_of = as_of_date or self._default_as_of_date()
+        account_query = select(Account).order_by(Account.code)
+        if tenant_id:
+            account_query = account_query.where(Account.tenant_id == tenant_id)
+        accounts = list((await self.session.execute(account_query)).scalars().all())
+
+        line_query = (
+            select(
+                JournalLine.account_id,
+                func.coalesce(
+                    func.sum(case((JournalLine.line_type == "DEBIT", JournalLine.amount), else_=0.0)),
+                    0.0,
+                ).label("debit_total"),
+                func.coalesce(
+                    func.sum(case((JournalLine.line_type == "CREDIT", JournalLine.amount), else_=0.0)),
+                    0.0,
+                ).label("credit_total"),
+            )
+            .select_from(JournalLine)
+            .join(JournalEntry, JournalEntry.id == JournalLine.journal_entry_id)
+            .where(JournalEntry.status == "POSTED")
+            .where(JournalEntry.entry_date <= as_of)
+            .group_by(JournalLine.account_id)
+        )
+        if tenant_id:
+            line_query = line_query.where(JournalEntry.tenant_id == tenant_id)
+        line_rows = (await self.session.execute(line_query)).all()
+        balance_by_account_id = {
+            row.account_id: {
+                "debit_total": round(float(row.debit_total or 0.0), 6),
+                "credit_total": round(float(row.credit_total or 0.0), 6),
+            }
+            for row in line_rows
+        }
+
+        asset_items: list[dict] = []
+        liability_items: list[dict] = []
+        equity_items: list[dict] = []
+        total_assets = 0.0
+        total_liabilities = 0.0
+        total_equity_accounts = 0.0
+        calculated_surplus = 0.0
+
+        for account in accounts:
+            totals = balance_by_account_id.get(account.id, {"debit_total": 0.0, "credit_total": 0.0})
+            debit_total = totals["debit_total"]
+            credit_total = totals["credit_total"]
+            net_debit = round(debit_total - credit_total, 6)
+            net_credit = round(credit_total - debit_total, 6)
+
+            if account.category == "ASSET":
+                amount = net_debit
+                if abs(amount) > 0:
+                    asset_items.append(
+                        {"account_code": account.code, "account_name": account.name, "category": account.category, "amount": round(amount, 6)}
+                    )
+                    total_assets = round(total_assets + amount, 6)
+            elif account.category == "ASSET_CONTRA":
+                amount = -net_credit
+                if abs(amount) > 0:
+                    asset_items.append(
+                        {"account_code": account.code, "account_name": account.name, "category": account.category, "amount": round(amount, 6)}
+                    )
+                    total_assets = round(total_assets + amount, 6)
+            elif account.category == "LIABILITY":
+                amount = net_credit
+                if abs(amount) > 0:
+                    liability_items.append(
+                        {"account_code": account.code, "account_name": account.name, "category": account.category, "amount": round(amount, 6)}
+                    )
+                    total_liabilities = round(total_liabilities + amount, 6)
+            elif account.category == "EQUITY":
+                amount = net_credit
+                if abs(amount) > 0:
+                    equity_items.append(
+                        {"account_code": account.code, "account_name": account.name, "category": account.category, "amount": round(amount, 6)}
+                    )
+                    total_equity_accounts = round(total_equity_accounts + amount, 6)
+            elif account.category == "INCOME":
+                calculated_surplus = round(calculated_surplus + net_credit, 6)
+            elif account.category in {"EXPENSE", "COST_OF_SERVICE"}:
+                calculated_surplus = round(calculated_surplus - net_debit, 6)
+
+        retained_earnings = round(total_assets - total_liabilities - total_equity_accounts, 6)
+        if abs(retained_earnings) > 0:
+            equity_items.append(
+                {
+                    "account_code": "RETAINED_EARNINGS",
+                    "account_name": "Surplus Ditahan",
+                    "category": "EQUITY",
+                    "amount": round(retained_earnings, 6),
+                }
+            )
+        total_equity = round(total_equity_accounts + retained_earnings, 6)
+
+        return {
+            "as_of_date": str(as_of),
+            "scope": {"tenant_id": str(tenant_id) if tenant_id else None, "sppg_id": None},
+            "assets": {"items": asset_items, "total_assets": round(total_assets, 6)},
+            "liabilities": {"items": liability_items, "total_liabilities": round(total_liabilities, 6)},
+            "equity": {
+                "items": equity_items,
+                "total_equity": round(total_equity, 6),
+                "calculated_surplus": round(calculated_surplus, 6),
+            },
+            "totals": {
+                "total_assets": round(total_assets, 6),
+                "total_liabilities": round(total_liabilities, 6),
+                "total_equity": round(total_equity, 6),
+                "total_liabilities_and_equity": round(total_liabilities + total_equity, 6),
+                "is_balanced": round(total_assets, 6) == round(total_liabilities + total_equity, 6),
+            },
         }
 
     async def government_receivable_aging(self, as_of_date: date | None = None) -> dict:
@@ -638,6 +891,8 @@ class ReportingService:
     async def finance_dashboard(self, as_of_date: date | None = None) -> dict:
         as_of = as_of_date or self._default_as_of_date()
         cash_flow = await self.cash_flow(period_end=as_of)
+        profit_loss = await self.profit_loss(period_end=as_of)
+        balance_sheet = await self.balance_sheet(as_of_date=as_of)
         receivables = await self.government_receivable_aging(as_of)
         funding = await self.investor_funding_position(as_of)
         roi = await self.roi_by_sppg(period_end=as_of)
@@ -655,6 +910,18 @@ class ReportingService:
                 "agreements": funding["totals"]["agreements"],
                 "outstanding_principal": funding["totals"]["outstanding_principal"],
                 "realized_margin": funding["totals"]["realized_margin"],
+            },
+            "profit_loss": {
+                "government_revenue": profit_loss["revenue"]["government_revenue"],
+                "government_cash_received": profit_loss["revenue"]["government_cash_received"],
+                "gross_surplus": profit_loss["totals"]["gross_surplus"],
+                "net_surplus": profit_loss["totals"]["net_surplus"],
+            },
+            "balance_sheet": {
+                "total_assets": balance_sheet["totals"]["total_assets"],
+                "total_liabilities": balance_sheet["totals"]["total_liabilities"],
+                "total_equity": balance_sheet["totals"]["total_equity"],
+                "is_balanced": balance_sheet["totals"]["is_balanced"],
             },
             "profitability": {
                 "sppg_count": roi["totals"]["sppg_count"],

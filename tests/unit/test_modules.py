@@ -1422,6 +1422,14 @@ def test_reporting_endpoints_work() -> None:
             "/api/v1/reporting/finance/cash-flow?period_start=2026-07-01&period_end=2026-07-31",
             headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
         )
+        profit_loss_response = client.get(
+            "/api/v1/reporting/finance/profit-loss?period_start=2026-07-01&period_end=2026-07-31",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
+        )
+        balance_sheet_response = client.get(
+            "/api/v1/reporting/finance/balance-sheet?as_of_date=2026-07-20",
+            headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id},
+        )
         aging_response = client.get(
             "/api/v1/reporting/finance/government-receivable-aging?as_of_date=2026-07-19",
             headers={"Authorization": f"Bearer {access_token}", "X-Tenant-ID": tenant_id, "X-SPPG-ID": sppg_id},
@@ -1467,6 +1475,24 @@ def test_reporting_endpoints_work() -> None:
     assert "totals" in cash_flow_response.json()["data"]
     assert "breakdown" in cash_flow_response.json()["data"]
 
+    assert profit_loss_response.status_code == 200, profit_loss_response.json()
+    profit_loss_payload = profit_loss_response.json()["data"]
+    assert "revenue" in profit_loss_payload
+    assert "expenses" in profit_loss_payload
+    assert "totals" in profit_loss_payload
+    assert profit_loss_payload["scope"]["sppg_id"] == sppg_id
+    assert any(item["category_code"] == "MATERIAL_COST" for item in profit_loss_payload["expenses"]["categories"])
+    assert any(item["category_code"] == "LABOR_COST" for item in profit_loss_payload["expenses"]["categories"])
+
+    assert balance_sheet_response.status_code == 200, balance_sheet_response.json()
+    balance_sheet_payload = balance_sheet_response.json()["data"]
+    assert "assets" in balance_sheet_payload
+    assert "liabilities" in balance_sheet_payload
+    assert "equity" in balance_sheet_payload
+    assert "totals" in balance_sheet_payload
+    assert balance_sheet_payload["totals"]["is_balanced"] is True
+    assert balance_sheet_payload["totals"]["total_assets"] == balance_sheet_payload["totals"]["total_liabilities_and_equity"]
+
     assert aging_response.status_code == 200, aging_response.json()
     assert "buckets" in aging_response.json()["data"]
     assert "items" in aging_response.json()["data"]
@@ -1484,8 +1510,12 @@ def test_reporting_endpoints_work() -> None:
     assert "cash_flow" in finance_payload
     assert "government_receivables" in finance_payload
     assert "investor_funding" in finance_payload
+    assert "profit_loss" in finance_payload
+    assert "balance_sheet" in finance_payload
     assert "profitability" in finance_payload
     assert "accounting" in finance_payload
+    assert "net_surplus" in finance_payload["profit_loss"]
+    assert finance_payload["balance_sheet"]["is_balanced"] is True
 
 
 def test_platform_background_jobs_read_models_and_outbox_work() -> None:

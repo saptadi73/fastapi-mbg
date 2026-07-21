@@ -430,6 +430,8 @@ Tujuan:
 Widget utama:
 
 - cash flow
+- profit loss
+- balance sheet
 - government receivable aging
 - investor funding position
 - ROI by SPPG
@@ -439,6 +441,9 @@ Catatan demo frontend:
 
 - seed demo finansial sudah mengisi aging, funding position, ROI, dan cash flow dengan referensi tanggal `2026-07-20`
 - untuk screen demo, default filter paling aman adalah `as_of_date=2026-07-20` dan periode Juli 2026
+- halaman `Laba Rugi` sebaiknya memakai `GET /api/v1/reporting/finance/profit-loss` dengan filter `period_start`, `period_end`, dan opsional `X-SPPG-ID`
+- halaman `Neraca` sebaiknya memakai `GET /api/v1/reporting/finance/balance-sheet` dengan `as_of_date`; saat ini jangan kirim `X-SPPG-ID`
+- `Finance Dashboard` bisa memakai `GET /api/v1/reporting/dashboard/finance` untuk kartu ringkas, lalu halaman detail tetap memanggil endpoint `profit-loss` dan `balance-sheet`
 
 ## 8. Workflow Umum Antar Modul
 

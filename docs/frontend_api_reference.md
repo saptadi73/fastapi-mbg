@@ -245,16 +245,18 @@ Aturan praktis:
 126. `GET /api/v1/reporting/delivery-performance`
 127. `GET /api/v1/reporting/budget-summary`
 128. `GET /api/v1/reporting/finance/cash-flow`
-129. `GET /api/v1/reporting/finance/government-receivable-aging`
-130. `GET /api/v1/reporting/finance/investor-funding-position`
-131. `GET /api/v1/reporting/finance/roi-by-sppg`
-132. `GET /api/v1/integration/external-systems`
-133. `GET /api/v1/integration/external-systems/{external_system_id}`
-134. `POST /api/v1/integration/external-systems`
-135. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
-136. `GET /api/v1/integration/webhook-subscriptions`
-137. `POST /api/v1/integration/webhook-subscriptions`
-138. `POST /api/v1/integration/webhook-subscriptions/{subscription_id}/receive`
+129. `GET /api/v1/reporting/finance/profit-loss`
+130. `GET /api/v1/reporting/finance/balance-sheet`
+131. `GET /api/v1/reporting/finance/government-receivable-aging`
+132. `GET /api/v1/reporting/finance/investor-funding-position`
+133. `GET /api/v1/reporting/finance/roi-by-sppg`
+134. `GET /api/v1/integration/external-systems`
+135. `GET /api/v1/integration/external-systems/{external_system_id}`
+136. `POST /api/v1/integration/external-systems`
+137. `POST /api/v1/integration/external-systems/{external_system_id}/credentials`
+138. `GET /api/v1/integration/webhook-subscriptions`
+139. `POST /api/v1/integration/webhook-subscriptions`
+140. `POST /api/v1/integration/webhook-subscriptions/{subscription_id}/receive`
 139. `GET /api/v1/integration/data-mappings`
 140. `POST /api/v1/integration/data-mappings`
 141. `GET /api/v1/integration/sync-jobs`
@@ -3097,6 +3099,8 @@ Mengembalikan dashboard finance gabungan untuk kebutuhan CFO/finance manager:
 - cash flow agregat
 - outstanding government receivable
 - posisi pendanaan investor
+- ringkasan laba rugi seperti `government_revenue`, `government_cash_received`, `gross_surplus`, dan `net_surplus`
+- ringkasan neraca seperti `total_assets`, `total_liabilities`, `total_equity`, dan `is_balanced`
 - profitabilitas dan ROI rata-rata SPPG
 - jumlah jurnal posted
 
@@ -3162,6 +3166,156 @@ Contoh struktur `data`:
   ]
 }
 ```
+
+`GET /api/v1/reporting/finance/profit-loss`
+
+Mengembalikan laporan finance yang benar-benar berorientasi `Laba Rugi`.
+
+Komponen utama:
+
+- `revenue.government_revenue`
+- `revenue.government_cash_received`
+- `expenses.categories`
+- `totals.gross_surplus`
+- `totals.net_surplus`
+
+Query opsional:
+
+- `period_start=2026-07-01`
+- `period_end=2026-07-31`
+
+Filter scope frontend:
+
+- kirim `X-Tenant-ID` untuk tenant aktif
+- kirim `X-SPPG-ID` bila halaman dibatasi ke satu dapur/SPPG
+
+Contoh struktur `data`:
+
+```json
+{
+  "period": {
+    "start_date": "2026-07-01",
+    "end_date": "2026-07-31"
+  },
+  "scope": {
+    "tenant_id": "tenant-uuid",
+    "sppg_id": "sppg-uuid"
+  },
+  "revenue": {
+    "government_revenue": 4740000,
+    "government_cash_received": 1500000
+  },
+  "expenses": {
+    "direct_service_cost": 2250000,
+    "operating_expense": 125000,
+    "financing_expense": 0,
+    "total_expense": 2375000,
+    "categories": [
+      {
+        "category_code": "MATERIAL_COST",
+        "category_name": "Biaya Bahan Produksi",
+        "amount": 1800000
+      },
+      {
+        "category_code": "LABOR_COST",
+        "category_name": "Biaya Tenaga Kerja",
+        "amount": 450000
+      }
+    ]
+  },
+  "totals": {
+    "gross_surplus": 2490000,
+    "net_surplus": 2365000
+  }
+}
+```
+
+Catatan frontend:
+
+- halaman report finance bisa memakai endpoint ini sebagai sumber utama tabel/summary `Laba Rugi`
+- `gross_surplus` saat ini dihitung dari revenue dikurangi biaya langsung layanan
+- `net_surplus` saat ini dihitung dari revenue dikurangi seluruh kategori expense yang tersedia di backend
+- kategori expense saat ini meliputi material produksi, labor, depresiasi, dan biaya pendanaan
+
+`GET /api/v1/reporting/finance/balance-sheet`
+
+Mengembalikan laporan posisi keuangan `Neraca` per tanggal tertentu.
+
+Komponen utama:
+
+- `assets.items`
+- `liabilities.items`
+- `equity.items`
+- `totals.total_assets`
+- `totals.total_liabilities_and_equity`
+- `totals.is_balanced`
+
+Query opsional:
+
+- `as_of_date=2026-07-20`
+
+Filter scope frontend:
+
+- kirim `X-Tenant-ID`
+- jangan kirim `X-SPPG-ID` untuk endpoint ini, karena saat ini neraca baru mendukung scope tenant
+
+Contoh struktur `data`:
+
+```json
+{
+  "as_of_date": "2026-07-20",
+  "scope": {
+    "tenant_id": "tenant-uuid",
+    "sppg_id": null
+  },
+  "assets": {
+    "items": [
+      {
+        "account_code": "110000",
+        "account_name": "Kas dan Bank",
+        "category": "ASSET",
+        "amount": 12500000
+      }
+    ],
+    "total_assets": 22750000
+  },
+  "liabilities": {
+    "items": [
+      {
+        "account_code": "230500",
+        "account_name": "Utang Pendanaan Investor",
+        "category": "LIABILITY",
+        "amount": 9000000
+      }
+    ],
+    "total_liabilities": 9000000
+  },
+  "equity": {
+    "items": [
+      {
+        "account_code": "RETAINED_EARNINGS",
+        "account_name": "Surplus Ditahan",
+        "category": "EQUITY",
+        "amount": 13750000
+      }
+    ],
+    "total_equity": 13750000,
+    "calculated_surplus": 12000000
+  },
+  "totals": {
+    "total_assets": 22750000,
+    "total_liabilities": 9000000,
+    "total_equity": 13750000,
+    "total_liabilities_and_equity": 22750000,
+    "is_balanced": true
+  }
+}
+```
+
+Catatan frontend:
+
+- endpoint ini cocok untuk halaman `Neraca` atau tab posisi keuangan pada report finance
+- `calculated_surplus` bisa dipakai sebagai referensi analitik, sementara `RETAINED_EARNINGS` pada equity adalah balancing figure yang dipakai untuk penyajian neraca saat ini
 
 `GET /api/v1/reporting/finance/government-receivable-aging`
 

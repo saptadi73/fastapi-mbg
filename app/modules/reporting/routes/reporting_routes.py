@@ -5,12 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.session import get_db_session
 from app.modules.reporting.schemas.reporting_schema import (
+    BalanceSheetRead,
     BudgetSummaryRead,
     CashFlowRead,
     DeliveryPerformanceRead,
     FinanceDashboardRead,
     GovernmentReceivableAgingRead,
     InvestorFundingPositionRead,
+    ProfitLossRead,
     RoiBySppgRead,
     SppgDashboardRead,
     StockSummaryRead,
@@ -94,6 +96,37 @@ async def get_cash_flow(
         message="Laporan cash flow berhasil diambil.",
         data=CashFlowRead.model_validate(payload),
         meta={"request_id": request.state.request_id, "total": len(payload["breakdown"])},
+    )
+
+
+@router.get("/finance/profit-loss")
+async def get_profit_loss(
+    request: Request,
+    period_start: date | None = None,
+    period_end: date | None = None,
+    service: ReportingService = Depends(get_reporting_service),
+) -> dict:
+    payload = await service.profit_loss(period_start=period_start, period_end=period_end)
+    return success_response(
+        code="REPORTING_PROFIT_LOSS_FOUND",
+        message="Laporan laba rugi berhasil diambil.",
+        data=ProfitLossRead.model_validate(payload),
+        meta={"request_id": request.state.request_id, "total": len(payload["expenses"]["categories"])},
+    )
+
+
+@router.get("/finance/balance-sheet")
+async def get_balance_sheet(
+    request: Request,
+    as_of_date: date | None = None,
+    service: ReportingService = Depends(get_reporting_service),
+) -> dict:
+    payload = await service.balance_sheet(as_of_date=as_of_date)
+    return success_response(
+        code="REPORTING_BALANCE_SHEET_FOUND",
+        message="Laporan neraca berhasil diambil.",
+        data=BalanceSheetRead.model_validate(payload),
+        meta={"request_id": request.state.request_id},
     )
 
 

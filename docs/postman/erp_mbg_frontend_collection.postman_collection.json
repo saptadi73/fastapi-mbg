@@ -655,6 +655,113 @@
         },
         { "name": "Get Budget Availability", "request": { "method": "GET", "header": [], "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/availability" } }
       ]
+    },
+    {
+      "name": "Reporting",
+      "item": [
+        {
+          "name": "Tenant Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/dashboard/tenant"
+          }
+        },
+        {
+          "name": "SPPG Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" },
+              { "key": "X-SPPG-ID", "value": "{{sppg_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/dashboard/sppg"
+          }
+        },
+        {
+          "name": "Finance Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/dashboard/finance?as_of_date=2026-07-20"
+          }
+        },
+        {
+          "name": "Cash Flow",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/finance/cash-flow?period_start=2026-07-01&period_end=2026-07-31"
+          }
+        },
+        {
+          "name": "Profit Loss",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" },
+              { "key": "X-SPPG-ID", "value": "{{sppg_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/finance/profit-loss?period_start=2026-07-01&period_end=2026-07-31"
+          }
+        },
+        {
+          "name": "Balance Sheet",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/finance/balance-sheet?as_of_date=2026-07-20"
+          }
+        },
+        {
+          "name": "Government Receivable Aging",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" },
+              { "key": "X-SPPG-ID", "value": "{{sppg_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/finance/government-receivable-aging?as_of_date=2026-07-20"
+          }
+        },
+        {
+          "name": "Investor Funding Position",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/finance/investor-funding-position?as_of_date=2026-07-20"
+          }
+        },
+        {
+          "name": "ROI By SPPG",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Tenant-ID", "value": "{{tenant_id}}" }
+            ],
+            "url": "{{base_url}}/api/v1/reporting/finance/roi-by-sppg?period_start=2026-07-01&period_end=2026-07-31"
+          }
+        }
+      ]
     }
   ]
 }

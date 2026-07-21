@@ -38,6 +38,23 @@ class CashFlowRead(BaseModel):
     breakdown: list[dict]
 
 
+class ProfitLossRead(BaseModel):
+    period: dict
+    scope: dict
+    revenue: dict
+    expenses: dict
+    totals: dict
+
+
+class BalanceSheetRead(BaseModel):
+    as_of_date: str
+    scope: dict
+    assets: dict
+    liabilities: dict
+    equity: dict
+    totals: dict
+
+
 class GovernmentReceivableAgingRead(BaseModel):
     as_of_date: str
     totals: dict
@@ -62,5 +79,7 @@ class FinanceDashboardRead(BaseModel):
     cash_flow: dict
     government_receivables: dict
     investor_funding: dict
+    profit_loss: dict
+    balance_sheet: dict
     profitability: dict
     accounting: dict
