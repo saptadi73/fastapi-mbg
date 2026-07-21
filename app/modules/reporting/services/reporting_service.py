@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import case, func, select
@@ -57,7 +57,7 @@ class ReportingService:
 
     @staticmethod
     def _default_as_of_date() -> date:
-        return datetime.now(UTC).date()
+        return datetime.now(timezone.utc).date()
 
     @staticmethod
     def _bucket_days(days: int) -> str:

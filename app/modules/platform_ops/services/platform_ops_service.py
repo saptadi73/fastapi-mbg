@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import extract, func, select
@@ -78,7 +78,7 @@ class PlatformOpsService:
 
     async def refresh_daily_kitchen_operation_summary(self, summary_date: date | None = None) -> list[DailyKitchenOperationSummary]:
         tenant_id, sppg_scope = self._get_scope()
-        target_date = summary_date or datetime.now(UTC).date()
+        target_date = summary_date or datetime.now(timezone.utc).date()
 
         meal_rows = (
             await self.session.execute(
@@ -179,7 +179,7 @@ class PlatformOpsService:
 
     async def refresh_monthly_budget_realization_summary(self, period_month: date | None = None) -> list[MonthlyBudgetRealizationSummary]:
         tenant_id, _ = self._get_scope()
-        target_month = (period_month or datetime.now(UTC).date().replace(day=1)).replace(day=1)
+        target_month = (period_month or datetime.now(timezone.utc).date().replace(day=1)).replace(day=1)
         rows = (
             await self.session.execute(
                 select(
