@@ -173,14 +173,14 @@ Kode fleet demo yang aman dipakai frontend:
 | `POST` | `/api/v1/fleet/vehicle-types` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat tipe kendaraan |
 | `GET` | `/api/v1/fleet/vehicle-locations/live` | No | - | Posisi terbaru seluruh armada untuk map |
 | `GET` | `/api/v1/fleet/vehicles` | No | - | List kendaraan |
-| `GET` | `/api/v1/fleet/vehicles/{vehicle_id}` | No | - | Detail kendaraan, assignment, maintenance |
+| `GET` | `/api/v1/fleet/vehicles/{vehicle_id}` | No | - | Detail kendaraan, assignment, maintenance, termasuk `driver_name` pada assignment |
 | `GET` | `/api/v1/fleet/vehicles/{vehicle_id}/locations` | No | - | Histori GPS kendaraan |
 | `POST` | `/api/v1/fleet/vehicles` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat kendaraan |
 | `POST` | `/api/v1/fleet/vehicles/{vehicle_id}/locations` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Catat/update lokasi GPS kendaraan |
 | `GET` | `/api/v1/fleet/drivers` | No | - | List driver |
 | `POST` | `/api/v1/fleet/drivers` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat driver |
-| `GET` | `/api/v1/fleet/assignments` | No | - | List assignment kendaraan |
-| `POST` | `/api/v1/fleet/vehicles/{vehicle_id}/assignments` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Assign kendaraan ke SPPG/driver |
+| `GET` | `/api/v1/fleet/assignments` | No | - | List assignment kendaraan, termasuk `driver_name` |
+| `POST` | `/api/v1/fleet/vehicles/{vehicle_id}/assignments` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Assign kendaraan ke SPPG/driver dan response mengandung `driver_name` |
 | `GET` | `/api/v1/fleet/maintenances` | No | - | List maintenance kendaraan |
 | `POST` | `/api/v1/fleet/vehicles/{vehicle_id}/maintenances` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Catat maintenance kendaraan |
 | `GET` | `/api/v1/feedback/submissions` | No | - | List feedback submission |

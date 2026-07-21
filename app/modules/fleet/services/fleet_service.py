@@ -69,15 +69,55 @@ class FleetService:
             )
         )
 
-    async def list_vehicles(self) -> list[Vehicle]:
+    async def list_vehicles(self) -> list[dict]:
         tenant_id, sppg_id = self._get_scope()
-        return await self.repository.list_vehicles(tenant_id=tenant_id, sppg_id=sppg_id)
+        vehicles = await self.repository.list_vehicles(tenant_id=tenant_id, sppg_id=sppg_id)
+        if not vehicles:
+            return []
+
+        assignments = await self.repository.list_assignments(tenant_id=tenant_id, sppg_id=sppg_id)
+        drivers = await self.repository.list_drivers(tenant_id=tenant_id)
+
+        assignment_by_vehicle_id: dict[UUID, VehicleAssignment] = {}
+        for assignment in assignments:
+            if assignment.vehicle_id not in assignment_by_vehicle_id:
+                assignment_by_vehicle_id[assignment.vehicle_id] = assignment
+
+        driver_name_by_id = {driver.id: driver.full_name for driver in drivers}
+
+        return [
+            {
+                "id": vehicle.id,
+                "tenant_id": vehicle.tenant_id,
+                "home_sppg_id": vehicle.home_sppg_id,
+                "vehicle_type_id": vehicle.vehicle_type_id,
+                "vehicle_code": vehicle.vehicle_code,
+                "plate_number": vehicle.plate_number,
+                "ownership_status": vehicle.ownership_status,
+                "brand_name": vehicle.brand_name,
+                "model_name": vehicle.model_name,
+                "manufacture_year": vehicle.manufacture_year,
+                "capacity_portions": vehicle.capacity_portions,
+                "fuel_type": vehicle.fuel_type,
+                "driver_id": assignment_by_vehicle_id.get(vehicle.id).driver_id if assignment_by_vehicle_id.get(vehicle.id) else None,
+                "driver_name": driver_name_by_id.get(assignment_by_vehicle_id[vehicle.id].driver_id)
+                if vehicle.id in assignment_by_vehicle_id and assignment_by_vehicle_id[vehicle.id].driver_id is not None
+                else None,
+                "assignment_role": assignment_by_vehicle_id.get(vehicle.id).assignment_role if assignment_by_vehicle_id.get(vehicle.id) else None,
+                "status": vehicle.status,
+                "is_active": vehicle.is_active,
+                "notes": vehicle.notes,
+            }
+            for vehicle in vehicles
+        ]
 
     async def get_vehicle_bundle(self, vehicle_id: UUID) -> dict:
         tenant_id, sppg_id = self._get_scope()
         vehicle = await self.repository.get_vehicle_by_id_and_scope(vehicle_id, tenant_id=tenant_id, sppg_id=sppg_id)
         if vehicle is None:
             raise NotFoundException(code="VEHICLE_NOT_FOUND", message="Vehicle tidak ditemukan.")
+        assignments = await self.repository.list_assignments_by_vehicle(vehicle.id)
+        drivers = await self.repository.list_drivers(tenant_id=tenant_id)
         recent_locations = await self.repository.list_vehicle_locations(
             tenant_id=tenant_id,
             sppg_id=sppg_id,
@@ -86,7 +126,7 @@ class FleetService:
         )
         return {
             "vehicle": vehicle,
-            "assignments": await self.repository.list_assignments_by_vehicle(vehicle.id),
+            "assignments": self._serialize_assignments(assignments, drivers),
             "maintenances": await self.repository.list_maintenances_by_vehicle(vehicle.id),
             "current_location": recent_locations[0] if recent_locations else None,
             "recent_locations": recent_locations,
@@ -161,9 +201,11 @@ class FleetService:
             )
         )
 
-    async def list_assignments(self) -> list[VehicleAssignment]:
+    async def list_assignments(self) -> list[dict]:
         tenant_id, sppg_id = self._get_scope()
-        return await self.repository.list_assignments(tenant_id=tenant_id, sppg_id=sppg_id)
+        assignments = await self.repository.list_assignments(tenant_id=tenant_id, sppg_id=sppg_id)
+        drivers = await self.repository.list_drivers(tenant_id=tenant_id)
+        return self._serialize_assignments(assignments, drivers)
 
     async def assign_vehicle(self, vehicle_id: UUID, payload) -> VehicleAssignment:
         vehicle = await self.repository.get_vehicle_by_id(vehicle_id)
@@ -196,6 +238,26 @@ class FleetService:
                 notes=payload.notes,
             )
         )
+
+    def _serialize_assignments(self, assignments: list[VehicleAssignment], drivers: list[Driver]) -> list[dict]:
+        driver_name_by_id = {driver.id: driver.full_name for driver in drivers}
+        return [
+            {
+                "id": assignment.id,
+                "tenant_id": assignment.tenant_id,
+                "sppg_id": assignment.sppg_id,
+                "vehicle_id": assignment.vehicle_id,
+                "driver_id": assignment.driver_id,
+                "driver_name": driver_name_by_id.get(assignment.driver_id),
+                "assignment_date": assignment.assignment_date,
+                "end_date": assignment.end_date,
+                "assignment_role": assignment.assignment_role,
+                "status": assignment.status,
+                "is_active": assignment.is_active,
+                "notes": assignment.notes,
+            }
+            for assignment in assignments
+        ]
 
     async def list_maintenances(self) -> list[VehicleMaintenance]:
         tenant_id, sppg_id = self._get_scope()

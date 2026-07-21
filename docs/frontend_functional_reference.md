@@ -826,6 +826,7 @@ tab:
 #### Fleet UX Notes
 
 - vehicle detail sebaiknya menampilkan current GPS, histori ping terbaru, dan status pergerakan
+- relasi mobil-driver sebaiknya membaca `driver_name` langsung dari data assignment/detail vehicle agar nama driver tetap tampil walau frontend belum preload master driver
 - fleet map perlu marker berbeda untuk status `LOADING`, `IN_TRANSIT`, `ARRIVED`, dan `MAINTENANCE`
 - dispatch board sebaiknya bisa filter per SPPG, status armada, dan waktu update terakhir
 

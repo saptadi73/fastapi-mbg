@@ -4432,6 +4432,8 @@ def test_fleet_vehicle_driver_assignment_and_maintenance_flow_works() -> None:
     detail_payload = vehicle_detail_response.json()["data"]
     assert detail_payload["vehicle"]["id"] == vehicle_id
     assert len(detail_payload["assignments"]) == 1
+    assert detail_payload["assignments"][0]["driver_id"] == driver_id
+    assert detail_payload["assignments"][0]["driver_name"] == "Agus Driver Test"
     assert len(detail_payload["maintenances"]) == 1
     assert detail_payload["current_location"]["vehicle_id"] == vehicle_id
     assert len(detail_payload["recent_locations"]) == 1
@@ -4445,7 +4447,12 @@ def test_fleet_vehicle_driver_assignment_and_maintenance_flow_works() -> None:
     assert driver_list_response.status_code == 200
     assert any(item["id"] == driver_id for item in driver_list_response.json()["data"])
     assert assignment_list_response.status_code == 200
-    assert any(item["vehicle_id"] == vehicle_id for item in assignment_list_response.json()["data"])
+    assert any(
+        item["vehicle_id"] == vehicle_id
+        and item["driver_id"] == driver_id
+        and item["driver_name"] == "Agus Driver Test"
+        for item in assignment_list_response.json()["data"]
+    )
     assert maintenance_list_response.status_code == 200
     assert any(item["vehicle_id"] == vehicle_id for item in maintenance_list_response.json()["data"])
 

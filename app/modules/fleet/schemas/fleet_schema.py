@@ -118,6 +118,12 @@ class VehicleRead(BaseModel):
     notes: str | None
 
 
+class VehicleListRead(VehicleRead):
+    driver_id: UUID | None = None
+    driver_name: str | None = None
+    assignment_role: str | None = None
+
+
 class DriverRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -142,6 +148,7 @@ class VehicleAssignmentRead(BaseModel):
     sppg_id: UUID
     vehicle_id: UUID
     driver_id: UUID | None
+    driver_name: str | None = None
     assignment_date: date
     end_date: date | None
     assignment_role: str

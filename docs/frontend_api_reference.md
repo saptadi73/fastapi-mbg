@@ -2102,6 +2102,11 @@ Mengembalikan bundle:
 - `current_location`
 - `recent_locations`
 
+Catatan frontend:
+
+- setiap item pada `assignments` sekarang menyertakan `driver_id` dan `driver_name`
+- field `driver_name` bisa langsung dipakai di vehicle detail, assignment history, dan relasi mobil-driver tanpa lookup tambahan ke endpoint driver
+
 `GET /api/v1/fleet/vehicles/{vehicle_id}/locations`
 
 Mengambil histori GPS kendaraan. Query opsional:
@@ -2193,9 +2198,22 @@ Mengambil daftar assignment kendaraan ke SPPG.
 
 Untuk demo lokal, assignment paling representatif ada pada tanggal `2026-07-20`.
 
+Field penting:
+
+- `vehicle_id`
+- `driver_id`
+- `driver_name`
+- `assignment_date`
+- `assignment_role`
+- `status`
+
 `POST /api/v1/fleet/vehicles/{vehicle_id}/assignments`
 
 Menugaskan kendaraan ke SPPG dan opsional ke driver.
+
+Response frontend-friendly:
+
+- object assignment yang dikembalikan setelah create sekarang juga menyertakan `driver_name` bila `driver_id` terisi
 
 Payload:
 

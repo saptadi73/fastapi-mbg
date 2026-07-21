@@ -15,6 +15,7 @@ from app.modules.fleet.schemas.fleet_schema import (
     VehicleAssignmentRead,
     VehicleBundleRead,
     VehicleCreate,
+    VehicleListRead,
     VehicleLocationCreate,
     VehicleLocationMapRead,
     VehicleLocationRead,
@@ -89,7 +90,7 @@ async def create_vehicle_type(
 
 @router.get("/vehicles")
 async def list_vehicles(request: Request, service: FleetService = Depends(get_fleet_service)) -> dict:
-    items = [VehicleRead.model_validate(item) for item in await service.list_vehicles()]
+    items = [VehicleListRead.model_validate(item) for item in await service.list_vehicles()]
     return success_response(
         code="VEHICLE_LIST_FOUND",
         message="Daftar vehicle berhasil diambil.",
@@ -215,6 +216,10 @@ async def assign_vehicle(
 ) -> dict:
     service = get_fleet_service(session)
     assignment = await service.assign_vehicle(vehicle_id, payload)
+    driver_name = None
+    if assignment.driver_id is not None:
+        driver = await service.repository.get_driver_by_id(assignment.driver_id)
+        driver_name = driver.full_name if driver is not None else None
     await get_audit_service(session).record_event(
         event_type="FLEET",
         module_name="fleet",
@@ -233,7 +238,22 @@ async def assign_vehicle(
     return success_response(
         code="VEHICLE_ASSIGNED",
         message="Assignment vehicle berhasil dibuat.",
-        data=VehicleAssignmentRead.model_validate(assignment),
+        data=VehicleAssignmentRead.model_validate(
+            {
+                "id": assignment.id,
+                "tenant_id": assignment.tenant_id,
+                "sppg_id": assignment.sppg_id,
+                "vehicle_id": assignment.vehicle_id,
+                "driver_id": assignment.driver_id,
+                "driver_name": driver_name,
+                "assignment_date": assignment.assignment_date,
+                "end_date": assignment.end_date,
+                "assignment_role": assignment.assignment_role,
+                "status": assignment.status,
+                "is_active": assignment.is_active,
+                "notes": assignment.notes,
+            }
+        ),
         meta={"request_id": request.state.request_id},
     )
 
