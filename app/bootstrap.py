@@ -42,7 +42,6 @@ from app.modules.uom.manifest import manifest as uom_manifest
 from app.modules.workflow.manifest import manifest as workflow_manifest
 from app.modules.workforce.manifest import manifest as workforce_manifest
 from app.support.exceptions.handlers import register_exception_handlers
-from app.support.middleware.cors import register_cors
 from app.support.middleware.request_id import register_request_id
 from app.support.middleware.timing import register_timing_middleware
 from app.support.openapi import register_openapi
@@ -117,7 +116,6 @@ def create_app() -> FastAPI:
     register_request_id(app)
     register_timing_middleware(app)
     app.add_middleware(TenantContextMiddleware)
-    register_cors(app, settings)
     register_exception_handlers(app)
     register_modules(app)
     register_openapi(app)
